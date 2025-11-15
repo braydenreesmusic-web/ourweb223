@@ -1,23 +1,14 @@
-// Import the functions you need from the SDKs you need
+// ------------------- IMPORT FIREBASE -------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
+  getStorage, ref, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// ------------------- FIREBASE CONFIG -------------------
 const firebaseConfig = {
   apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
   authDomain: "ourwebsite223.firebaseapp.com",
@@ -28,63 +19,56 @@ const firebaseConfig = {
   measurementId: "G-823MYFCCMG"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// ------------------- DOM LOADED -------------------
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM loaded! Initializing app..."); // Debug: Check if this logs
+  console.log("App initialized!");
 
-  // ----------------- SECTION NAVIGATION -----------------
+  // ------------------- NAVIGATION -------------------
   const sections = document.querySelectorAll(".section");
   const navButtons = document.querySelectorAll("nav button");
 
-  console.log(`Found ${sections.length} sections and ${navButtons.length} buttons`); // Debug
-
   function showSection(id) {
-    console.log(`Switching to section: ${id}`); // Debug
     sections.forEach(s => s.classList.remove("active"));
     const section = document.getElementById(id);
-    if(section) section.classList.add("active");
+    if (section) section.classList.add("active");
+
     navButtons.forEach(btn => btn.classList.remove("active"));
     const activeBtn = Array.from(navButtons).find(btn => btn.dataset.section === id);
-    if(activeBtn) activeBtn.classList.add("active");
+    if (activeBtn) activeBtn.classList.add("active");
   }
+
+  navButtons.forEach(btn => {
+    btn.addEventListener("click", () => showSection(btn.dataset.section));
+  });
 
   // Show default section
   showSection("photos");
 
-  // Add click listeners to nav buttons
-  navButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      console.log(`Button clicked: ${btn.dataset.section}`); // Debug
-      const target = btn.dataset.section;
-      showSection(target);
-    });
-  });
+  // ------------------- FIRESTORE COLLECTIONS -------------------
+  const collections = {
+    photos: collection(db, "photos"),
+    videos: collection(db, "videos"),
+    music: collection(db, "music"),
+    notes: collection(db, "notes"),
+    timeline: collection(db, "timeline")
+  };
 
-  console.log("Navigation listeners attached!"); // Debug
-
-  // ----------------- COLLECTIONS -----------------
-  const photosCollection = collection(db, "photos");
-  const videosCollection = collection(db, "videos");
-  const musicCollection = collection(db, "music");
-  const notesCollection = collection(db, "notes");
-  const timelineCollection = collection(db, "timeline");
-
-  // ----------------- TIMELINE -----------------
-  const timelineList = document.getElementById("timelineList");
   function addToTimeline(action) {
-    addDoc(timelineCollection, { action, timestamp: new Date() });
+    addDoc(collections.timeline, { action, timestamp: new Date() });
   }
 
+  // ------------------- TIMELINE -------------------
+  const timelineList = document.getElementById("timelineList");
   function renderTimeline() {
-    const q = query(timelineCollection, orderBy("timestamp", "desc"));
-    onSnapshot(q, (snapshot) => {
+    const q = query(collections.timeline, orderBy("timestamp", "desc"));
+    onSnapshot(q, snapshot => {
       timelineList.innerHTML = "";
-      snapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
         const div = document.createElement("div");
         div.className = "timelineItem";
@@ -94,17 +78,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ----------------- PHOTOS -----------------
+  // ------------------- PHOTOS -------------------
   const photoInput = document.getElementById("photoInput");
   const photoGallery = document.getElementById("photoGallery");
 
-  const photosQ = query(photosCollection, orderBy("timestamp", "desc"));
-  onSnapshot(photosQ, (snapshot) => {
+  const photosQuery = query(collections.photos, orderBy("timestamp", "desc"));
+  onSnapshot(photosQuery, snapshot => {
     photoGallery.innerHTML = "";
-    snapshot.forEach((doc) => {
-      const data = doc.data();
+    snapshot.forEach(doc => {
       const img = document.createElement("img");
-      img.src = data.url;
+      img.src = doc.data().url;
       img.alt = "Cherished photo";
       photoGallery.appendChild(img);
     });
@@ -112,29 +95,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   photoInput.addEventListener("change", async () => {
     const file = photoInput.files[0];
-    if(!file) return;
+    if (!file) return;
 
-    const uniqueName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `photos/${uniqueName}`);
+    const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
 
-    await addDoc(photosCollection, { url, timestamp: new Date() });
+    await addDoc(collections.photos, { url, timestamp: new Date() });
     addToTimeline("Photo added 💖");
     photoInput.value = "";
   });
 
-  // ----------------- VIDEOS -----------------
+  // ------------------- VIDEOS -------------------
   const videoInput = document.getElementById("videoInput");
   const videoGallery = document.getElementById("videoGallery");
 
-  const videosQ = query(videosCollection, orderBy("timestamp", "desc"));
-  onSnapshot(videosQ, (snapshot) => {
+  const videosQuery = query(collections.videos, orderBy("timestamp", "desc"));
+  onSnapshot(videosQuery, snapshot => {
     videoGallery.innerHTML = "";
-    snapshot.forEach((doc) => {
-      const data = doc.data();
+    snapshot.forEach(doc => {
       const video = document.createElement("video");
-      video.src = data.url;
+      video.src = doc.data().url;
       video.controls = true;
       videoGallery.appendChild(video);
     });
@@ -142,37 +123,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   videoInput.addEventListener("change", async () => {
     const file = videoInput.files[0];
-    if(!file) return;
+    if (!file) return;
 
-    const uniqueName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${uniqueName}`);
+    const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
 
-    await addDoc(videosCollection, { url, timestamp: new Date() });
+    await addDoc(collections.videos, { url, timestamp: new Date() });
     addToTimeline("Video added 🎥");
     videoInput.value = "";
   });
 
-  // ----------------- NOTES -----------------
-  const saveNoteBtn = document.getElementById("saveNoteBtn");
+  // ------------------- NOTES -------------------
   const noteInput = document.getElementById("noteInput");
-
-  saveNoteBtn.addEventListener("click", async () => {
-    const text = noteInput.value.trim();
-    if(!text) return;
-
-    await addDoc(notesCollection, { text, timestamp: new Date() });
-    noteInput.value = "";
-    addToTimeline("Note added ✍️");
-  });
+  const saveNoteBtn = document.getElementById("saveNoteBtn");
+  const notesList = document.getElementById("notesList");
 
   function renderNotes() {
-    const q = query(notesCollection, orderBy("timestamp", "desc"));
-    onSnapshot(q, (snapshot) => {
-      const notesList = document.getElementById("notesList");
+    const q = query(collections.notes, orderBy("timestamp", "desc"));
+    onSnapshot(q, snapshot => {
       notesList.innerHTML = "";
-      snapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
         const div = document.createElement("div");
         div.className = "noteItem";
@@ -182,23 +153,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ----------------- MUSIC -----------------
+  saveNoteBtn.addEventListener("click", async () => {
+    const text = noteInput.value.trim();
+    if (!text) return;
+
+    await addDoc(collections.notes, { text, timestamp: new Date() });
+    addToTimeline("Note added ✍️");
+    noteInput.value = "";
+  });
+
+  // ------------------- MUSIC -------------------
   const musicInput = document.getElementById("musicInput");
   const addMusicBtn = document.getElementById("addMusicBtn");
   const searchResults = document.getElementById("searchResults");
   const savedMusic = document.getElementById("savedMusic");
 
   function renderSavedMusic() {
-    const q = query(musicCollection, orderBy("timestamp", "desc"));
-    onSnapshot(q, (snapshot) => {
+    const q = query(collections.music, orderBy("timestamp", "desc"));
+    onSnapshot(q, snapshot => {
       savedMusic.innerHTML = "";
-      snapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
+
         const div = document.createElement("div");
         div.className = "musicItem";
 
+        const cover = (data.cover && data.cover.length) ? data.cover : "https://via.placeholder.com/60?text=🎵";
         const img = document.createElement("img");
-        img.src = data.cover || "https://via.placeholder.com/60?text=🎵";
+        img.src = cover;
         img.alt = "Album cover";
 
         const info = document.createElement("div");
@@ -206,6 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
         titleP.textContent = data.title;
         const artistP = document.createElement("p");
         artistP.textContent = data.artist;
+
         const timeP = document.createElement("p");
         timeP.textContent = `Added: ${data.timestamp.toDate().toLocaleDateString()}`;
         timeP.style.fontSize = "0.8em";
@@ -224,13 +207,8 @@ document.addEventListener("DOMContentLoaded", () => {
         spotifyLink.target = "_blank";
         spotifyLink.textContent = "Open in Spotify 🎵";
 
-        info.appendChild(titleP);
-        info.appendChild(artistP);
-        info.appendChild(timeP);
-        info.appendChild(spotifyLink);
-
-        div.appendChild(img);
-        div.appendChild(info);
+        info.append(titleP, artistP, timeP, spotifyLink);
+        div.append(img, info);
         savedMusic.appendChild(div);
       });
     });
@@ -238,24 +216,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
   addMusicBtn.addEventListener("click", async () => {
     const queryText = musicInput.value.trim();
-    if(!queryText) return alert("Type an artist or song!");
+    if (!queryText) return alert("Type an artist or song!");
 
-    searchResults.innerHTML = "<p style='text-align:center; color:#ff69b4;'>Searching for magic... ✨</p>";
+    searchResults.innerHTML = "<p style='text-align:center; color:#ff69b4;'>Searching... ✨</p>";
+
     try {
-      // Updated to use the live Vercel backend server
-        const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
-
+      const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
       const data = await res.json();
 
-      if(!data || data.length === 0) {
-        searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>No results found 😢 Try another search!</p>";
+      if (!data || data.length === 0) {
+        searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>No results found 😢</p>";
         return;
       }
 
       searchResults.innerHTML = "";
-      data.forEach((track) => {
+      data.forEach(track => {
         const div = document.createElement("div");
         div.className = "musicItem";
 
+        const cover = (track.album?.images?.[0]?.url) || "https://via.placeholder.com/60?text=🎵";
         const img = document.createElement("img");
-        img.src = track.album.images[0]?.url || "https://via.placeholder.com/60?text=
+        img.src = cover;
+        img.alt = "Album cover";
+
+        const info = document.createElement("div");
+        const titleP = document.createElement("p");
+        titleP.textContent = track.name;
+        const artistP = document.createElement("p");
+        artistP.textContent = track.artists.map(a => a.name).join(", ");
+
+        const spotifyLink = document.createElement("a");
+        spotifyLink.href = track.external_urls.spotify;
+        spotifyLink.target = "_blank";
+        spotifyLink.textContent = "Open in Spotify 🎵";
+
+        info.append(titleP, artistP, spotifyLink);
+        div.append(img, info);
+
+        div.addEventListener("click", async () => {
+          await addDoc(collections.music, {
+            title: track.name,
+            artist: track.artists.map(a => a.name).join(", "),
+            cover: cover,
+            preview: track.preview_url || null,
+            url: track.external_urls.spotify,
+            timestamp: new Date()
+          });
+          addToTimeline(`Music added: ${track.name} 🎵`);
+        });
+
+        searchResults.appendChild(div);
+      });
+    } catch (err) {
+      console.error(err);
+      searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>Error fetching music 😢</p>";
+    }
+  });
+
+  // ------------------- INITIAL RENDER -------------------
+  renderTimeline();
+  renderNotes();
+  renderSavedMusic();
+});
