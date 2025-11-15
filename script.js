@@ -4,9 +4,6 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase
 import {
   getFirestore, collection, addDoc, onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import {
-  getStorage, ref, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
 
 // ------------------- FIREBASE CONFIG -------------------
 const firebaseConfig = {
@@ -22,7 +19,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+
+// ------------------- CLOUDINARY -------------------
+const CLOUD_NAME = "dgip2lmxu";
+const UPLOAD_PRESET = "unsigned_upload";
+
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  return data.secure_url;
+}
 
 // ------------------- DOM LOADED -------------------
 document.addEventListener("DOMContentLoaded", () => {
@@ -78,89 +92,160 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-    // ------------------- PHOTOS -------------------
-    const photoInput = document.getElementById("photoInput");
-    const photoGallery = document.getElementById("photoGallery");
+  // ------------------- PHOTOS -------------------
+  const photoInput = document.getElementById("photoInput");
+  const photoGallery = document.getElementById("photoGallery");
 
-    // Use onSnapshot to always stay up-to-date
-    onSnapshot(collection(db, "photos"), snapshot => {
-      photoGallery.innerHTML = "";
-
-      if (snapshot.empty) {
-        photoGallery.innerHTML = "<p>No photos yet 💔</p>";
-        console.log("No photo documents found");
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        console.log("Photo doc:", data); // DEBUG
-
-        if (!data.url) return; // skip if no URL
-
-        const img = document.createElement("img");
-        img.src = data.url;
-        img.alt = "Cherished photo";
-        photoGallery.appendChild(img);
-      });
+  onSnapshot(collection(db, "photos"), snapshot => {
+    photoGallery.innerHTML = "";
+    if (snapshot.empty) {
+      photoGallery.innerHTML = "<p>No photos yet 💔</p>";
+      return;
+    }
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!data.url) return;
+      const img = document.createElement("img");
+      img.src = data.url;
+      img.alt = "Cherished photo";
+      photoGallery.appendChild(img);
     });
+  });
 
-    photoInput.addEventListener("change", async () => {
-      const file = photoInput.files[0];
-      if (!file) return;
-
-      const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      console.log("Uploaded photo URL:", url); // DEBUG
-
-      await addDoc(collection(db, "photos"), { url, timestamp: new Date() });
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    try {
+      const url = await uploadToCloudinary(file);
+      await addDoc(collectionsMap.photos, { url, timestamp: new Date() });
       addToTimeline("Photo added 💖");
-
       photoInput.value = "";
+    } catch (err) {
+      console.error("Photo upload failed:", err);
+      alert("Photo upload failed 😢");
+    }
+  });
+
+  // ------------------- VIDEOS -------------------
+  const videoInput = document.getElementById("videoInput");
+  const videoGallery = document.getElementById("videoGallery");
+
+  onSnapshot(collection(db, "videos"), snapshot => {
+    videoGallery.innerHTML = "";
+    if (snapshot.empty) {
+      videoGallery.innerHTML = "<p>No videos yet 💔</p>";
+      return;
+    }
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!data.url) return;
+      const video = document.createElement("video");
+      video.src = data.url;
+      video.controls = true;
+      video.width = 300;
+      videoGallery.appendChild(video);
     });
+  });
 
-    // ------------------- VIDEOS -------------------
-    const videoInput = document.getElementById("videoInput");
-    const videoGallery = document.getElementById("videoGallery");
+  videoInput.addEventListener("change", async () => {
+    const file = videoInput.files[0];
+    if (!file) return;
+    try {
+      const url = await uploadToCloudinary(file);
+      await addDoc(collectionsMap.videos, { url, timestamp: new Date() });
+      addToTimeline("Video added 🎥");
+      videoInput.value = "";
+    } catch (err) {
+      console.error("Video upload failed:", err);
+      alert("Video upload failed 😢");
+    }
+  });
+    
+    // ------------------- LIGHTBOX -------------------
+    const lightbox = document.createElement("div");
+    lightbox.className = "lightbox";
+    lightbox.style.display = "none";
+    lightbox.style.position = "fixed";
+    lightbox.style.top = "0";
+    lightbox.style.left = "0";
+    lightbox.style.width = "100%";
+    lightbox.style.height = "100%";
+    lightbox.style.background = "rgba(0,0,0,0.8)";
+    lightbox.style.display = "flex";
+    lightbox.style.alignItems = "center";
+    lightbox.style.justifyContent = "center";
+    lightbox.style.zIndex = "10000";
+    lightbox.style.padding = "20px";
+    lightbox.style.boxSizing = "border-box";
+    lightbox.style.overflow = "auto";
 
-    onSnapshot(collection(db, "videos"), snapshot => {
-      videoGallery.innerHTML = "";
+    const closeBtn = document.createElement("span");
+    closeBtn.innerHTML = "&times;";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "20px";
+    closeBtn.style.right = "30px";
+    closeBtn.style.fontSize = "40px";
+    closeBtn.style.color = "white";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.addEventListener("click", () => lightbox.style.display = "none");
 
-      if (snapshot.empty) {
-        videoGallery.innerHTML = "<p>No videos yet 💔</p>";
-        console.log("No video documents found");
-        return;
+    let contentElement = document.createElement("div");
+    contentElement.style.maxWidth = "90%";
+    contentElement.style.maxHeight = "90%";
+    contentElement.style.display = "flex";
+    contentElement.style.alignItems = "center";
+    contentElement.style.justifyContent = "center";
+
+    lightbox.appendChild(closeBtn);
+    lightbox.appendChild(contentElement);
+    document.body.appendChild(lightbox);
+
+    // ------------------- OPEN LIGHTBOX FUNCTION -------------------
+    function openLightbox(url, isVideo = false) {
+      contentElement.innerHTML = ""; // Clear previous content
+
+      if (isVideo) {
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        video.autoplay = true;
+        video.style.maxWidth = "100%";
+        video.style.maxHeight = "100%";
+        contentElement.appendChild(video);
+      } else {
+        const img = document.createElement("img");
+        img.src = url;
+        img.style.maxWidth = "100%";
+        img.style.maxHeight = "100%";
+        img.style.borderRadius = "15px";
+        contentElement.appendChild(img);
       }
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        console.log("Video doc:", data); // DEBUG
+      lightbox.style.display = "flex";
+    }
 
-        if (!data.url) return; // skip if no URL
-
-        const video = document.createElement("video");
-        video.src = data.url;
-        video.controls = true;
-        video.width = 300;
-        videoGallery.appendChild(video);
+    // ------------------- ATTACH CLICK TO GALLERY ITEMS -------------------
+    function enableGalleryLightbox() {
+      // Photos
+      document.querySelectorAll("#photoGallery img").forEach(img => {
+        img.style.cursor = "pointer";
+        img.addEventListener("click", () => openLightbox(img.src, false));
       });
-    });
 
-    videoInput.addEventListener("change", async () => {
-      const file = videoInput.files[0];
-      if (!file) return;
+      // Videos
+      document.querySelectorAll("#videoGallery video").forEach(video => {
+        video.style.cursor = "pointer";
+        video.addEventListener("click", () => openLightbox(video.src, true));
+      });
+    }
 
-      const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      console.log("Uploaded video URL:", url); // DEBUG
+    // Call whenever gallery updates
+    const photoObserver = new MutationObserver(enableGalleryLightbox);
+    photoObserver.observe(document.getElementById("photoGallery"), { childList: true });
 
-      await addDoc(collection(db, "videos"), { url, timestamp: new Date() });
-      addToTimeline("Video added 🎥");
+    const videoObserver = new MutationObserver(enableGalleryLightbox);
+    videoObserver.observe(document.getElementById("videoGallery"), { childList: true });
 
-      videoInput.value = "";
-    });
 
   // ------------------- NOTES -------------------
   const noteInput = document.getElementById("noteInput");
@@ -189,9 +274,6 @@ document.addEventListener("DOMContentLoaded", () => {
     noteInput.value = "";
   });
 
-
-
-
   // ------------------- MUSIC -------------------
   const musicInput = document.getElementById("musicInput");
   const addMusicBtn = document.getElementById("addMusicBtn");
@@ -199,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const savedMusic = document.getElementById("savedMusic");
 
   function renderSavedMusic() {
-    const q = query(collections.music, orderBy("timestamp", "desc"));
+    const q = query(collectionsMap.music, orderBy("timestamp", "desc"));
     onSnapshot(q, snapshot => {
       savedMusic.innerHTML = "";
       snapshot.forEach(doc => {
@@ -252,13 +334,11 @@ document.addEventListener("DOMContentLoaded", () => {
   addMusicBtn.addEventListener("click", async () => {
     const queryText = musicInput.value.trim();
     if (!queryText) return alert("Type an artist or song!");
-
     searchResults.innerHTML = "<p class='loading'>Searching... ✨</p>";
 
     try {
       const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
       const data = await res.json();
-
       if (!data || data.length === 0) {
         searchResults.innerHTML = "<p class='loading noResults'>No results found 😢</p>";
         return;
@@ -286,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addBtn.textContent = "Add ➕";
         addBtn.className = "addBtn";
         addBtn.addEventListener("click", async () => {
-          await addDoc(collections.music, {
+          await addDoc(collectionsMap.music, {
             title: track.name,
             artist: track.artists.map(a => a.name).join(", "),
             cover: track.album?.images?.[0]?.url || null,
@@ -313,38 +393,6 @@ document.addEventListener("DOMContentLoaded", () => {
       searchResults.innerHTML = "<p class='loading noResults'>Error fetching music 😢</p>";
     }
   });
-
-  // ------------------- LIGHTBOX -------------------
-  const lightbox = document.createElement("div");
-  lightbox.className = "lightbox";
-  const lightboxContent = document.createElement("img");
-  lightboxContent.className = "lightbox-content";
-  const closeBtn = document.createElement("span");
-  closeBtn.className = "close";
-  closeBtn.innerHTML = "&times;";
-  closeBtn.addEventListener("click", () => lightbox.style.display = "none");
-  lightbox.append(closeBtn, lightboxContent);
-  document.body.appendChild(lightbox);
-
-  function openLightbox(src, isVideo = false) {
-    if (isVideo) {
-      const video = document.createElement("video");
-      video.src = src;
-      video.controls = true;
-      video.autoplay = true;
-      video.style.maxWidth = "90%";
-      video.style.maxHeight = "80%";
-      lightboxContent.replaceWith(video);
-      lightboxContent = video;
-    } else {
-      const img = document.createElement("img");
-      img.src = src;
-      img.className = "lightbox-content";
-      lightboxContent.replaceWith(img);
-      lightboxContent = img;
-    }
-    lightbox.style.display = "block";
-  }
 
   // ------------------- INITIAL RENDER -------------------
   renderTimeline();
