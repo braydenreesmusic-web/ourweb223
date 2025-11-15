@@ -15,7 +15,7 @@ import {
   uploadBytes,
   getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
- 
+
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -27,20 +27,20 @@ const firebaseConfig = {
   appId: "1:978864749848:web:f1e635f87e2ddcc007f26d",
   measurementId: "G-823MYFCCMG"
 };
- 
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
- 
+
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded! Initializing app..."); // Debug: Check if this logs
 
   // ----------------- SECTION NAVIGATION -----------------
   const sections = document.querySelectorAll(".section");
   const navButtons = document.querySelectorAll("nav button");
- 
+
   console.log(`Found ${sections.length} sections and ${navButtons.length} buttons`); // Debug
 
   function showSection(id) {
@@ -52,10 +52,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const activeBtn = Array.from(navButtons).find(btn => btn.dataset.section === id);
     if(activeBtn) activeBtn.classList.add("active");
   }
- 
+
   // Show default section
   showSection("photos");
- 
+
   // Add click listeners to nav buttons
   navButtons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -73,13 +73,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const musicCollection = collection(db, "music");
   const notesCollection = collection(db, "notes");
   const timelineCollection = collection(db, "timeline");
- 
+
   // ----------------- TIMELINE -----------------
   const timelineList = document.getElementById("timelineList");
   function addToTimeline(action) {
     addDoc(timelineCollection, { action, timestamp: new Date() });
   }
- 
+
   function renderTimeline() {
     const q = query(timelineCollection, orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -93,11 +93,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
- 
+
   // ----------------- PHOTOS -----------------
   const photoInput = document.getElementById("photoInput");
   const photoGallery = document.getElementById("photoGallery");
- 
+
   const photosQ = query(photosCollection, orderBy("timestamp", "desc"));
   onSnapshot(photosQ, (snapshot) => {
     photoGallery.innerHTML = "";
@@ -109,25 +109,25 @@ document.addEventListener("DOMContentLoaded", () => {
       photoGallery.appendChild(img);
     });
   });
- 
+
   photoInput.addEventListener("change", async () => {
     const file = photoInput.files[0];
     if(!file) return;
- 
+
     const uniqueName = `${Date.now()}_${file.name}`;
     const storageRef = ref(storage, `photos/${uniqueName}`);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
- 
+
     await addDoc(photosCollection, { url, timestamp: new Date() });
     addToTimeline("Photo added 💖");
     photoInput.value = "";
   });
- 
+
   // ----------------- VIDEOS -----------------
   const videoInput = document.getElementById("videoInput");
   const videoGallery = document.getElementById("videoGallery");
- 
+
   const videosQ = query(videosCollection, orderBy("timestamp", "desc"));
   onSnapshot(videosQ, (snapshot) => {
     videoGallery.innerHTML = "";
@@ -139,34 +139,34 @@ document.addEventListener("DOMContentLoaded", () => {
       videoGallery.appendChild(video);
     });
   });
- 
+
   videoInput.addEventListener("change", async () => {
     const file = videoInput.files[0];
     if(!file) return;
- 
+
     const uniqueName = `${Date.now()}_${file.name}`;
     const storageRef = ref(storage, `videos/${uniqueName}`);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
- 
+
     await addDoc(videosCollection, { url, timestamp: new Date() });
     addToTimeline("Video added 🎥");
     videoInput.value = "";
   });
- 
+
   // ----------------- NOTES -----------------
   const saveNoteBtn = document.getElementById("saveNoteBtn");
   const noteInput = document.getElementById("noteInput");
- 
+
   saveNoteBtn.addEventListener("click", async () => {
     const text = noteInput.value.trim();
     if(!text) return;
- 
+
     await addDoc(notesCollection, { text, timestamp: new Date() });
     noteInput.value = "";
     addToTimeline("Note added ✍️");
   });
- 
+
   function renderNotes() {
     const q = query(notesCollection, orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -181,13 +181,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
- 
+
   // ----------------- MUSIC -----------------
   const musicInput = document.getElementById("musicInput");
   const addMusicBtn = document.getElementById("addMusicBtn");
   const searchResults = document.getElementById("searchResults");
   const savedMusic = document.getElementById("savedMusic");
- 
+
   function renderSavedMusic() {
     const q = query(musicCollection, orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -196,11 +196,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = doc.data();
         const div = document.createElement("div");
         div.className = "musicItem";
- 
+
         const img = document.createElement("img");
         img.src = data.cover || "https://via.placeholder.com/60?text=🎵";
         img.alt = "Album cover";
- 
+
         const info = document.createElement("div");
         const titleP = document.createElement("p");
         titleP.textContent = data.title;
@@ -211,112 +211,51 @@ document.addEventListener("DOMContentLoaded", () => {
         timeP.style.fontSize = "0.8em";
         timeP.style.color = "#666";
         timeP.style.margin = "5px 0 0 0";
- 
+
         if (data.preview) {
           const audio = document.createElement("audio");
           audio.src = data.preview;
           audio.controls = true;
           info.appendChild(audio);
         }
- 
+
         const spotifyLink = document.createElement("a");
         spotifyLink.href = data.url;
         spotifyLink.target = "_blank";
         spotifyLink.textContent = "Open in Spotify 🎵";
- 
+
         info.appendChild(titleP);
         info.appendChild(artistP);
         info.appendChild(timeP);
         info.appendChild(spotifyLink);
- 
+
         div.appendChild(img);
         div.appendChild(info);
         savedMusic.appendChild(div);
       });
     });
   }
- 
+
   addMusicBtn.addEventListener("click", async () => {
     const queryText = musicInput.value.trim();
     if(!queryText) return alert("Type an artist or song!");
- 
+
     searchResults.innerHTML = "<p style='text-align:center; color:#ff69b4;'>Searching for magic... ✨</p>";
     try {
-      const res = await fetch(`http://localhost:3000/search?q=${encodeURIComponent(queryText)}`);
+      // Updated to use the live Vercel backend server
+        const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
+
       const data = await res.json();
- 
+
       if(!data || data.length === 0) {
         searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>No results found 😢 Try another search!</p>";
         return;
       }
- 
+
       searchResults.innerHTML = "";
       data.forEach((track) => {
         const div = document.createElement("div");
         div.className = "musicItem";
- 
-        const img = document.createElement("img");
-        img.src = track.album.images[0]?.url || "https://via.placeholder.com/60?text=🎵";
-        img.alt = "Album cover";
- 
-        const info = document.createElement("div");
-        const titleP = document.createElement("p");
-        titleP.textContent = track.name;
-        const artistP = document.createElement("p");
-        artistP.textContent = track.artists.map(a => a.name).join(", ");
- 
-        const audio = document.createElement("audio");
-        audio.src = track.preview_url;
-        audio.controls = true;
- 
-        const saveBtn = document.createElement("button");
-        saveBtn.textContent = "💾 Save to Our Playlist";
-        saveBtn.addEventListener("click", async () => {
-          await addDoc(musicCollection, {
-            title: track.name,
-            artist: track.artists.map(a => a.name).join(", "),
-            cover: track.album.images[0]?.url || null,
-            preview: track.preview_url || null,
-            url: track.external_urls.spotify,
-            timestamp: new Date()
-          });
-          addToTimeline(`Saved track: ${track.name} by ${track.artists[0]?.name} 🎵`);
-          alert("Added to our forever playlist! 💖");
-          saveBtn.textContent = "Saved! ✨";
-          saveBtn.disabled = true;
-          saveBtn.style.background = "#28a745";
-        });
- 
-        if (track.preview_url) info.appendChild(audio);
-        info.appendChild(titleP);
-        info.appendChild(artistP);
-        info.appendChild(saveBtn);
- 
-        div.appendChild(img);
-        div.appendChild(info);
-        searchResults.appendChild(div);
-      });
- 
-    } catch (err) {
-      console.error(err);
-      searchResults.innerHTML = "<p style='text-align:center; color:#dc3545;'>Oops! Search failed. Check your connection 😢</p>";
-    }
-  });
- 
-  // ----------------- FLOATING HEARTS -----------------
-  setInterval(() => {
-    const heart = document.createElement("div");
-    heart.className = "floating-heart";
-    heart.textContent = "💖";
-    heart.style.left = Math.random() * 100 + "%";
-    document.body.appendChild(heart);
-    setTimeout(() => heart.remove(), 4000);
-  }, 3000);
- 
-  // Initialize real-time listeners
-  renderTimeline();
-  renderNotes();
-  renderSavedMusic();
 
-  console.log("App fully initialized! 💖"); // Debug
-});
+        const img = document.createElement("img");
+        img.src = track.album.images[0]?.url || "https://via.placeholder.com/60?text=
