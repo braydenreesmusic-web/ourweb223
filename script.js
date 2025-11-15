@@ -89,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const img = document.createElement("img");
       img.src = doc.data().url;
       img.alt = "Cherished photo";
+      img.addEventListener("click", () => openLightbox(img.src));
       photoGallery.appendChild(img);
     });
   });
@@ -117,6 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const video = document.createElement("video");
       video.src = doc.data().url;
       video.controls = true;
+      video.addEventListener("click", () => openLightbox(doc.data().url, true));
       videoGallery.appendChild(video);
     });
   });
@@ -174,13 +176,11 @@ document.addEventListener("DOMContentLoaded", () => {
       savedMusic.innerHTML = "";
       snapshot.forEach(doc => {
         const data = doc.data();
-
         const div = document.createElement("div");
-        div.className = "musicItem";
+        div.className = "musicItem enhanced";
 
-        const cover = (data.cover && data.cover.length) ? data.cover : "https://via.placeholder.com/60?text=🎵";
         const img = document.createElement("img");
-        img.src = cover;
+        img.src = data.cover || "https://via.placeholder.com/60?text=🎵";
         img.alt = "Album cover";
 
         const info = document.createElement("div");
@@ -189,12 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const artistP = document.createElement("p");
         artistP.textContent = data.artist;
 
-        const timeP = document.createElement("p");
-        timeP.textContent = `Added: ${data.timestamp.toDate().toLocaleDateString()}`;
-        timeP.style.fontSize = "0.8em";
-        timeP.style.color = "#666";
-        timeP.style.margin = "5px 0 0 0";
-
         if (data.preview) {
           const audio = document.createElement("audio");
           audio.src = data.preview;
@@ -202,12 +196,25 @@ document.addEventListener("DOMContentLoaded", () => {
           info.appendChild(audio);
         }
 
+        const btnContainer = document.createElement("div");
+        btnContainer.className = "musicButtons";
+
         const spotifyLink = document.createElement("a");
         spotifyLink.href = data.url;
         spotifyLink.target = "_blank";
         spotifyLink.textContent = "Open in Spotify 🎵";
+        spotifyLink.className = "spotifyBtn";
 
-        info.append(titleP, artistP, timeP, spotifyLink);
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove ❌";
+        removeBtn.className = "removeBtn";
+        removeBtn.addEventListener("click", async () => {
+          await doc.ref.delete();
+          addToTimeline(`Music removed: ${data.title} ❌`);
+        });
+
+        btnContainer.append(spotifyLink, removeBtn);
+        info.append(titleP, artistP, btnContainer);
         div.append(img, info);
         savedMusic.appendChild(div);
       });
@@ -218,25 +225,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const queryText = musicInput.value.trim();
     if (!queryText) return alert("Type an artist or song!");
 
-    searchResults.innerHTML = "<p style='text-align:center; color:#ff69b4;'>Searching... ✨</p>";
+    searchResults.innerHTML = "<p class='loading'>Searching... ✨</p>";
 
     try {
       const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
       const data = await res.json();
 
       if (!data || data.length === 0) {
-        searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>No results found 😢</p>";
+        searchResults.innerHTML = "<p class='loading noResults'>No results found 😢</p>";
         return;
       }
 
       searchResults.innerHTML = "";
       data.forEach(track => {
         const div = document.createElement("div");
-        div.className = "musicItem";
+        div.className = "musicItem enhanced searchResult";
 
-        const cover = (track.album?.images?.[0]?.url) || "https://via.placeholder.com/60?text=🎵";
         const img = document.createElement("img");
-        img.src = cover;
+        img.src = track.album?.images?.[0]?.url || "https://via.placeholder.com/60?text=🎵";
         img.alt = "Album cover";
 
         const info = document.createElement("div");
@@ -245,19 +251,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const artistP = document.createElement("p");
         artistP.textContent = track.artists.map(a => a.name).join(", ");
 
-        const spotifyLink = document.createElement("a");
-        spotifyLink.href = track.external_urls.spotify;
-        spotifyLink.target = "_blank";
-        spotifyLink.textContent = "Open in Spotify 🎵";
+        const btnContainer = document.createElement("div");
+        btnContainer.className = "musicButtons";
 
-        info.append(titleP, artistP, spotifyLink);
-        div.append(img, info);
-
-        div.addEventListener("click", async () => {
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "Add ➕";
+        addBtn.className = "addBtn";
+        addBtn.addEventListener("click", async () => {
           await addDoc(collections.music, {
             title: track.name,
             artist: track.artists.map(a => a.name).join(", "),
-            cover: cover,
+            cover: track.album?.images?.[0]?.url || null,
             preview: track.preview_url || null,
             url: track.external_urls.spotify,
             timestamp: new Date()
@@ -265,13 +269,54 @@ document.addEventListener("DOMContentLoaded", () => {
           addToTimeline(`Music added: ${track.name} 🎵`);
         });
 
+        const spotifyLink = document.createElement("a");
+        spotifyLink.href = track.external_urls.spotify;
+        spotifyLink.target = "_blank";
+        spotifyLink.textContent = "Open in Spotify 🎵";
+        spotifyLink.className = "spotifyBtn";
+
+        btnContainer.append(addBtn, spotifyLink);
+        info.append(titleP, artistP, btnContainer);
+        div.append(img, info);
         searchResults.appendChild(div);
       });
     } catch (err) {
       console.error(err);
-      searchResults.innerHTML = "<p style='text-align:center; color:#ff1493;'>Error fetching music 😢</p>";
+      searchResults.innerHTML = "<p class='loading noResults'>Error fetching music 😢</p>";
     }
   });
+
+  // ------------------- LIGHTBOX -------------------
+  const lightbox = document.createElement("div");
+  lightbox.className = "lightbox";
+  const lightboxContent = document.createElement("img");
+  lightboxContent.className = "lightbox-content";
+  const closeBtn = document.createElement("span");
+  closeBtn.className = "close";
+  closeBtn.innerHTML = "&times;";
+  closeBtn.addEventListener("click", () => lightbox.style.display = "none");
+  lightbox.append(closeBtn, lightboxContent);
+  document.body.appendChild(lightbox);
+
+  function openLightbox(src, isVideo = false) {
+    if (isVideo) {
+      const video = document.createElement("video");
+      video.src = src;
+      video.controls = true;
+      video.autoplay = true;
+      video.style.maxWidth = "90%";
+      video.style.maxHeight = "80%";
+      lightboxContent.replaceWith(video);
+      lightboxContent = video;
+    } else {
+      const img = document.createElement("img");
+      img.src = src;
+      img.className = "lightbox-content";
+      lightboxContent.replaceWith(img);
+      lightboxContent = img;
+    }
+    lightbox.style.display = "block";
+  }
 
   // ------------------- INITIAL RENDER -------------------
   renderTimeline();
