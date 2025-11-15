@@ -13,7 +13,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
   authDomain: "ourwebsite223.firebaseapp.com",
   projectId: "ourwebsite223",
-  storageBucket: "ourwebsite223.firebasestorage.app",
+  storageBucket: "ourwebsite223.appspot.com",
   messagingSenderId: "978864749848",
   appId: "1:978864749848:web:f1e635f87e2ddcc007f26d",
   measurementId: "G-823MYFCCMG"
@@ -49,8 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Show default section
   showSection("photos");
 
-  // ------------------- FIRESTORE COLLECTIONS -------------------
-  const collections = {
+  // ------------------- COLLECTIONS -------------------
+  const collectionsMap = {
     photos: collection(db, "photos"),
     videos: collection(db, "videos"),
     music: collection(db, "music"),
@@ -59,13 +59,13 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   function addToTimeline(action) {
-    addDoc(collections.timeline, { action, timestamp: new Date() });
+    addDoc(collectionsMap.timeline, { action, timestamp: new Date() });
   }
 
   // ------------------- TIMELINE -------------------
   const timelineList = document.getElementById("timelineList");
   function renderTimeline() {
-    const q = query(collections.timeline, orderBy("timestamp", "desc"));
+    const q = query(collectionsMap.timeline, orderBy("timestamp", "desc"));
     onSnapshot(q, snapshot => {
       timelineList.innerHTML = "";
       snapshot.forEach(doc => {
@@ -78,89 +78,81 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-    // ------------------- PHOTOS -------------------
-    const photoInput = document.getElementById("photoInput");
-    const photoGallery = document.getElementById("photoGallery");
+  // ------------------- PHOTOS -------------------
+  const photoInput = document.getElementById("photoInput");
+  const photoGallery = document.getElementById("photoGallery");
 
-    // Use onSnapshot to always stay up-to-date
-    onSnapshot(collection(db, "photos"), snapshot => {
-      photoGallery.innerHTML = "";
-
-      if (snapshot.empty) {
-        photoGallery.innerHTML = "<p>No photos yet 💔</p>";
-        console.log("No photo documents found");
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        console.log("Photo doc:", data); // DEBUG
-
-        if (!data.url) return; // skip if no URL
-
-        const img = document.createElement("img");
-        img.src = data.url;
-        img.alt = "Cherished photo";
-        photoGallery.appendChild(img);
-      });
+  // Display existing photos
+  const photosQuery = query(collectionsMap.photos, orderBy("timestamp", "desc"));
+  onSnapshot(photosQuery, snapshot => {
+    photoGallery.innerHTML = "";
+    snapshot.forEach(doc => {
+      const img = document.createElement("img");
+      img.src = doc.data().url;
+      img.alt = "Cherished photo";
+      photoGallery.appendChild(img);
     });
+  });
 
-    photoInput.addEventListener("change", async () => {
-      const file = photoInput.files[0];
-      if (!file) return;
+  // Upload new photo
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    if (!file) return;
 
+    try {
+      console.log("Uploading photo:", file.name);
       const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      console.log("Uploaded photo URL:", url); // DEBUG
+      console.log("Photo uploaded to Storage:", url);
 
-      await addDoc(collection(db, "photos"), { url, timestamp: new Date() });
+      await addDoc(collectionsMap.photos, { url, timestamp: new Date() });
+      console.log("Photo added to Firestore");
       addToTimeline("Photo added 💖");
-
       photoInput.value = "";
+    } catch (err) {
+      console.error("Photo upload failed:", err);
+      alert("Photo upload failed. Check console for details.");
+    }
+  });
+
+  // ------------------- VIDEOS -------------------
+  const videoInput = document.getElementById("videoInput");
+  const videoGallery = document.getElementById("videoGallery");
+
+  // Display existing videos
+  const videosQuery = query(collectionsMap.videos, orderBy("timestamp", "desc"));
+  onSnapshot(videosQuery, snapshot => {
+    videoGallery.innerHTML = "";
+    snapshot.forEach(doc => {
+      const video = document.createElement("video");
+      video.src = doc.data().url;
+      video.controls = true;
+      videoGallery.appendChild(video);
     });
+  });
 
-    // ------------------- VIDEOS -------------------
-    const videoInput = document.getElementById("videoInput");
-    const videoGallery = document.getElementById("videoGallery");
+  // Upload new video
+  videoInput.addEventListener("change", async () => {
+    const file = videoInput.files[0];
+    if (!file) return;
 
-    onSnapshot(collection(db, "videos"), snapshot => {
-      videoGallery.innerHTML = "";
-
-      if (snapshot.empty) {
-        videoGallery.innerHTML = "<p>No videos yet 💔</p>";
-        console.log("No video documents found");
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        console.log("Video doc:", data); // DEBUG
-
-        if (!data.url) return; // skip if no URL
-
-        const video = document.createElement("video");
-        video.src = data.url;
-        video.controls = true;
-        video.width = 300;
-        videoGallery.appendChild(video);
-      });
-    });
-
-    videoInput.addEventListener("change", async () => {
-      const file = videoInput.files[0];
-      if (!file) return;
-
+    try {
+      console.log("Uploading video:", file.name);
       const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      console.log("Uploaded video URL:", url); // DEBUG
+      console.log("Video uploaded to Storage:", url);
 
-      await addDoc(collection(db, "videos"), { url, timestamp: new Date() });
+      await addDoc(collectionsMap.videos, { url, timestamp: new Date() });
+      console.log("Video added to Firestore");
       addToTimeline("Video added 🎥");
-
       videoInput.value = "";
-    });
+    } catch (err) {
+      console.error("Video upload failed:", err);
+      alert("Video upload failed. Check console for details.");
+    }
+  });
 
   // ------------------- NOTES -------------------
   const noteInput = document.getElementById("noteInput");
@@ -168,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const notesList = document.getElementById("notesList");
 
   function renderNotes() {
-    const q = query(collections.notes, orderBy("timestamp", "desc"));
+    const q = query(collectionsMap.notes, orderBy("timestamp", "desc"));
     onSnapshot(q, snapshot => {
       notesList.innerHTML = "";
       snapshot.forEach(doc => {
@@ -184,11 +176,13 @@ document.addEventListener("DOMContentLoaded", () => {
   saveNoteBtn.addEventListener("click", async () => {
     const text = noteInput.value.trim();
     if (!text) return;
-
-    await addDoc(collections.notes, { text, timestamp: new Date() });
+    await addDoc(collectionsMap.notes, { text, timestamp: new Date() });
     addToTimeline("Note added ✍️");
     noteInput.value = "";
   });
+
+
+
 
   // ------------------- MUSIC -------------------
   const musicInput = document.getElementById("musicInput");
