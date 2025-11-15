@@ -78,63 +78,89 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ------------------- PHOTOS -------------------
-  const photoInput = document.getElementById("photoInput");
-  const photoGallery = document.getElementById("photoGallery");
+    // ------------------- PHOTOS -------------------
+    const photoInput = document.getElementById("photoInput");
+    const photoGallery = document.getElementById("photoGallery");
 
-  const photosQuery = query(collections.photos, orderBy("timestamp", "desc"));
-  onSnapshot(photosQuery, snapshot => {
-    photoGallery.innerHTML = "";
-    snapshot.forEach(doc => {
-      const img = document.createElement("img");
-      img.src = doc.data().url;
-      img.alt = "Cherished photo";
-      img.addEventListener("click", () => openLightbox(img.src));
-      photoGallery.appendChild(img);
+    // Use onSnapshot to always stay up-to-date
+    onSnapshot(collection(db, "photos"), snapshot => {
+      photoGallery.innerHTML = "";
+
+      if (snapshot.empty) {
+        photoGallery.innerHTML = "<p>No photos yet 💔</p>";
+        console.log("No photo documents found");
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        console.log("Photo doc:", data); // DEBUG
+
+        if (!data.url) return; // skip if no URL
+
+        const img = document.createElement("img");
+        img.src = data.url;
+        img.alt = "Cherished photo";
+        photoGallery.appendChild(img);
+      });
     });
-  });
 
-  photoInput.addEventListener("change", async () => {
-    const file = photoInput.files[0];
-    if (!file) return;
+    photoInput.addEventListener("change", async () => {
+      const file = photoInput.files[0];
+      if (!file) return;
 
-    const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
+      const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      console.log("Uploaded photo URL:", url); // DEBUG
 
-    await addDoc(collections.photos, { url, timestamp: new Date() });
-    addToTimeline("Photo added 💖");
-    photoInput.value = "";
-  });
+      await addDoc(collection(db, "photos"), { url, timestamp: new Date() });
+      addToTimeline("Photo added 💖");
 
-  // ------------------- VIDEOS -------------------
-  const videoInput = document.getElementById("videoInput");
-  const videoGallery = document.getElementById("videoGallery");
-
-  const videosQuery = query(collections.videos, orderBy("timestamp", "desc"));
-  onSnapshot(videosQuery, snapshot => {
-    videoGallery.innerHTML = "";
-    snapshot.forEach(doc => {
-      const video = document.createElement("video");
-      video.src = doc.data().url;
-      video.controls = true;
-      video.addEventListener("click", () => openLightbox(doc.data().url, true));
-      videoGallery.appendChild(video);
+      photoInput.value = "";
     });
-  });
 
-  videoInput.addEventListener("change", async () => {
-    const file = videoInput.files[0];
-    if (!file) return;
+    // ------------------- VIDEOS -------------------
+    const videoInput = document.getElementById("videoInput");
+    const videoGallery = document.getElementById("videoGallery");
 
-    const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
+    onSnapshot(collection(db, "videos"), snapshot => {
+      videoGallery.innerHTML = "";
 
-    await addDoc(collections.videos, { url, timestamp: new Date() });
-    addToTimeline("Video added 🎥");
-    videoInput.value = "";
-  });
+      if (snapshot.empty) {
+        videoGallery.innerHTML = "<p>No videos yet 💔</p>";
+        console.log("No video documents found");
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        console.log("Video doc:", data); // DEBUG
+
+        if (!data.url) return; // skip if no URL
+
+        const video = document.createElement("video");
+        video.src = data.url;
+        video.controls = true;
+        video.width = 300;
+        videoGallery.appendChild(video);
+      });
+    });
+
+    videoInput.addEventListener("change", async () => {
+      const file = videoInput.files[0];
+      if (!file) return;
+
+      const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      console.log("Uploaded video URL:", url); // DEBUG
+
+      await addDoc(collection(db, "videos"), { url, timestamp: new Date() });
+      addToTimeline("Video added 🎥");
+
+      videoInput.value = "";
+    });
 
   // ------------------- NOTES -------------------
   const noteInput = document.getElementById("noteInput");
