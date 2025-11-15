@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brayden & Youna 💖</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Brayden & Youna 💖</h1>
+        <p>Our private little world ✨</p>
+    </header>
+ 
+    <nav>
+        <button data-section="photos">📸 Photos</button>
+        <button data-section="videos">🎥 Videos</button>
+        <button data-section="music">🎵 Music</button>
+        <button data-section="notes">✍️ Notes</button>
+        <button data-section="timeline">📅 Timeline</button>
+    </nav>
+ 
+    <main>
+        <!-- Photos -->
+        <section id="photos" class="section active">
+            <h2>Our Cherished Moments 📸</h2>
+            <input type="file" id="photoInput" accept="image/*">
+            <div class="gallery" id="photoGallery"></div>
+        </section>
+ 
+        <!-- Videos -->
+        <section id="videos" class="section">
+            <h2>Memories in Motion 🎥</h2>
+            <input type="file" id="videoInput" accept="video/*">
+            <div class="gallery" id="videoGallery"></div>
+        </section>
+ 
+        <!-- Music -->
+        <section id="music" class="section">
+            <h2>Songs That Define Us 🎵</h2>
+            <input type="text" id="musicInput" placeholder="Search by artist or song name...">
+            <button id="addMusicBtn">🔍 Search & Add</button>
+            <div id="searchResults"></div>
+            <h3>Saved Treasures 💿</h3>
+            <div id="savedMusic"></div>
+        </section>
+ 
+        <!-- Notes -->
+        <section id="notes" class="section">
+            <h2>Whispers of the Heart ✍️</h2>
+            <textarea id="noteInput" placeholder="Write a love note..."></textarea>
+            <button id="saveNoteBtn">💌 Save Note</button>
+            <div id="notesList"></div>
+        </section>
+ 
+        <!-- Timeline -->
+        <section id="timeline" class="section">
+            <h2>Our Journey Together 📅</h2>
+            <div id="timelineList"></div>
+        </section>
+    </main>
+</div>
+ 
+<!-- Script placed at the BOTTOM to ensure DOM exists -->
+<script type="module" src="script.js"></script>
+</body>
+</html>
