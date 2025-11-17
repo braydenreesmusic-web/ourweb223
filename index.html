@@ -1,73 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Brayden & Youna 💖</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Brayden & Youna 💖</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="color-scheme" content="light dark" />
 </head>
 <body>
-<div class="container">
-    <header>
-        <h1>Brayden & Youna 💖</h1>
-        <p>Our private little world ✨</p>
-    </header>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-    <nav>
-        <button data-section="photos">📸 Photos</button>
-        <button data-section="videos">🎥 Videos</button>
-        <button data-section="music">🎵 Music</button>
-        <button data-section="notes">✍️ Notes</button>
-        <button data-section="timeline">📅 Timeline</button>
-    </nav>
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+      <h1 id="siteTitle">Brayden &amp; Youna <span aria-hidden="true">💖</span></h1>
+      <p class="tagline">Our private little world — memories, music & notes ✨</p>
+    </div>
+  </header>
 
-    <main>
-        <!-- Photos -->
-        <section id="photos" class="section active">
-            <h2>Our Cherished Moments 📸</h2>
-            <input type="file" id="photoInput" accept="image/*">
-            <div class="gallery" id="photoGallery"></div>
-        </section>
+  <nav class="site-nav" role="navigation" aria-label="Primary">
+    <ul>
+      <li><button data-section="photos" class="nav-btn" aria-controls="photos">📸 Photos</button></li>
+      <li><button data-section="videos" class="nav-btn" aria-controls="videos">🎥 Videos</button></li>
+      <li><button data-section="music" class="nav-btn" aria-controls="music">🎵 Music</button></li>
+      <li><button data-section="notes" class="nav-btn" aria-controls="notes">✍️ Notes</button></li>
+      <li><button data-section="timeline" class="nav-btn" aria-controls="timeline">📅 Timeline</button></li>
+    </ul>
+  </nav>
 
-        <!-- Videos -->
-        <section id="videos" class="section">
-            <h2>Memories in Motion 🎥</h2>
-            <input type="file" id="videoInput" accept="video/*">
-            <div class="gallery" id="videoGallery"></div>
-        </section>
+  <main id="main" class="main" role="main" tabindex="-1">
+    <!-- PHOTOS -->
+    <section id="photos" class="panel section-active" aria-labelledby="photosHeading">
+      <h2 id="photosHeading">Our Cherished Moments 📸</h2>
+      <div class="uploader" id="photoDrop" data-type="image" aria-label="Photo upload drop area" tabindex="0">
+        <input id="photoInput" type="file" accept="image/*" aria-label="Upload photo" hidden />
+        <div>
+          <p class="uploader-instruction">Drag & drop photos here or <button id="photoBrowse" class="linklike">browse</button></p>
+          <small class="muted">PNG / JPG / HEIC → will be converted by Cloudinary when uploaded.</small>
+        </div>
+      </div>
+      <div class="gallery" id="photoGallery" aria-live="polite" aria-label="Photo gallery"></div>
+    </section>
 
-        <!-- Music -->
-        <section id="music" class="section">
-            <h2>Songs That Define Us 🎵</h2>
-            <input type="text" id="musicInput" placeholder="Search by artist or song name...">
-            <button id="addMusicBtn">🔍 Search & Add</button>
-            <div id="searchResults"></div>
-            <h3>Saved Treasures 💿</h3>
-            <div id="savedMusic"></div>
-        </section>
+    <!-- VIDEOS -->
+    <section id="videos" class="panel" aria-labelledby="videosHeading">
+      <h2 id="videosHeading">Memories in Motion 🎥</h2>
+      <div class="uploader" id="videoDrop" data-type="video" aria-label="Video upload drop area" tabindex="0">
+        <input id="videoInput" type="file" accept="video/*" aria-label="Upload video" hidden />
+        <div>
+          <p class="uploader-instruction">Drag & drop videos here or <button id="videoBrowse" class="linklike">browse</button></p>
+          <small class="muted">MP4 / MOV recommended. Large files may take longer to upload.</small>
+        </div>
+      </div>
+      <div class="gallery" id="videoGallery" aria-live="polite" aria-label="Video gallery"></div>
+    </section>
 
-        <!-- Notes -->
-        <section id="notes" class="section">
-            <h2>Whispers of the Heart ✍️</h2>
-            <textarea id="noteInput" placeholder="Write a love note..."></textarea>
-            <button id="saveNoteBtn">💌 Save Note</button>
-            <div id="notesList"></div>
-        </section>
+    <!-- MUSIC -->
+    <section id="music" class="panel" aria-labelledby="musicHeading">
+      <h2 id="musicHeading">Songs That Define Us 🎵</h2>
 
-        <!-- Timeline -->
-        <section id="timeline" class="section">
-            <h2>Our Journey Together 📅</h2>
-            <div id="timelineList"></div>
-        </section>
-    </main>
-</div>
+      <div class="music-search">
+        <label for="musicInput" class="visually-hidden">Search music</label>
+        <input id="musicInput" type="search" placeholder="Search by artist or song name..." aria-label="Search music" />
+        <div class="music-actions">
+          <button id="addMusicBtn" class="primary">Search</button>
+          <button id="clearSearch" class="ghost" title="Clear search">Clear</button>
+        </div>
+      </div>
 
-<!-- Lightbox modal -->
-<div id="lightbox" class="lightbox">
-  <span class="close">&times;</span>
-  <img class="lightbox-content" id="lightboxImg" />
-</div>
+      <div class="music-columns">
+        <div class="music-col">
+          <h3>Search Results</h3>
+          <div id="searchResults" class="scrollbox" aria-live="polite"></div>
+        </div>
 
-<script type="module" src="script.js"></script>
+        <div class="music-col">
+          <h3>Saved Treasures</h3>
+          <div id="savedMusic" class="scrollbox" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NOTES -->
+    <section id="notes" class="panel" aria-labelledby="notesHeading">
+      <h2 id="notesHeading">Whispers of the Heart ✍️</h2>
+      <label for="noteInput" class="visually-hidden">Write a love note</label>
+      <textarea id="noteInput" rows="4" placeholder="Write a love note..." aria-label="Write a love note"></textarea>
+      <div class="note-controls">
+        <button id="saveNoteBtn" class="primary">Save Note</button>
+        <button id="clearNote" class="ghost">Clear</button>
+      </div>
+      <div id="notesList" class="stack" aria-live="polite"></div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section id="timeline" class="panel" aria-labelledby="timelineHeading">
+      <h2 id="timelineHeading">Our Journey Together 📅</h2>
+      <div id="timelineList" class="stack" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Media preview">
+    <div class="lightbox-inner" role="document">
+      <button id="lbClose" class="lb-close" aria-label="Close preview">&times;</button>
+      <div id="lbContent" class="lb-content" tabindex="0"></div>
+      <div class="lb-controls">
+        <button id="lbPrev" aria-label="Previous">◀</button>
+        <button id="lbNext" aria-label="Next">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer" role="contentinfo">
+    <small>Made with ❤️ — private by design</small>
+  </footer>
+
+  <script type="module" src="script.js"></script>
 </body>
 </html>
