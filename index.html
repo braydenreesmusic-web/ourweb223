@@ -1,120 +1,175 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Brayden & Youna 💖</title>
-  <link rel="stylesheet" href="style.css" />
-  <meta name="color-scheme" content="light dark" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brayden & Youna – Our Shared World</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#d987b5">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-
-  <header class="site-header" role="banner">
-    <div class="header-inner">
-      <h1 id="siteTitle">Brayden &amp; Youna <span aria-hidden="true">💖</span></h1>
-      <p class="tagline">Our private little world — memories, music & notes ✨</p>
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h2>Welcome Home 💕</h2>
+            <p>Enter the secret phrase to enter our world.</p>
+            <input type="password" id="passwordInput" placeholder="Our little secret..." maxlength="20">
+            <button id="unlockBtn" class="btn primary">Unlock</button>
+            <p class="hint">Hint: It's what we whisper at midnight.</p>
+        </div>
     </div>
-  </header>
 
-  <nav class="site-nav" role="navigation" aria-label="Primary">
-    <ul>
-      <li><button data-section="photos" class="nav-btn" aria-controls="photos">📸 Photos</button></li>
-      <li><button data-section="videos" class="nav-btn" aria-controls="videos">🎥 Videos</button></li>
-      <li><button data-section="music" class="nav-btn" aria-controls="music">🎵 Music</button></li>
-      <li><button data-section="notes" class="nav-btn" aria-controls="notes">✍️ Notes</button></li>
-      <li><button data-section="timeline" class="nav-btn" aria-controls="timeline">📅 Timeline</button></li>
-    </ul>
-  </nav>
-
-  <main id="main" class="main" role="main" tabindex="-1">
-    <!-- PHOTOS -->
-    <section id="photos" class="panel section-active" aria-labelledby="photosHeading">
-      <h2 id="photosHeading">Our Cherished Moments 📸</h2>
-      <div class="uploader" id="photoDrop" data-type="image" aria-label="Photo upload drop area" tabindex="0">
-        <input id="photoInput" type="file" accept="image/*" aria-label="Upload photo" hidden />
-        <div>
-          <p class="uploader-instruction">Drag & drop photos here or <button id="photoBrowse" class="linklike">browse</button></p>
-          <small class="muted">PNG / JPG / HEIC → will be converted by Cloudinary when uploaded.</small>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">Brayden & Youna</h1>
+            <p class="tagline">Forever in the stars ✨</p>
         </div>
-      </div>
-      <div class="gallery" id="photoGallery" aria-live="polite" aria-label="Photo gallery"></div>
-    </section>
-
-    <!-- VIDEOS -->
-    <section id="videos" class="panel" aria-labelledby="videosHeading">
-      <h2 id="videosHeading">Memories in Motion 🎥</h2>
-      <div class="uploader" id="videoDrop" data-type="video" aria-label="Video upload drop area" tabindex="0">
-        <input id="videoInput" type="file" accept="video/*" aria-label="Upload video" hidden />
-        <div>
-          <p class="uploader-instruction">Drag & drop videos here or <button id="videoBrowse" class="linklike">browse</button></p>
-          <small class="muted">MP4 / MOV recommended. Large files may take longer to upload.</small>
+        <div class="header-actions">
+            <div class="theme-toggle">
+                <input type="checkbox" id="darkModeToggle">
+                <label for="darkModeToggle" class="toggle-switch">
+                    <span class="sun">☀️</span>
+                    <span class="moon">🌙</span>
+                </label>
+            </div>
+            <div class="search-global">
+                <input type="text" id="globalSearch" placeholder="🔍 Search memories...">
+            </div>
         </div>
-      </div>
-      <div class="gallery" id="videoGallery" aria-live="polite" aria-label="Video gallery"></div>
-    </section>
+    </header>
 
-    <!-- MUSIC -->
-    <section id="music" class="panel" aria-labelledby="musicHeading">
-      <h2 id="musicHeading">Songs That Define Us 🎵</h2>
+    <nav class="nav">
+        <button data-section="photos" aria-label="Photos section">📸 Photos</button>
+        <button data-section="videos" aria-label="Videos section">🎥 Videos</button>
+        <button data-section="music" aria-label="Music section">🎵 Music</button>
+        <button data-section="notes" aria-label="Notes section">✍️ Notes</button>
+        <button data-section="timeline" aria-label="Timeline section">📅 Journey</button>
+        <button data-section="favorites" aria-label="Favorites section">❤️ Favorites</button>
+    </nav>
 
-      <div class="music-search">
-        <label for="musicInput" class="visually-hidden">Search music</label>
-        <input id="musicInput" type="search" placeholder="Search by artist or song name..." aria-label="Search music" />
-        <div class="music-actions">
-          <button id="addMusicBtn" class="primary">Search</button>
-          <button id="clearSearch" class="ghost" title="Clear search">Clear</button>
+    <main class="container">
+        <!-- Global Search Results -->
+        <section id="searchResults" class="section">
+            <h2>Search Results 🔍</h2>
+            <div id="globalSearchOutput"></div>
+        </section>
+
+        <!-- Photos -->
+        <section id="photos" class="section active">
+            <div class="section-header">
+                <h2>Our Cherished Moments 📸</h2>
+                <p class="section-desc">Captured hearts, frozen in time.</p>
+            </div>
+            <div class="upload-wrapper" data-type="photos">
+                <input type="file" id="photoInput" accept="image/*" multiple hidden>
+                <div class="upload-icon">📷</div>
+                <p class="upload-hint">Drag & drop or click to add a memory</p>
+                <div class="upload-progress" id="photoProgress"></div>
+            </div>
+            <div class="gallery-grid" id="photoGallery"></div>
+            <div class="load-more" id="loadMorePhotos" style="display: none;">Load More...</div>
+        </section>
+
+        <!-- Videos -->
+        <section id="videos" class="section">
+            <div class="section-header">
+                <h2>Memories in Motion 🎥</h2>
+                <p class="section-desc">Stories told without words.</p>
+            </div>
+            <div class="upload-wrapper" data-type="videos">
+                <input type="file" id="videoInput" accept="video/*" multiple hidden>
+                <div class="upload-icon">🎬</div>
+                <p class="upload-hint">Drag & drop or click to share a clip</p>
+                <div class="upload-progress" id="videoProgress"></div>
+            </div>
+            <div class="gallery-grid" id="videoGallery"></div>
+            <div class="load-more" id="loadMoreVideos" style="display: none;">Load More...</div>
+        </section>
+
+        <!-- Music -->
+        <section id="music" class="section">
+            <div class="section-header">
+                <h2>Songs That Define Us 🎵</h2>
+                <p class="section-desc">The soundtrack of our love.</p>
+            </div>
+            <div class="music-controls">
+                <div class="music-search">
+                    <input type="text" id="musicInput" placeholder="Search by artist or song...">
+                    <button id="addMusicBtn" class="btn primary">🔍 Discover</button>
+                </div>
+                <button id="createPlaylistBtn" class="btn secondary">➕ Create Playlist</button>
+            </div>
+            <div id="searchResults" class="music-grid"></div>
+            <h3>Your Treasured Melodies 💿</h3>
+            <div id="savedMusic" class="music-grid"></div>
+        </section>
+
+        <!-- Notes -->
+        <section id="notes" class="section">
+            <div class="section-header">
+                <h2>Whispers of the Heart ✍️</h2>
+                <p class="section-desc">Words that linger on the soul.</p>
+            </div>
+            <div class="note-composer">
+                <textarea id="noteInput" placeholder="Pour your heart out... What do you feel today?"></textarea>
+                <div class="note-actions">
+                    <button id="saveNoteBtn" class="btn primary">💌 Save Whisper</button>
+                    <button id="voiceNoteBtn" class="btn secondary">🎤 Voice Note</button>
+                </div>
+            </div>
+            <div id="notesList" class="notes-grid"></div>
+        </section>
+
+        <!-- Timeline -->
+        <section id="timeline" class="section">
+            <div class="section-header">
+                <h2>Our Journey Together 📅</h2>
+                <p class="section-desc">Milestones etched in eternity.</p>
+            </div>
+            <div class="timeline-calendar" id="timelineCalendar"></div>
+            <div id="timelineList" class="timeline-list"></div>
+        </section>
+
+        <!-- Favorites -->
+        <section id="favorites" class="section">
+            <div class="section-header">
+                <h2>Our Favorites ❤️</h2>
+                <p class="section-desc">The moments we cherish most.</p>
+            </div>
+            <div id="favoritesList" class="mixed-grid"></div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Brayden & Youna. Built with love, powered by stars.</p>
+        <button id="exportDataBtn" class="btn ghost">📤 Export Memories</button>
+    </footer>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox" role="dialog" aria-hidden="true">
+        <button class="close" aria-label="Close lightbox">&times;</button>
+        <div class="lightbox-nav">
+            <button id="prevBtn" aria-label="Previous">&lt;</button>
+            <button id="nextBtn" aria-label="Next">&gt;</button>
         </div>
-      </div>
-
-      <div class="music-columns">
-        <div class="music-col">
-          <h3>Search Results</h3>
-          <div id="searchResults" class="scrollbox" aria-live="polite"></div>
-        </div>
-
-        <div class="music-col">
-          <h3>Saved Treasures</h3>
-          <div id="savedMusic" class="scrollbox" aria-live="polite"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- NOTES -->
-    <section id="notes" class="panel" aria-labelledby="notesHeading">
-      <h2 id="notesHeading">Whispers of the Heart ✍️</h2>
-      <label for="noteInput" class="visually-hidden">Write a love note</label>
-      <textarea id="noteInput" rows="4" placeholder="Write a love note..." aria-label="Write a love note"></textarea>
-      <div class="note-controls">
-        <button id="saveNoteBtn" class="primary">Save Note</button>
-        <button id="clearNote" class="ghost">Clear</button>
-      </div>
-      <div id="notesList" class="stack" aria-live="polite"></div>
-    </section>
-
-    <!-- TIMELINE -->
-    <section id="timeline" class="panel" aria-labelledby="timelineHeading">
-      <h2 id="timelineHeading">Our Journey Together 📅</h2>
-      <div id="timelineList" class="stack" aria-live="polite"></div>
-    </section>
-  </main>
-
-  <!-- LIGHTBOX -->
-  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Media preview">
-    <div class="lightbox-inner" role="document">
-      <button id="lbClose" class="lb-close" aria-label="Close preview">&times;</button>
-      <div id="lbContent" class="lb-content" tabindex="0"></div>
-      <div class="lb-controls">
-        <button id="lbPrev" aria-label="Previous">◀</button>
-        <button id="lbNext" aria-label="Next">▶</button>
-      </div>
+        <div class="lightbox-content"></div>
+        <div class="lightbox-caption"></div>
     </div>
-  </div>
 
-  <footer class="site-footer" role="contentinfo">
-    <small>Made with ❤️ — private by design</small>
-  </footer>
+    <!-- Voice Recorder Modal -->
+    <div id="voiceModal" class="modal">
+        <div class="modal-content">
+            <h3>Record a Voice Note 🎤</h3>
+            <button id="startRecord" class="btn primary">Start Recording</button>
+            <button id="stopRecord" class="btn secondary" disabled>Stop</button>
+            <audio id="voicePreview" controls style="display: none;"></audio>
+            <button id="saveVoiceBtn" class="btn primary" disabled>Save to Notes</button>
+        </div>
+    </div>
 
-  <script type="module" src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
