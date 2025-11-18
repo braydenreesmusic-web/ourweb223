@@ -37,7 +37,7 @@ const collections = {
 
 let currentUser = null;
 const USERS = { brayden: 'brayden@love.com', youna: 'youna@love.com' };
-const PASSWORDS = { brayden: 'eternal1', youna: 'eternal2' };
+const PASSWORDS = { brayden: 'love', youna: 'love' };
 
 /* ================= AUTH & PRESENCE ================= */
 const authModal = document.getElementById("authModal");
