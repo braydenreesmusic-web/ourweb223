@@ -1,12 +1,13 @@
-// script.js - Fixed music (event delegation), added Schedule with calendar, iOS optimizations, stunning interactions
+// script.js - Complete, merged implementation: Auth, presence, favorites render, dark mode, all sections, iOS UX
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, where, limit, startAfter, getDocs
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, where, limit, startAfter, getDocs, getDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 
-/* ================= FIREBASE ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
   authDomain: "ourwebsite223.firebaseapp.com",
@@ -19,9 +20,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const rtdb = getDatabase(app);
 const analytics = getAnalytics(app);
 
-const PASSWORD = "love"; // Update as needed
 const collections = {
   photos: collection(db, "photos"),
   videos: collection(db, "videos"),
@@ -33,31 +35,154 @@ const collections = {
   playlists: collection(db, "playlists")
 };
 
-/* ================= PASSWORD ================= */
-const passwordModal = document.getElementById("passwordModal");
-const passwordInput = document.getElementById("passwordInput");
-const unlockBtn = document.getElementById("unlockBtn");
+let currentUser = null;
+const USERS = { brayden: 'brayden@love.com', youna: 'youna@love.com' };
+const PASSWORDS = { brayden: 'eternal1', youna: 'eternal2' };
 
-unlockBtn.addEventListener("click", () => {
-  if (passwordInput.value === PASSWORD) {
-    passwordModal.classList.remove("active");
+/* ================= AUTH & PRESENCE ================= */
+const authModal = document.getElementById("authModal");
+const braydenLogin = document.getElementById("braydenLogin");
+const younaLogin = document.getElementById("younaLogin");
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+const signInBtn = document.getElementById("signInBtn");
+const signUpBtn = document.getElementById("signUpBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const authError = document.getElementById("authError");
+const braydenPresence = document.getElementById("braydenPresence");
+const younaPresence = document.getElementById("younaPresence");
+
+braydenLogin.addEventListener("click", () => {
+  authEmail.value = USERS.brayden;
+  authPassword.value = '';
+  braydenLogin.classList.add("active");
+  younaLogin.classList.remove("active");
+});
+younaLogin.addEventListener("click", () => {
+  authEmail.value = USERS.youna;
+  authPassword.value = '';
+  younaLogin.classList.add("active");
+  braydenLogin.classList.remove("active");
+});
+
+signInBtn.addEventListener("click", async () => {
+  authError.textContent = '';
+  try {
+    currentUser = await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+    setPresence(currentUser.user.uid, true);
+    authModal.classList.remove("active");
     document.body.style.overflow = "";
+    logoutBtn.style.display = "inline-flex";
     initApp();
-  } else {
-    passwordInput.value = "";
-    passwordInput.placeholder = "Not quite, darling...";
-    setTimeout(() => passwordInput.placeholder = "What we share in the dark...", 2000);
+  } catch (err) {
+    authError.textContent = "The veil is thick—try again.";
   }
 });
-passwordInput.addEventListener("keypress", e => e.key === "Enter" && unlockBtn.click());
 
-document.addEventListener("DOMContentLoaded", () => {
-  passwordModal.classList.add("active");
-  document.body.style.overflow = "hidden";
-  passwordInput.focus();
+signUpBtn.addEventListener("click", async () => {
+  authError.textContent = '';
+  try {
+    currentUser = await createUserWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+    setPresence(currentUser.user.uid, true);
+    authModal.classList.remove("active");
+    logoutBtn.style.display = "inline-flex";
+    initApp();
+  } catch (err) {
+    authError.textContent = "A new path requires a true name.";
+  }
 });
 
-/* ================= UPLOAD TO CLOUDINARY ================= */
+logoutBtn.addEventListener("click", async () => {
+  setPresence(currentUser.user.uid, false);
+  await signOut(auth);
+  currentUser = null;
+  logoutBtn.style.display = "none";
+  authModal.classList.add("active");
+  document.body.style.overflow = "hidden";
+  authEmail.focus();
+});
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    currentUser = user;
+    setPresence(user.uid, true);
+    logoutBtn.style.display = "inline-flex";
+    if (authModal.classList.contains("active")) {
+      authModal.classList.remove("active");
+      document.body.style.overflow = "";
+      initApp();
+    }
+  }
+});
+
+function setPresence(uid, online) {
+  const presenceRef = ref(rtdb, `presence/${uid}`);
+  set(presenceRef, { online, timestamp: Date.now() });
+  if (online) onDisconnect(presenceRef).set({ online: false, timestamp: Date.now() });
+}
+
+function listenPresence() {
+  const braydenRef = ref(rtdb, `presence/brayden`);
+  const younaRef = ref(rtdb, `presence/youna`);
+  onValue(braydenRef, snap => {
+    const data = snap.val();
+    braydenPresence.textContent = data?.online ? "Brayden: Here" : "Brayden: Away";
+    braydenPresence.className = `presence ${data?.online ? 'online' : 'offline'}`;
+  });
+  onValue(younaRef, snap => {
+    const data = snap.val();
+    younaPresence.textContent = data?.online ? "Youna: Here" : "Youna: Away";
+    younaPresence.className = `presence ${data?.online ? 'online' : 'offline'}`;
+  });
+}
+
+/* ================= DARK MODE ================= */
+const darkModeToggle = document.getElementById("darkModeToggle");
+darkModeToggle.addEventListener("change", () => {
+  document.body.classList.toggle("dark", darkModeToggle.checked);
+  localStorage.setItem("darkMode", darkModeToggle.checked);
+});
+const savedDark = localStorage.getItem("darkMode") === "true";
+if (savedDark) {
+  darkModeToggle.checked = true;
+  document.body.classList.add("dark");
+}
+
+/* ================= INIT & NAV ================= */
+const navButtons = document.querySelectorAll(".nav button");
+const sections = document.querySelectorAll(".section");
+let currentSection = "photos";
+const PAGE_SIZE = 24;
+let lastDoc = {};
+
+function initApp() {
+  navButtons.forEach(btn => btn.addEventListener("click", () => showSection(btn.dataset.section)));
+  document.getElementById("globalSearch").addEventListener("input", debounce(handleGlobalSearch, 400));
+  listenPresence();
+  document.addEventListener("click", handleDynamicClicks);
+  showSection("photos");
+  // iOS enhancements
+  document.querySelectorAll("input, textarea, button").forEach(el => {
+    el.addEventListener("touchstart", () => el.style.transform = "scale(0.98)", { passive: true });
+    el.addEventListener("touchend", () => el.style.transform = "", { passive: true });
+  });
+  renderAll();
+}
+
+function showSection(id) {
+  sections.forEach(s => s.id === id ? s.classList.add("active") : s.classList.remove("active"));
+  navButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.section === id));
+  currentSection = id;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (id === "favorites") renderFavorites();
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+}
+
+/* ================= UPLOAD & MEDIA ================= */
 const CLOUD_NAME = "dgip2lmxu";
 const UPLOAD_PRESET = "unsigned_upload";
 
@@ -79,79 +204,6 @@ async function uploadToCloudinary(file, progressEl) {
   });
 }
 
-/* ================= INIT & NAV ================= */
-const navButtons = document.querySelectorAll(".nav button");
-const sections = document.querySelectorAll(".section");
-let currentSection = "photos";
-const PAGE_SIZE = 24;
-let lastDoc = {};
-
-function initApp() {
-  navButtons.forEach(btn => btn.addEventListener("click", () => showSection(btn.dataset.section)));
-  document.getElementById("globalSearch").addEventListener("input", debounce(handleGlobalSearch, 400));
-  showSection("photos");
-
-  // iOS PWA enhancements
-  if (navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
-    document.documentElement.classList.add('pwa');
-  }
-
-  // Event delegation for dynamic elements
-  document.addEventListener("click", handleDynamicClicks);
-
-  renderAll();
-  renderCalendar();
-}
-
-function showSection(id) {
-  sections.forEach(s => s.id === id ? s.classList.add("active") : s.classList.remove("active"));
-  navButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.section === id));
-  currentSection = id;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function handleDynamicClicks(e) {
-  const target = e.target;
-  if (target.matches(".favorite-btn")) toggleFavorite(target.dataset.id, target.dataset.type, target);
-  if (target.matches("[data-action='add-music']")) addMusic(JSON.parse(target.dataset.track));
-  if (target.matches("[data-action='remove-music']")) removeMusic(target.dataset.id);
-  if (target.matches("[data-action='delete-note']")) deleteNote(target.dataset.id);
-  if (target.matches("[data-action='delete-item']")) deleteItem(target.dataset.id, target.dataset.type);
-  if (target.matches(".calendar-day")) showEventForm(new Date(target.dataset.date));
-  if (target.matches("#saveEventBtn")) saveEvent();
-  if (target.matches("#cancelEventBtn")) hideEventForm();
-  if (target.matches("#createPlaylistBtn")) createPlaylist();
-}
-
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
-}
-
-/* ================= TIMELINE ================= */
-async function addToTimeline(action, type = "milestone") {
-  try {
-    await addDoc(collections.timeline, { action, type, timestamp: serverTimestamp() });
-  } catch (err) { console.error("Timeline error:", err); }
-}
-
-function renderTimeline() {
-  const list = document.getElementById("timelineList");
-  const q = query(collections.timeline, orderBy("timestamp", "desc"), limit(PAGE_SIZE * 2));
-  onSnapshot(q, snapshot => {
-    list.innerHTML = snapshot.empty ? "<div class='muted'>The story unfolds...</div>" : "";
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const item = document.createElement("div");
-      item.className = "timeline-item card";
-      const when = data.timestamp?.toDate?.() ?? new Date();
-      item.innerHTML = `<strong style="color: var(--primary);">${when.toLocaleString()}</strong><p>${escapeHtml(data.action)}</p>`;
-      list.appendChild(item);
-    });
-  });
-}
-
-/* ================= MEDIA UPLOAD & GALLERY ================= */
 const photoInput = document.getElementById("photoInput");
 const videoInput = document.getElementById("videoInput");
 const photoGallery = document.getElementById("photoGallery");
@@ -159,9 +211,7 @@ const videoGallery = document.getElementById("videoGallery");
 const loadMorePhotos = document.getElementById("loadMorePhotos");
 const loadMoreVideos = document.getElementById("loadMoreVideos");
 
-[photoInput, videoInput].forEach((input, idx) => {
-  input.addEventListener("change", e => handleFiles(e.target.files, idx === 0 ? "photos" : "videos"));
-});
+[photoInput, videoInput].forEach((input, idx) => input.addEventListener("change", e => handleFiles(e.target.files, idx === 0 ? "photos" : "videos")));
 
 document.querySelectorAll(".upload-wrapper").forEach(wrapper => {
   const type = wrapper.dataset.type;
@@ -186,12 +236,13 @@ async function handleFiles(files, type) {
     try {
       const url = await uploadToCloudinary(file, progressEl);
       await addDoc(collections[type], { url, timestamp: serverTimestamp() });
-      addToTimeline(`${type.slice(0, -1).toUpperCase()} captured 💖`);
+      addToTimeline(`${type.slice(0, -1).toUpperCase()} enshrined 💖`);
       tempCard.remove();
-      renderGallery(type, gallery, type === "photos" ? loadMorePhotos : loadMoreVideos);
+      await renderGallery(type, gallery, type === "photos" ? loadMorePhotos : loadMoreVideos);
+      updateFavoriteButtons();
     } catch (err) {
       console.error(err);
-      alert("A whisper from the stars: Try again, smaller file perhaps?");
+      alert("A rift in the ether—try a smaller offering.");
       tempCard.remove();
     }
   }
@@ -209,6 +260,7 @@ async function renderGallery(type, galleryEl, loadMoreEl) {
   lastDoc[type] = snapshot.docs[snapshot.docs.length - 1];
   loadMoreEl.style.display = snapshot.docs.length === PAGE_SIZE ? "block" : "none";
   loadMoreEl.onclick = () => loadMoreMedia(type, galleryEl, loadMoreEl);
+  updateFavoriteButtons();
 }
 
 async function loadMoreMedia(type, galleryEl, loadMoreEl) {
@@ -217,6 +269,7 @@ async function loadMoreMedia(type, galleryEl, loadMoreEl) {
   snapshot.forEach(docSnap => galleryEl.appendChild(makeMediaCard({ ...docSnap.data(), id: docSnap.id, type: type === "photos" ? "image" : "video" })));
   lastDoc[type] = snapshot.docs[snapshot.docs.length - 1];
   if (snapshot.docs.length < PAGE_SIZE) loadMoreEl.style.display = "none";
+  updateFavoriteButtons();
   initLightboxItems();
 }
 
@@ -225,7 +278,7 @@ function makeMediaCard({ url, id, type, timestamp }) {
   wrapper.className = "card";
   const media = type === "image" ? document.createElement("img") : document.createElement("video");
   media.src = url;
-  if (type === "video") media.controls = false;
+  if (type === "video") { media.controls = false; media.preload = "metadata"; }
   wrapper.appendChild(media);
   const meta = document.createElement("div");
   meta.className = "card-meta";
@@ -233,17 +286,18 @@ function makeMediaCard({ url, id, type, timestamp }) {
   meta.innerHTML = `
     <div class="meta-left">${date}</div>
     <div class="meta-actions">
-      <button class="ghost" data-action="preview" data-url="${url}" data-type="${type}">👁️</button>
+      <button class="ghost" onclick="openLightbox('${url}', '${date}', '${type}')">👁️</button>
       <button class="ghost" data-action="delete-item" data-id="${id}" data-type="${type}">🗑️</button>
     </div>
   `;
   wrapper.appendChild(meta);
-  wrapper.addEventListener("click", () => openLightbox(url, date, type));
+  wrapper.addEventListener("click", e => { if (!e.target.closest("button")) openLightbox(url, date, type); });
   const favBtn = document.createElement("button");
   favBtn.className = "favorite-btn";
   favBtn.dataset.id = id;
   favBtn.dataset.type = type;
   favBtn.innerHTML = "❤️";
+  favBtn.addEventListener("click", e => { e.stopPropagation(); toggleFavorite(id, type, favBtn); });
   wrapper.appendChild(favBtn);
   return wrapper;
 }
@@ -254,12 +308,13 @@ function makeTempCard(file, type) {
   const media = file.type.startsWith("image/") ? document.createElement("img") : document.createElement("video");
   media.src = URL.createObjectURL(file);
   media.style.filter = "blur(3px) brightness(0.8)";
+  if (media.tagName === "VIDEO") { media.muted = true; media.loop = true; }
   wrapper.appendChild(media);
   wrapper.innerHTML += `<div class="card-meta"><div class="meta-left">Weaving magic... ✨</div></div>`;
   return wrapper;
 }
 
-/* ================= MUSIC FIXED ================= */
+/* ================= MUSIC ================= */
 const musicInput = document.getElementById("musicInput");
 const addMusicBtn = document.getElementById("addMusicBtn");
 const musicSearchResults = document.getElementById("musicSearchResults");
@@ -268,11 +323,12 @@ const createPlaylistBtn = document.getElementById("createPlaylistBtn");
 
 addMusicBtn.addEventListener("click", searchMusic);
 musicInput.addEventListener("keypress", e => e.key === "Enter" && searchMusic());
+createPlaylistBtn.addEventListener("click", createPlaylist);
 
 async function searchMusic() {
   const q = musicInput.value.trim();
   if (!q) return;
-  musicSearchResults.innerHTML = "<div class='muted'>Tuning the universe...</div>";
+  musicSearchResults.innerHTML = "<div class='muted'>Tuning the cosmos...</div>";
   try {
     const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(q)}`);
     const data = await res.json();
@@ -280,7 +336,7 @@ async function searchMusic() {
     data.slice(0, 12).forEach(track => musicSearchResults.appendChild(createMusicItem(track, null, false)));
   } catch (err) {
     console.error(err);
-    musicSearchResults.innerHTML = "<div class='muted'>The muses are shy today. Try another melody?</div>";
+    musicSearchResults.innerHTML = "<div class='muted'>The muses are elusive—try another invocation.</div>";
   }
 }
 
@@ -288,14 +344,14 @@ function createMusicItem(track, id = null, saved = false) {
   const root = document.createElement("div");
   root.className = "musicItem card";
   root.innerHTML = `
-    <img src="${track.album?.images?.[0]?.url || 'https://via.placeholder.com/320x320?text=♪'}" alt="${track.name}" loading="lazy">
+    <img src="${track.album?.images?.[0]?.url || 'https://via.placeholder.com/340x200?text=♪'}" alt="${track.name}" loading="lazy">
     <div class="info">
       <p class="music-title">${escapeHtml(track.name)}</p>
       <p>${escapeHtml(track.artists?.map(a => a.name).join(', '))}</p>
-      ${track.preview_url ? `<audio controls src="${track.preview_url}" style="width:100%; margin:10px 0;"></audio>` : ''}
-      <div class="musicButtons" style="display:flex; gap:10px; flex-wrap:wrap;">
-        <a href="${track.external_urls?.spotify}" target="_blank" rel="noopener" class="ghost">▶️ Spotify</a>
-        ${saved ? `<button class="ghost" data-action="remove-music" data-id="${id}">✗</button>` : `<button class="primary" data-action="add-music" data-track='${JSON.stringify(track).replace(/'/g, "\\'")}'>+ Heart</button>`}
+      ${track.preview_url ? `<audio controls src="${track.preview_url}" style="width:100%; margin:10px 0;" playsinline></audio>` : ''}
+      <div class="musicButtons">
+        <a href="${track.external_urls?.spotify}" target="_blank" rel="noopener" class="ghost">▶️ Unveil</a>
+        ${saved ? `<button class="ghost" data-action="remove-music" data-id="${id}">✗</button>` : `<button class="primary" data-action="add-music" data-track='${JSON.stringify(track).replace(/'/g, "\\'")}'>+ Enshrine</button>`}
       </div>
     </div>
     <button class="favorite-btn" data-id="${track.id}" data-type="music">❤️</button>
@@ -303,35 +359,36 @@ function createMusicItem(track, id = null, saved = false) {
   return root;
 }
 
-async function addMusic(track) {
+window.addMusic = async (track) => {
   await addDoc(collections.music, { ...track, timestamp: serverTimestamp() });
-  addToTimeline(`Melody embraced: ${track.name} 🎶`);
-  musicSearchResults.innerHTML = "<div class='muted'>Enchanted our collection ✨</div>";
-}
+  addToTimeline(`Harmony embraced: ${track.name} 🎶`);
+  musicSearchResults.innerHTML = "<div class='muted'>A new verse in our symphony ✨</div>";
+  updateFavoriteButtons();
+};
 
-async function removeMusic(id) {
-  if (!confirm("Release this harmony?")) return;
+window.removeMusic = async (id) => {
+  if (!confirm("Release this cadence?")) return;
   await deleteDoc(doc(collections.music, id));
-  addToTimeline("A note fades gently");
-}
+  addToTimeline("A melody fades into memory");
+};
 
 function renderSavedMusic() {
   const q = query(collections.music, orderBy("timestamp", "desc"));
   onSnapshot(q, snapshot => {
-    savedMusic.innerHTML = snapshot.empty ? "<div class='muted'>Awaiting our first duet...</div>" : "";
+    savedMusic.innerHTML = snapshot.empty ? "<div class='muted'>The archives yearn for song...</div>" : "";
     snapshot.forEach(docSnap => savedMusic.appendChild(createMusicItem(docSnap.data(), docSnap.id, true)));
+    updateFavoriteButtons();
   });
 }
 
 async function createPlaylist() {
-  const name = prompt("Name this symphony?");
+  const name = prompt("Name this celestial score?");
   if (!name) return;
-  const playlistRef = await addDoc(collections.playlists, { name, tracks: [], timestamp: serverTimestamp() });
-  addToTimeline(`Symphony born: ${name} 🎼`);
-  alert(`Chapter "${name}" awaits your notes!`);
+  await addDoc(collections.playlists, { name, tracks: [], timestamp: serverTimestamp() });
+  addToTimeline(`Score composed: ${name} 🎼`);
 }
 
-/* ================= NOTES WITH VOICE ================= */
+/* ================= NOTES & VOICE ================= */
 const noteInput = document.getElementById("noteInput");
 const saveNoteBtn = document.getElementById("saveNoteBtn");
 const notesList = document.getElementById("notesList");
@@ -340,31 +397,9 @@ saveNoteBtn.addEventListener("click", async () => {
   const text = noteInput.value.trim();
   if (!text) return noteInput.focus();
   await addDoc(collections.notes, { text, timestamp: serverTimestamp() });
-  addToTimeline("A whisper eternalized ✍️");
+  addToTimeline("Confession veiled ✍️");
   noteInput.value = "";
 });
-
-function renderNotes() {
-  const q = query(collections.notes, orderBy("timestamp", "desc"));
-  onSnapshot(q, snapshot => {
-    notesList.innerHTML = snapshot.empty ? "<div class='muted'>Silent pages yearn...</div>" : "";
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const card = document.createElement("div");
-      card.className = "note-card card";
-      const when = data.timestamp?.toDate?.()?.toLocaleDateString() ?? "Eternal";
-      card.innerHTML = `
-        <div class="info">
-          <strong style="color: var(--accent);">${when}</strong>
-          <p style="font-family: var(--font-serif); font-style: italic;">${escapeHtml(data.text)}</p>
-          <button class="ghost" data-action="delete-note" data-id="${docSnap.id}">🗑️</button>
-        </div>
-        <button class="favorite-btn" data-id="${docSnap.id}" data-type="notes">❤️</button>
-      `;
-      notesList.appendChild(card);
-    });
-  });
-}
 
 let mediaRecorder, audioChunks = [];
 const voiceModal = document.getElementById("voiceModal");
@@ -393,7 +428,7 @@ startRecord.addEventListener("click", async () => {
     startRecord.disabled = true;
     stopRecord.disabled = false;
   } catch (err) {
-    alert("The winds carry no sound today. Check microphone.");
+    alert("The winds are silent—check your voice.");
   }
 });
 
@@ -407,20 +442,43 @@ saveVoiceBtn.addEventListener("click", async () => {
   const blob = new Blob(audioChunks, { type: 'audio/wav' });
   try {
     const url = await uploadToCloudinary(blob, null);
-    await addDoc(collections.notes, { text: "[Voice from the heart]", audioUrl: url, timestamp: serverTimestamp() });
-    addToTimeline("Echo preserved 🎤");
+    await addDoc(collections.notes, { text: "[Echo from the depths]", audioUrl: url, timestamp: serverTimestamp() });
+    addToTimeline("Whisper eternalized 🎤");
     voiceModal.classList.remove("active");
     voicePreview.style.display = "none";
     saveVoiceBtn.disabled = true;
-    audioChunks = [];
   } catch (err) { console.error(err); }
 });
 
-async function deleteNote(id) {
-  if (!confirm("Vanish this echo?")) return;
-  await deleteDoc(doc(collections.notes, id));
-  addToTimeline("A whisper released");
+function renderNotes() {
+  const q = query(collections.notes, orderBy("timestamp", "desc"));
+  onSnapshot(q, snapshot => {
+    notesList.innerHTML = snapshot.empty ? "<div class='muted'>The pages await your ink...</div>" : "";
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const card = document.createElement("div");
+      card.className = "note-card card";
+      const when = data.timestamp?.toDate?.()?.toLocaleDateString() ?? "Timeless";
+      card.innerHTML = `
+        <div class="info">
+          <strong style="color: var(--accent);">${when}</strong>
+          <p style="font-style: italic; font-family: var(--font-serif);">${escapeHtml(data.text)}</p>
+          ${data.audioUrl ? `<audio controls src="${data.audioUrl}" playsinline></audio>` : ''}
+          <button class="ghost" data-action="delete-note" data-id="${docSnap.id}">🗑️</button>
+        </div>
+        <button class="favorite-btn" data-id="${docSnap.id}" data-type="notes">❤️</button>
+      `;
+      notesList.appendChild(card);
+    });
+    updateFavoriteButtons();
+  });
 }
+
+window.deleteNote = async (id) => {
+  if (!confirm("Unveil this confession?")) return;
+  await deleteDoc(doc(collections.notes, id));
+  addToTimeline("A veil lifted");
+};
 
 /* ================= SCHEDULE ================= */
 let currentDate = new Date();
@@ -439,15 +497,13 @@ function renderCalendar() {
   const month = currentDate.getMonth();
   monthYear.textContent = currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   calendarGrid.innerHTML = "";
-  // Days header
   ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(day => {
     const div = document.createElement("div");
     div.className = "calendar-day header";
     div.textContent = day;
-    div.style.fontWeight = "bold";
+    div.style.fontWeight = "500";
     calendarGrid.appendChild(div);
   });
-  // Days
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   for (let i = 0; i < firstDay; i++) {
@@ -462,28 +518,28 @@ function renderCalendar() {
     div.className = `calendar-day ${date.toDateString() === today ? "today" : ""}`;
     div.dataset.date = date.toISOString().split("T")[0];
     div.innerHTML = `<div>${day}</div><div class="events-mini"></div>`;
+    div.addEventListener("click", () => showEventForm(div.dataset.date));
     calendarGrid.appendChild(div);
   }
   renderEventsOnCalendar();
 }
 
 function renderEventsOnCalendar() {
-  getDocs(query(collections.events, where("date", ">=", currentDate.getFullYear() + "-" + String(currentDate.getMonth() + 1).padStart(2, "0") + "-01"))).then(snapshot => {
+  getDocs(query(collections.events, where("date", ">=", `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`))).then(snapshot => {
     const eventsByDate = {};
-    snapshot.forEach(d => {
-      const date = d.data().date;
-      eventsByDate[date] = (eventsByDate[date] || 0) + 1;
-    });
+    snapshot.forEach(d => eventsByDate[d.data().date] = (eventsByDate[d.data().date] || 0) + 1);
     document.querySelectorAll(".calendar-day:not(.header):not(.empty)").forEach(day => {
       const dateStr = day.dataset.date;
-      if (eventsByDate[dateStr]) day.classList.add("has-event");
-      day.querySelector(".events-mini").textContent = eventsByDate[dateStr] || "";
+      if (eventsByDate[dateStr]) {
+        day.classList.add("has-event");
+        day.querySelector(".events-mini").textContent = eventsByDate[dateStr];
+      }
     });
   });
 }
 
 function showEventForm(dateStr) {
-  document.getElementById("formTitle").textContent = "Manifest Destiny";
+  document.getElementById("formTitle").textContent = "Invoke Alignment";
   document.getElementById("eventDate").value = dateStr;
   eventForm.style.display = "block";
   eventForm.scrollIntoView({ behavior: "smooth" });
@@ -494,29 +550,30 @@ function hideEventForm() {
   eventForm.querySelectorAll("input, textarea").forEach(el => el.value = "");
 }
 
-async function saveEvent() {
+window.saveEvent = async () => {
   const title = document.getElementById("eventTitle").value.trim();
   const desc = document.getElementById("eventDesc").value.trim();
   const date = document.getElementById("eventDate").value;
-  if (!title || !date) return alert("A star needs a name and a sky.");
+  if (!title || !date) return alert("A prophecy needs form and fate.");
   await addDoc(collections.events, { title, desc, date, timestamp: serverTimestamp() });
-  addToTimeline(`Fate sealed: ${title} on ${date} 🌟`);
+  addToTimeline(`Alignment invoked: ${title} on ${date} 🌟`);
   hideEventForm();
   renderEventsList();
   renderCalendar();
-}
+  updateFavoriteButtons();
+};
 
 function renderEventsList() {
   const q = query(collections.events, orderBy("date"));
   onSnapshot(q, snapshot => {
-    eventsList.innerHTML = snapshot.empty ? "<div class='muted'>The future is blank canvas...</div>" : "";
+    eventsList.innerHTML = snapshot.empty ? "<div class='muted'>The stars hold their breath...</div>" : "";
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
       const card = document.createElement("div");
       card.className = "event-card card";
       card.innerHTML = `
         <div class="info">
-          <strong style="color: var(--accent);">${data.date} - ${escapeHtml(data.title)}</strong>
+          <strong style="color: var(--accent);">${data.date} – ${escapeHtml(data.title)}</strong>
           <p>${escapeHtml(data.desc)}</p>
           <button class="ghost" data-action="delete-item" data-id="${docSnap.id}" data-type="events">🗑️</button>
         </div>
@@ -524,38 +581,112 @@ function renderEventsList() {
       `;
       eventsList.appendChild(card);
     });
+    updateFavoriteButtons();
+  });
+}
+
+/* ================= TIMELINE ================= */
+async function addToTimeline(action, type = "milestone") {
+  try {
+    await addDoc(collections.timeline, { action, type, timestamp: serverTimestamp() });
+  } catch (err) { console.error("Timeline rift:", err); }
+}
+
+function renderTimeline() {
+  const list = document.getElementById("timelineList");
+  const q = query(collections.timeline, orderBy("timestamp", "desc"), limit(PAGE_SIZE * 2));
+  onSnapshot(q, snapshot => {
+    list.innerHTML = snapshot.empty ? "<div class='muted'>The saga begins in silence...</div>" : "";
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const item = document.createElement("div");
+      item.className = "timeline-item card";
+      const when = data.timestamp?.toDate?.() ?? new Date();
+      item.innerHTML = `<strong style="color: var(--primary);">${when.toLocaleString()}</strong><p>${escapeHtml(data.action)}</p>`;
+      list.appendChild(item);
+    });
   });
 }
 
 /* ================= FAVORITES ================= */
-let favorites = new Set();
+let favorites = new Map(); // type_id -> favDocId
+
 onSnapshot(collections.favorites, snap => {
-  favorites = new Set(snap.docs.map(d => `${d.data().type}_${d.data().itemId}`));
+  favorites.clear();
+  snap.forEach(d => {
+    const data = d.data();
+    favorites.set(`${data.type}_${data.itemId}`, d.id);
+  });
+  renderFavorites();
+  updateFavoriteButtons();
+});
+
+function updateFavoriteButtons() {
   document.querySelectorAll(".favorite-btn").forEach(btn => {
     const key = `${btn.dataset.type}_${btn.dataset.id}`;
     btn.classList.toggle("active", favorites.has(key));
   });
-  renderFavorites();
-});
-
-function toggleFavorite(id, type, el) {
-  const key = `${type}_${id}`;
-  if (favorites.has(key)) {
-    // Delete logic: find and delete doc where itemId and type match
-    getDocs(query(collections.favorites, where("itemId", "==", id), where("type", "==", type))).then(snap => {
-      snap.forEach(d => deleteDoc(doc(collections.favorites, d.id)));
-    });
-    el.classList.remove("active");
-  } else {
-    addDoc(collections.favorites, { itemId: id, type, timestamp: serverTimestamp() });
-    el.classList.add("active");
-  }
-  addToTimeline(`${type} hearted ❤️`);
 }
 
-function renderFavorites() {
+async function toggleFavorite(id, type, el) {
+  const key = `${type}_${id}`;
+  if (favorites.has(key)) {
+    await deleteDoc(doc(db, "favorites", favorites.get(key)));
+  } else {
+    await addDoc(collections.favorites, { itemId: id, type, timestamp: serverTimestamp() });
+  }
+  addToTimeline(`${type} enshrined ❤️`);
+}
+
+async function renderFavorites() {
   const list = document.getElementById("favoritesList");
-  list.innerHTML = "<div class='muted'>Hearts collect the finest...</div>"; // Simplified; expand to query all types
+  if (!favorites.size) {
+    list.innerHTML = "<div class='muted'>The vault awaits your treasures...</div>";
+    return;
+  }
+  list.innerHTML = "<div class='muted'>Illuminating the sanctum...</div>";
+  const favItems = [];
+  for (const [key, favId] of favorites) {
+    const [type, itemId] = key.split("_");
+    const itemDoc = await getDoc(doc(db, type === "events" ? collections.events : collections[type], itemId));
+    if (itemDoc.exists()) {
+      const data = itemDoc.data();
+      favItems.push({ ...data, id: itemId, type });
+    }
+  }
+  list.innerHTML = "";
+  favItems.forEach(item => {
+    if (item.type === "photos" || item.type === "videos") {
+      const card = makeMediaCard({ ...item, type: item.type === "photos" ? "image" : "video" });
+      list.appendChild(card);
+    } else if (item.type === "music") {
+      list.appendChild(createMusicItem(item, item.id, true));
+    } else if (item.type === "notes") {
+      const card = document.createElement("div");
+      card.className = "note-card card";
+      const when = item.timestamp?.toDate?.()?.toLocaleDateString() ?? "Timeless";
+      card.innerHTML = `
+        <div class="info">
+          <strong style="color: var(--accent);">${when}</strong>
+          <p style="font-style: italic; font-family: var(--font-serif);">${escapeHtml(item.text)}</p>
+          ${item.audioUrl ? `<audio controls src="${item.audioUrl}" playsinline></audio>` : ''}
+        </div>
+      `;
+      list.appendChild(card);
+    } else if (item.type === "events") {
+      const card = document.createElement("div");
+      card.className = "event-card card";
+      card.innerHTML = `
+        <div class="info">
+          <strong style="color: var(--accent);">${item.date} – ${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.desc)}</p>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+  });
+  initLightboxItems();
+  updateFavoriteButtons();
 }
 
 /* ================= GLOBAL SEARCH ================= */
@@ -564,14 +695,27 @@ async function handleGlobalSearch() {
   if (!term) return showSection(currentSection);
   showSection("searchResults");
   const output = document.getElementById("globalSearchOutput");
-  output.innerHTML = "<div class='muted'>Scrying the ether...</div>";
-  // Basic search across notes/music (expand as needed)
+  output.innerHTML = "<div class='muted'>Peering into the abyss...</div>";
   const results = [];
+  // Notes
   const noteQ = query(collections.notes, where("text", ">=", term), where("text", "<=", term + "\uf8ff"), limit(5));
   const noteSnap = await getDocs(noteQ);
   noteSnap.forEach(d => results.push({ ...d.data(), id: d.id, type: "note" }));
-  // Similar for music...
-  output.innerHTML = results.length ? results.map(r => `<div class="card"><p>${r.type.toUpperCase()}: ${escapeHtml(r.text || r.title)}</p></div>`).join("") : "<div class='muted'>Shadows hide it well.</div>";
+  // Music (title/artist)
+  const musicQ = query(collections.music, where("name", ">=", term), where("name", "<=", term + "\uf8ff"), limit(5));
+  const musicSnap = await getDocs(musicQ);
+  musicSnap.forEach(d => results.push({ ...d.data(), id: d.id, type: "music" }));
+  // Events
+  const eventQ = query(collections.events, where("title", ">=", term), where("title", "<=", term + "\uf8ff"), limit(5));
+  const eventSnap = await getDocs(eventQ);
+  eventSnap.forEach(d => results.push({ ...d.data(), id: d.id, type: "event" }));
+  output.innerHTML = results.length ? results.map(r => {
+    let preview = '';
+    if (r.type === "note") preview = escapeHtml(r.text?.slice(0, 100)) + '...';
+    else if (r.type === "music") preview = escapeHtml(r.name || r.title);
+    else if (r.type === "event") preview = escapeHtml(r.title);
+    return `<div class="card"><p><strong>${r.type.toUpperCase()}:</strong> ${preview}</p></div>`;
+  }).join("") : "<div class='muted'>The ether conceals it...</div>";
 }
 
 /* ================= LIGHTBOX ================= */
@@ -582,7 +726,7 @@ let lbItems = [], lbIndex = 0;
 
 function initLightboxItems() {
   lbItems = [];
-  document.querySelectorAll(".gallery-grid .card img, .gallery-grid .card video").forEach(el => {
+  document.querySelectorAll(".gallery-grid .card img, .gallery-grid .card video, #favoritesList .card img, #favoritesList .card video").forEach(el => {
     lbItems.push({
       url: el.src,
       type: el.tagName === "IMG" ? "image" : "video",
@@ -591,18 +735,20 @@ function initLightboxItems() {
   });
 }
 
-function openLightbox(url, caption, type) {
+window.openLightbox = (url, caption, type) => {
   initLightboxItems();
   lbIndex = lbItems.findIndex(i => i.url === url);
   if (lbIndex === -1) lbItems.push({ url, type, caption }), lbIndex = lbItems.length - 1;
   renderLB();
   lightbox.classList.add("active");
   document.body.style.overflow = "hidden";
-}
+};
 
 function renderLB() {
   const item = lbItems[lbIndex];
-  lbContent.innerHTML = item.type === "video" ? `<video src="${item.url}" controls autoplay playsinline></video>` : `<img src="${item.url}" alt="${item.caption}" loading="eager">`;
+  lbContent.innerHTML = item.type === "video"
+    ? `<video src="${item.url}" controls autoplay playsinline></video>`
+    : `<img src="${item.url}" alt="${item.caption}" loading="eager">`;
   lbCaption.textContent = item.caption;
   document.getElementById("prevBtn").onclick = () => { lbIndex = (lbIndex - 1 + lbItems.length) % lbItems.length; renderLB(); };
   document.getElementById("nextBtn").onclick = () => { lbIndex = (lbIndex + 1) % lbItems.length; renderLB(); };
@@ -617,20 +763,47 @@ lightbox.addEventListener("click", e => e.target === lightbox && closeLB());
 document.addEventListener("keydown", e => {
   if (lightbox.classList.contains("active")) {
     if (e.key === "Escape") closeLB();
-    else if (e.key === "ArrowLeft") document.getElementById("prevBtn").click();
-    else if (e.key === "ArrowRight") document.getElementById("nextBtn").click();
+    if (e.key === "ArrowLeft") document.getElementById("prevBtn").click();
+    if (e.key === "ArrowRight") document.getElementById("nextBtn").click();
   }
 });
 
-/* ================= UTILS ================= */
-async function deleteItem(id, type) {
-  if (!confirm(`Dissolve this ${type}?`)) return;
-  await deleteDoc(doc(collections[type], id));
-  addToTimeline(`${type} released to the void`);
+/* ================= DYNAMIC CLICKS ================= */
+function handleDynamicClicks(e) {
+  const target = e.target;
+  if (target.matches(".favorite-btn")) {
+    e.stopPropagation();
+    toggleFavorite(target.dataset.id, target.dataset.type, target);
+  } else if (target.matches("[data-action='add-music']")) {
+    addMusic(JSON.parse(target.dataset.track));
+  } else if (target.matches("[data-action='remove-music']")) {
+    removeMusic(target.dataset.id);
+  } else if (target.matches("[data-action='delete-note']")) {
+    deleteNote(target.dataset.id);
+  } else if (target.matches("[data-action='delete-item']")) {
+    deleteItem(target.dataset.id, target.dataset.type);
+  } else if (target.matches(".calendar-day:not(.header):not(.empty)")) {
+    showEventForm(target.dataset.date);
+  } else if (target.matches("#saveEventBtn")) {
+    saveEvent();
+  } else if (target.matches("#cancelEventBtn")) {
+    hideEventForm();
+  }
 }
 
+/* ================= UTILS ================= */
+window.deleteItem = async (id, type) => {
+  if (!confirm(`Dissolve this ${type}?`)) return;
+  await deleteDoc(doc(collections[type], id));
+  addToTimeline(`${type} returned to the void`);
+  if (type === "photos" || type === "videos") {
+    document.querySelector(`[data-id="${id}"]`)?.closest(".card")?.remove();
+  }
+  renderFavorites(); // Refresh if needed
+};
+
 function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+  return str?.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]) || '';
 }
 
 /* ================= EXPORT ================= */
@@ -648,18 +821,26 @@ document.getElementById("exportDataBtn").addEventListener("click", async () => {
   a.download = `our-eternity-${new Date().toISOString().split('T')[0]}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  addToTimeline("Eternity bottled 📜");
+  addToTimeline("Eternity sealed in amber 📜");
 });
 
 /* ================= RENDER ALL ================= */
-function renderAll() {
+async function renderAll() {
   renderTimeline();
   renderNotes();
   renderSavedMusic();
-  renderGallery("photos", photoGallery, loadMorePhotos);
-  renderGallery("videos", videoGallery, loadMoreVideos);
+  await renderGallery("photos", photoGallery, loadMorePhotos);
+  await renderGallery("videos", videoGallery, loadMoreVideos);
   renderEventsList();
   renderFavorites();
+  renderCalendar();
 }
 
-// Init after unlock
+/* ================= START ================= */
+document.addEventListener("DOMContentLoaded", () => {
+  braydenLogin.click();
+  authModal.classList.add("active");
+  document.body.style.overflow = "hidden";
+  authEmail.focus();
+  darkModeToggle.checked = document.body.classList.contains("dark");
+});
