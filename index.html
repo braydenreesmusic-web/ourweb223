@@ -2,263 +2,299 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Brayden & Youna">
     <title>Brayden & Youna – Timeless Bond</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Spectral:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Spectral:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <meta name="theme-color" content="#C38D9E">
+    <meta name="theme-color" content="#F8F4F0">
 </head>
 <body>
-    <!-- Auth Modal -->
-    <div id="authModal" class="modal">
-        <div class="modal-content">
-            <h2>Enter Our Realm </h2>
-            <p>Sign in to weave our shared tapestry.</p>
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="authModal" class="modal active">
+        <div class="modal-content blur-bg">
+            <div class="modal-header">
+                <h2>Enter Our Realm</h2>
+                <p class="subtitle">Weave our shared tapestry</p>
+            </div>
             <div class="auth-switch">
                 <button id="braydenLogin" class="btn primary active">Brayden</button>
-                <button id="younaLogin" class="btn secondary">Youna</button>
+                <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
-            <input type="email" id="authEmail" placeholder="your.email@example.com" required>
-            <input type="password" id="authPassword" placeholder="Our sacred vow..." required>
-            <button id="signInBtn" class="btn primary">Awaken</button>
-            <button id="signUpBtn" class="btn secondary">Forge New</button>
-            <p id="authError" class="error"></p>
+            <div class="input-group">
+                <input type="email" id="authEmail" placeholder="email@love.com" required autocomplete="email">
+                <input type="password" id="authPassword" placeholder="Our sacred vow..." required>
+            </div>
+            <button id="signInBtn" class="btn primary full-width">Awaken</button>
+            <button id="signUpBtn" class="btn text-only">Forge New Path</button>
+            <p id="authError" class="error-msg"></p>
             <p class="presence-hint">We'll see each other's light when online ✨</p>
-        </div>
-    </div>
-
-    <!-- Password Fallback Modal (if no auth) -->
-    <div id="passwordModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Welcome, Eternal 💕</h2>
-            <input type="password" id="passwordInput" placeholder="Legacy key...">
-            <button id="unlockBtn" class="btn primary">Unlock</button>
         </div>
     </div>
 
     <div class="background-animation"></div>
 
     <header class="header">
-        <div class="header-content">
-            <h1 class="logo">Brayden & Youna</h1>
-            <p class="tagline">Threads of destiny, woven in silence</p>
-            <div class="presence-indicators">
-                <span id="braydenPresence" class="presence offline">Brayden: Away</span>
-                <span id="younaPresence" class="presence offline">Youna: Away</span>
+        <div class="header-top">
+            <div class="logo-area">
+                <h1 class="logo">B & Y</h1>
+                <div id="daysCounter" class="days-counter">loading...</div>
+            </div>
+            <div class="header-controls">
+                 <div class="theme-toggle-wrapper">
+                    <input type="checkbox" id="darkModeToggle">
+                    <label for="darkModeToggle" class="theme-switch">
+                        <span class="icon sun">☀</span>
+                        <span class="icon moon">☾</span>
+                    </label>
+                </div>
+                <button id="logoutBtn" class="btn icon-btn" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
             </div>
         </div>
-        <div class="header-actions">
-            <div class="search-global">
-                <input type="text" id="globalSearch" placeholder="Seek in our infinity...">
+        
+        <div class="header-bottom">
+             <div class="presence-bar">
+                <span id="braydenPresence" class="presence-dot"></span>
+                <span id="younaPresence" class="presence-dot"></span>
             </div>
-            <div class="theme-toggle">
-                <input type="checkbox" id="darkModeToggle">
-                <label for="darkModeToggle" class="toggle-switch">
-                    <span class="sun">☀️</span>
-                    <span class="moon">🌙</span>
-                </label>
+            <div class="search-bar">
+                <input type="text" id="globalSearch" placeholder="Search memories...">
             </div>
-            <button id="logoutBtn" class="btn ghost" style="display: none;">Depart</button>
         </div>
     </header>
 
-    <nav class="nav">
-        <button data-section="photos">📸 Echoes</button>
-        <button data-section="videos">🎥 Reveries</button>
-        <button data-section="music">🎵 Cadences</button>
-        <button data-section="notes">✍️ Reveries</button>
-        <button data-section="schedule">📅 Horizons</button>
-        <button data-section="timeline">🗺️ Tapestry</button>
-        <button data-section="map">🌍 Memories</button>
-        <button data-section="favorites">❤️ Sanctum</button>
-    </nav>
-
     <main class="container">
-        <!-- Global Search -->
         <section id="searchResults" class="section">
             <div class="section-header">
-                <h2>Revelations 🔍</h2>
-                <p class="section-desc">Whispers from the void.</p>
+                <h2>Revelations</h2>
+                <p>Whispers found in the void.</p>
             </div>
-            <div id="globalSearchOutput" class="mixed-grid"></div>
+            <div id="globalSearchOutput" class="list-layout"></div>
         </section>
 
-        <!-- Photos -->
-        <section id="photos" class="section active">
+        <section id="photos" class="section">
             <div class="section-header">
-                <h2>Frozen Infinities 📸</h2>
-                <p class="section-desc">Glimpses of us, eternal.</p>
+                <h2>Echoes</h2>
+                <p>Frozen moments of us.</p>
             </div>
-            <div class="upload-wrapper" data-type="photos">
+            <div class="upload-card" data-type="photos">
+                <div class="upload-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                </div>
+                <span>Add Photo</span>
                 <input type="file" id="photoInput" accept="image/*" multiple hidden>
-                <div class="upload-icon">📷</div>
-                <p class="upload-hint">Bestow a vision</p>
-                <div class="upload-progress" id="photoProgress"></div>
+                <div class="progress-bar"><div class="fill" id="photoProgress"></div></div>
             </div>
-            <div class="gallery-grid" id="photoGallery"></div>
-            <div class="load-more" id="loadMorePhotos">∞ Unveil More</div>
+            <div class="masonry-grid" id="photoGallery"></div>
+            <div class="load-more-trigger" id="loadMorePhotos">Explore Deeper</div>
         </section>
 
-        <!-- Videos -->
         <section id="videos" class="section">
             <div class="section-header">
-                <h2>Motion's Grace 🎥</h2>
-                <p class="section-desc">Dances of light and shadow.</p>
+                <h2>Reveries</h2>
+                <p>Motion, light, and shadow.</p>
             </div>
-            <div class="upload-wrapper" data-type="videos">
+            <div class="upload-card" data-type="videos">
+                <div class="upload-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+                </div>
+                <span>Add Video</span>
                 <input type="file" id="videoInput" accept="video/*" multiple hidden>
-                <div class="upload-icon">🎬</div>
-                <p class="upload-hint">Unfurl a reel</p>
-                <div class="upload-progress" id="videoProgress"></div>
+                <div class="progress-bar"><div class="fill" id="videoProgress"></div></div>
             </div>
-            <div class="gallery-grid" id="videoGallery"></div>
-            <div class="load-more" id="loadMoreVideos">∞ Unveil More</div>
+            <div class="masonry-grid" id="videoGallery"></div>
+            <div class="load-more-trigger" id="loadMoreVideos">Explore Deeper</div>
         </section>
 
-        <!-- Music -->
         <section id="music" class="section">
             <div class="section-header">
-                <h2>Our Symphony 🎵</h2>
-                <p class="section-desc">Melodies that bind souls.</p>
+                <h2>Symphony</h2>
+                <p>The soundtrack of our lives.</p>
             </div>
-            <div class="music-controls">
-                <div class="music-search">
-                    <input type="text" id="musicInput" placeholder="Invoke a harmony...">
-                    <button id="addMusicBtn" class="btn primary">🌟 Summon</button>
+            <div class="music-controls-wrapper">
+                <div class="search-row">
+                    <input type="text" id="musicInput" class="glass-input" placeholder="Find a song...">
+                    <button id="addMusicBtn" class="btn primary small">Search</button>
                 </div>
-                <button id="createPlaylistBtn" class="btn secondary">🎼 Compose</button>
+                <button id="createPlaylistBtn" class="btn ghost small full-width">Compose Playlist</button>
             </div>
-            <div id="musicSearchResults" class="music-grid"></div>
-            <h3>Celestial Archives 💿</h3>
-            <div id="savedMusic" class="music-grid"></div>
+            <div id="musicSearchResults" class="list-layout"></div>
+            <h3 class="sub-header">Our Collection</h3>
+            <div id="savedMusic" class="list-layout"></div>
         </section>
 
-        <!-- Notes -->
         <section id="notes" class="section">
             <div class="section-header">
-                <h2>Veiled Confessions ✍️</h2>
-                <p class="section-desc">Words that echo in eternity.</p>
+                <h2>Confessions</h2>
+                <p>Words etched in eternity.</p>
             </div>
-            <div class="note-composer">
-                <textarea id="noteInput" placeholder="Unburden your soul here..."></textarea>
-                <div class="note-actions">
-                    <button id="saveNoteBtn" class="btn primary">Inscribe 💌</button>
-                    <button id="voiceNoteBtn" class="btn secondary">Whisper 🎤</button>
+            <div class="note-composer card">
+                <textarea id="noteInput" placeholder="Write something beautiful..."></textarea>
+                <div class="composer-footer">
+                    <button id="voiceNoteBtn" class="btn icon-btn" aria-label="Record Voice">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </button>
+                    <button id="saveNoteBtn" class="btn primary small">Inscribe</button>
                 </div>
             </div>
-            <div id="notesList" class="notes-grid"></div>
+            <div id="notesList" class="list-layout"></div>
         </section>
 
-        <!-- Schedule -->
         <section id="schedule" class="section">
             <div class="section-header">
-                <h2>Celestial Alignments 📅</h2>
-                <p class="section-desc">Stars charting our tomorrows.</p>
+                <h2>Alignments</h2>
+                <p>Charting our future.</p>
             </div>
-            <div class="calendar-container">
-                <div class="calendar-header">
-                    <button id="prevMonth" class="btn ghost">‹</button>
-                    <h3 id="monthYear"></h3>
-                    <button id="nextMonth" class="btn ghost">›</button>
+            <div class="calendar-wrapper card">
+                <div class="cal-nav">
+                    <button id="prevMonth" class="btn icon-btn">‹</button>
+                    <span id="monthYear"></span>
+                    <button id="nextMonth" class="btn icon-btn">›</button>
                 </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
-                <div class="event-form" id="eventForm" style="display: none;">
-                    <h4 id="formTitle">Invoke Alignment</h4>
-                    <input type="text" id="eventTitle" placeholder="A moment foretold..." required>
-                    <textarea id="eventDesc" placeholder="The prophecy unfolds..."></textarea>
-                    <input type="date" id="eventDate" required>
-                    <div class="note-actions">
-                        <button id="saveEventBtn" class="btn primary">Align ✨</button>
-                        <button id="cancelEventBtn" class="btn ghost">Veil</button>
-                    </div>
+                <div class="cal-grid-header">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div id="calendarGrid" class="cal-grid-body"></div>
+            </div>
+            
+            <div id="eventForm" class="event-editor card" style="display: none;">
+                <h4>New Alignment</h4>
+                <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
+                <textarea id="eventDesc" placeholder="Details..." class="glass-input"></textarea>
+                <input type="date" id="eventDate" class="glass-input">
+                <div class="form-actions">
+                    <button id="cancelEventBtn" class="btn ghost small">Cancel</button>
+                    <button id="saveEventBtn" class="btn primary small">Save</button>
                 </div>
             </div>
-            <div id="eventsList" class="timeline-list"></div>
+            
+            <div id="eventsList" class="list-layout"></div>
         </section>
 
-        <!-- Timeline -->
+        <section id="mapSection" class="section">
+            <div class="section-header">
+                <h2>Cartography</h2>
+                <p>Where our paths crossed.</p>
+            </div>
+            <div class="map-card card">
+                <div id="mapContainer"></div>
+                <button id="addMemoryBtn" class="btn primary floating-action">
+                    + Pin Location
+                </button>
+            </div>
+            <div id="memoriesList" class="list-layout"></div>
+        </section>
+
         <section id="timeline" class="section">
             <div class="section-header">
-                <h2>Eternal Weave 📜</h2>
-                <p class="section-desc">Threads of our unfolding saga.</p>
+                <h2>The Weave</h2>
+                <p>A history of us.</p>
             </div>
-            <div id="timelineList" class="timeline-list"></div>
+            <div id="timelineList" class="timeline-container"></div>
         </section>
 
-        <!-- Map -->
-        <section id="map" class="section">
-            <div class="section-header">
-                <h2>Cartography of Hearts 🌍</h2>
-                <p class="section-desc">Places where our souls intertwined.</p>
-            </div>
-            <div id="mapContainer" style="height: 500px; border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow);"></div>
-            <div class="map-actions">
-                <button id="addMemoryBtn" class="btn primary">Pin a Memory 📍</button>
-            </div>
-            <div id="memoriesList" class="timeline-list"></div>
-        </section>
-
-        <!-- Favorites -->
         <section id="favorites" class="section">
             <div class="section-header">
-                <h2>Hallowed Vault ❤️</h2>
-                <p class="section-desc">Relics of our deepest resonance.</p>
+                <h2>Sanctum</h2>
+                <p>The pieces we love most.</p>
             </div>
-            <div id="favoritesList" class="mixed-grid"></div>
+            <div id="favoritesList" class="masonry-grid"></div>
         </section>
     </main>
 
-    <footer class="footer">
-        <p>&copy; 2025 Brayden & Youna. Forged in the heart's quiet fire.</p>
-        <button id="exportDataBtn" class="btn ghost">Seal in Amber 📜</button>
-    </footer>
+    <nav class="tab-bar">
+        <button class="tab-btn" data-section="photos">
+            <span class="icon">📷</span>
+            <span class="label">Echoes</span>
+        </button>
+        <button class="tab-btn" data-section="videos">
+            <span class="icon">🎥</span>
+            <span class="label">Reverie</span>
+        </button>
+        <button class="tab-btn" data-section="music">
+            <span class="icon">🎵</span>
+            <span class="label">Music</span>
+        </button>
+        <button class="tab-btn" data-section="notes">
+            <span class="icon">✍️</span>
+            <span class="label">Notes</span>
+        </button>
+        <button class="tab-btn" data-section="schedule">
+            <span class="icon">📅</span>
+            <span class="label">Plan</span>
+        </button>
+        <button class="tab-btn" data-section="mapSection">
+            <span class="icon">🌍</span>
+            <span class="label">Map</span>
+        </button>
+        <button class="tab-btn" data-section="timeline">
+            <span class="icon">📜</span>
+            <span class="label">Time</span>
+        </button>
+        <button class="tab-btn" data-section="favorites">
+            <span class="icon">❤️</span>
+            <span class="label">Love</span>
+        </button>
+    </nav>
 
-    <!-- Lightbox -->
-    <div id="lightbox" class="lightbox" role="dialog" aria-hidden="true">
-        <button class="close" aria-label="Close">&times;</button>
-        <nav class="lightbox-nav" aria-label="Navigation">
-            <button id="prevBtn" aria-label="Previous">‹</button>
-            <button id="nextBtn" aria-label="Next">›</button>
-        </nav>
-        <div class="lightbox-content" role="img" aria-label="Media preview"></div>
-        <div class="lightbox-caption" aria-live="polite"></div>
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-backdrop"></div>
+        <button class="close-lightbox">&times;</button>
+        <div class="lightbox-media-container"></div>
+        <div class="lightbox-meta">
+            <p class="lightbox-caption"></p>
+        </div>
     </div>
 
-    <!-- Voice Modal -->
     <div id="voiceModal" class="modal">
-        <div class="modal-content">
-            <h3>Capture the Echo 🎤</h3>
-            <button id="startRecord" class="btn primary">Invoke</button>
-            <button id="stopRecord" class="btn secondary" disabled>Still</button>
-            <audio id="voicePreview" controls style="display: none; width: 100%; margin: 10px 0;"></audio>
-            <button id="saveVoiceBtn" class="btn primary" disabled>Eternalize</button>
+        <div class="modal-content card">
+            <h3>Capture Echo</h3>
+            <div class="voice-visualizer">🎤</div>
+            <div class="voice-controls">
+                <button id="startRecord" class="btn primary">Record</button>
+                <button id="stopRecord" class="btn secondary" disabled>Stop</button>
+            </div>
+            <audio id="voicePreview" controls style="display:none; width:100%; margin-top:15px;"></audio>
+            <div class="modal-footer">
+                <button class="btn ghost close-modal">Cancel</button>
+                <button id="saveVoiceBtn" class="btn primary" disabled>Save</button>
+            </div>
         </div>
     </div>
 
-    <!-- Memory Modal -->
     <div id="memoryModal" class="modal">
-        <div class="modal-content">
-            <h3>Pin a Memory 📍</h3>
-            <input type="text" id="memoryTitle" placeholder="Where hearts met...">
-            <textarea id="memoryDesc" placeholder="The story etched in stone..."></textarea>
-            <div class="location-input">
-                <input type="number" id="latInput" step="any" placeholder="Latitude">
-                <input type="number" id="lngInput" step="any" placeholder="Longitude">
-                <button id="getCurrentLocation" class="btn ghost">Use Current 📍</button>
+        <div class="modal-content card">
+            <h3>Pin Memory</h3>
+            <input type="text" id="memoryTitle" placeholder="Location Name" class="glass-input">
+            <textarea id="memoryDesc" placeholder="What happened here?" class="glass-input"></textarea>
+            <div class="geo-controls">
+                <div class="coords-row">
+                    <input type="number" id="latInput" step="any" placeholder="Lat" class="glass-input small">
+                    <input type="number" id="lngInput" step="any" placeholder="Lng" class="glass-input small">
+                </div>
+                <button id="getCurrentLocation" class="btn secondary small">Use GPS 📍</button>
             </div>
-            <div class="note-actions">
-                <button id="saveMemoryBtn" class="btn primary">Anchor</button>
-                <button id="cancelMemoryBtn" class="btn ghost">Drift</button>
+            <div class="modal-footer">
+                <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
+                <button id="saveMemoryBtn" class="btn primary">Pin It</button>
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 Brayden & Youna</p>
+        <button id="exportDataBtn" class="btn link">Archive Data</button>
+    </footer>
 
     <script type="module" src="script.js"></script>
 </body>
