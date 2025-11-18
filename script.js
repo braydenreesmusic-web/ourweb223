@@ -1,4 +1,4 @@
-// script.js - Complete, merged implementation: Auth, presence, favorites render, dark mode, all sections, iOS UX
+// script.js - Complete, merged implementation: Auth, presence, user attribution, favorites, music options, iOS UX, map section
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
@@ -32,10 +32,12 @@ const collections = {
   events: collection(db, "events"),
   timeline: collection(db, "timeline"),
   favorites: collection(db, "favorites"),
-  playlists: collection(db, "playlists")
+  playlists: collection(db, "playlists"),
+  memories: collection(db, "memories")
 };
 
 let currentUser = null;
+const USER_MAP = { 'brayden@love.com': 'Brayden', 'youna@love.com': 'Youna' };
 const USERS = { brayden: 'brayden@love.com', youna: 'youna@love.com' };
 const PASSWORDS = { brayden: 'love', youna: 'love' };
 
@@ -117,13 +119,13 @@ onAuthStateChanged(auth, user => {
 
 function setPresence(uid, online) {
   const presenceRef = ref(rtdb, `presence/${uid}`);
-  set(presenceRef, { online, timestamp: Date.now() });
-  if (online) onDisconnect(presenceRef).set({ online: false, timestamp: Date.now() });
+  set(presenceRef, { online, timestamp: Date.now(), user: USER_MAP[currentUser?.email] || 'Unknown' });
+  if (online) onDisconnect(presenceRef).set({ online: false, timestamp: Date.now(), user: USER_MAP[currentUser?.email] || 'Unknown' });
 }
 
 function listenPresence() {
-  const braydenRef = ref(rtdb, `presence/brayden`);
-  const younaRef = ref(rtdb, `presence/youna`);
+  const braydenRef = ref(rtdb, `presence/${Object.keys(USER_MAP).find(email => USER_MAP[email] === 'Brayden')}`);
+  const younaRef = ref(rtdb, `presence/${Object.keys(USER_MAP).find(email => USER_MAP[email] === 'Youna')}`);
   onValue(braydenRef, snap => {
     const data = snap.val();
     braydenPresence.textContent = data?.online ? "Brayden: Here" : "Brayden: Away";
@@ -162,9 +164,14 @@ function initApp() {
   document.addEventListener("click", handleDynamicClicks);
   showSection("photos");
   // iOS enhancements
+  document.addEventListener('touchstart', function() {}, true); // Prevent double-tap zoom
   document.querySelectorAll("input, textarea, button").forEach(el => {
-    el.addEventListener("touchstart", () => el.style.transform = "scale(0.98)", { passive: true });
-    el.addEventListener("touchend", () => el.style.transform = "", { passive: true });
+    el.addEventListener("touchstart", (e) => {
+      e.currentTarget.style.transform = "scale(0.98)";
+    }, { passive: true });
+    el.addEventListener("touchend", (e) => {
+      e.currentTarget.style.transform = "";
+    }, { passive: true });
   });
   renderAll();
 }
@@ -175,6 +182,7 @@ function showSection(id) {
   currentSection = id;
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (id === "favorites") renderFavorites();
+  if (id === "map") initMap();
 }
 
 function debounce(fn, delay) {
@@ -229,14 +237,15 @@ document.querySelectorAll(".upload-wrapper").forEach(wrapper => {
 async function handleFiles(files, type) {
   const gallery = type === "photos" ? photoGallery : videoGallery;
   const progressEl = document.getElementById(`${type}Progress`);
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
   for (const file of Array.from(files)) {
     progressEl.style.width = "0%";
     const tempCard = makeTempCard(file, type.slice(0, -1));
     gallery.prepend(tempCard);
     try {
       const url = await uploadToCloudinary(file, progressEl);
-      await addDoc(collections[type], { url, timestamp: serverTimestamp() });
-      addToTimeline(`${type.slice(0, -1).toUpperCase()} enshrined 💖`);
+      await addDoc(collections[type], { url, timestamp: serverTimestamp(), user });
+      addToTimeline(`${type.slice(0, -1).toUpperCase()} enshrined by ${user} 💖`);
       tempCard.remove();
       await renderGallery(type, gallery, type === "photos" ? loadMorePhotos : loadMoreVideos);
       updateFavoriteButtons();
@@ -273,7 +282,7 @@ async function loadMoreMedia(type, galleryEl, loadMoreEl) {
   initLightboxItems();
 }
 
-function makeMediaCard({ url, id, type, timestamp }) {
+function makeMediaCard({ url, id, type, timestamp, user }) {
   const wrapper = document.createElement("div");
   wrapper.className = "card";
   const media = type === "image" ? document.createElement("img") : document.createElement("video");
@@ -284,14 +293,14 @@ function makeMediaCard({ url, id, type, timestamp }) {
   meta.className = "card-meta";
   const date = timestamp?.toDate ? new Date(timestamp.toDate()).toLocaleDateString() : new Date().toLocaleDateString();
   meta.innerHTML = `
-    <div class="meta-left">${date}</div>
+    <div class="meta-left">${date} <span class="user-tag">by ${user || 'Unknown'}</span></div>
     <div class="meta-actions">
-      <button class="ghost" onclick="openLightbox('${url}', '${date}', '${type}')">👁️</button>
-      <button class="ghost" data-action="delete-item" data-id="${id}" data-type="${type}">🗑️</button>
+      <button class="ghost" onclick="openLightbox('${url}', '${date} by ${user || 'Unknown'}', '${type}')">👁️</button>
+      <button class="ghost" data-action="delete-item" data-id="${id}" data-type="${type.slice(0, -1)s}">🗑️</button>
     </div>
   `;
   wrapper.appendChild(meta);
-  wrapper.addEventListener("click", e => { if (!e.target.closest("button")) openLightbox(url, date, type); });
+  wrapper.addEventListener("click", e => { if (!e.target.closest("button")) openLightbox(url, date + ` by ${user || 'Unknown'}`, type); });
   const favBtn = document.createElement("button");
   favBtn.className = "favorite-btn";
   favBtn.dataset.id = id;
@@ -343,26 +352,31 @@ async function searchMusic() {
 function createMusicItem(track, id = null, saved = false) {
   const root = document.createElement("div");
   root.className = "musicItem card";
+  const user = saved ? (track.user || 'Unknown') : '';
   root.innerHTML = `
     <img src="${track.album?.images?.[0]?.url || 'https://via.placeholder.com/340x200?text=♪'}" alt="${track.name}" loading="lazy">
     <div class="info">
       <p class="music-title">${escapeHtml(track.name)}</p>
       <p>${escapeHtml(track.artists?.map(a => a.name).join(', '))}</p>
       ${track.preview_url ? `<audio controls src="${track.preview_url}" style="width:100%; margin:10px 0;" playsinline></audio>` : ''}
+      ${saved && user ? `<p class="user-tag">by ${user}</p>` : ''}
       <div class="musicButtons">
-        <a href="${track.external_urls?.spotify}" target="_blank" rel="noopener" class="ghost">▶️ Unveil</a>
+        <a href="${track.external_urls?.spotify}" target="_blank" rel="noopener" class="ghost">▶️ Spotify</a>
+        <a href="https://www.deezer.com/search?q=${encodeURIComponent(track.name + ' ' + track.artists[0].name)}" target="_blank" rel="noopener" class="ghost">🎵 Deezer</a>
         ${saved ? `<button class="ghost" data-action="remove-music" data-id="${id}">✗</button>` : `<button class="primary" data-action="add-music" data-track='${JSON.stringify(track).replace(/'/g, "\\'")}'>+ Enshrine</button>`}
       </div>
     </div>
-    <button class="favorite-btn" data-id="${track.id}" data-type="music">❤️</button>
+    <button class="favorite-btn" data-id="${track.id || id}" data-type="music">❤️</button>
   `;
   return root;
 }
 
 window.addMusic = async (track) => {
-  await addDoc(collections.music, { ...track, timestamp: serverTimestamp() });
-  addToTimeline(`Harmony embraced: ${track.name} 🎶`);
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
+  await addDoc(collections.music, { ...track, timestamp: serverTimestamp(), user });
+  addToTimeline(`Harmony embraced by ${user}: ${track.name} 🎶`);
   musicSearchResults.innerHTML = "<div class='muted'>A new verse in our symphony ✨</div>";
+  renderSavedMusic();
   updateFavoriteButtons();
 };
 
@@ -384,8 +398,9 @@ function renderSavedMusic() {
 async function createPlaylist() {
   const name = prompt("Name this celestial score?");
   if (!name) return;
-  await addDoc(collections.playlists, { name, tracks: [], timestamp: serverTimestamp() });
-  addToTimeline(`Score composed: ${name} 🎼`);
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
+  await addDoc(collections.playlists, { name, tracks: [], timestamp: serverTimestamp(), user });
+  addToTimeline(`Score composed by ${user}: ${name} 🎼`);
 }
 
 /* ================= NOTES & VOICE ================= */
@@ -396,8 +411,9 @@ const notesList = document.getElementById("notesList");
 saveNoteBtn.addEventListener("click", async () => {
   const text = noteInput.value.trim();
   if (!text) return noteInput.focus();
-  await addDoc(collections.notes, { text, timestamp: serverTimestamp() });
-  addToTimeline("Confession veiled ✍️");
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
+  await addDoc(collections.notes, { text, timestamp: serverTimestamp(), user });
+  addToTimeline(`Confession veiled by ${user} ✍️`);
   noteInput.value = "";
 });
 
@@ -406,7 +422,7 @@ const voiceModal = document.getElementById("voiceModal");
 const startRecord = document.getElementById("startRecord");
 const stopRecord = document.getElementById("stopRecord");
 const voicePreview = document.getElementById("voicePreview");
-const saveVoiceBtn = document.getElementById("saveVoiceBtn");
+const saveVoiceBtn = document.getElementById("voicePreview");
 const voiceNoteBtn = document.getElementById("voiceNoteBtn");
 
 voiceNoteBtn.addEventListener("click", () => voiceModal.classList.add("active"));
@@ -439,11 +455,12 @@ stopRecord.addEventListener("click", () => {
 });
 
 saveVoiceBtn.addEventListener("click", async () => {
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
   const blob = new Blob(audioChunks, { type: 'audio/wav' });
   try {
     const url = await uploadToCloudinary(blob, null);
-    await addDoc(collections.notes, { text: "[Echo from the depths]", audioUrl: url, timestamp: serverTimestamp() });
-    addToTimeline("Whisper eternalized 🎤");
+    await addDoc(collections.notes, { text: "[Echo from the depths]", audioUrl: url, timestamp: serverTimestamp(), user });
+    addToTimeline(`Whisper eternalized by ${user} 🎤`);
     voiceModal.classList.remove("active");
     voicePreview.style.display = "none";
     saveVoiceBtn.disabled = true;
@@ -461,7 +478,7 @@ function renderNotes() {
       const when = data.timestamp?.toDate?.()?.toLocaleDateString() ?? "Timeless";
       card.innerHTML = `
         <div class="info">
-          <strong style="color: var(--accent);">${when}</strong>
+          <strong style="color: var(--accent);">${when} <span class="user-tag">by ${data.user || 'Unknown'}</span></strong>
           <p style="font-style: italic; font-family: var(--font-serif);">${escapeHtml(data.text)}</p>
           ${data.audioUrl ? `<audio controls src="${data.audioUrl}" playsinline></audio>` : ''}
           <button class="ghost" data-action="delete-note" data-id="${docSnap.id}">🗑️</button>
@@ -554,9 +571,10 @@ window.saveEvent = async () => {
   const title = document.getElementById("eventTitle").value.trim();
   const desc = document.getElementById("eventDesc").value.trim();
   const date = document.getElementById("eventDate").value;
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
   if (!title || !date) return alert("A prophecy needs form and fate.");
-  await addDoc(collections.events, { title, desc, date, timestamp: serverTimestamp() });
-  addToTimeline(`Alignment invoked: ${title} on ${date} 🌟`);
+  await addDoc(collections.events, { title, desc, date, timestamp: serverTimestamp(), user });
+  addToTimeline(`Alignment invoked by ${user}: ${title} on ${date} 🌟`);
   hideEventForm();
   renderEventsList();
   renderCalendar();
@@ -573,7 +591,7 @@ function renderEventsList() {
       card.className = "event-card card";
       card.innerHTML = `
         <div class="info">
-          <strong style="color: var(--accent);">${data.date} – ${escapeHtml(data.title)}</strong>
+          <strong style="color: var(--accent);">${data.date} – ${escapeHtml(data.title)} <span class="user-tag">by ${data.user || 'Unknown'}</span></strong>
           <p>${escapeHtml(data.desc)}</p>
           <button class="ghost" data-action="delete-item" data-id="${docSnap.id}" data-type="events">🗑️</button>
         </div>
@@ -585,10 +603,99 @@ function renderEventsList() {
   });
 }
 
+/* ================= MAP ================= */
+let map, memoryMarkers = [];
+const memoryModal = document.getElementById("memoryModal");
+const addMemoryBtn = document.getElementById("addMemoryBtn");
+const memoriesList = document.getElementById("memoriesList");
+const getCurrentLocation = document.getElementById("getCurrentLocation");
+const saveMemoryBtn = document.getElementById("saveMemoryBtn");
+const cancelMemoryBtn = document.getElementById("cancelMemoryBtn");
+
+addMemoryBtn.addEventListener("click", () => memoryModal.classList.add("active"));
+cancelMemoryBtn.addEventListener("click", () => memoryModal.classList.remove("active"));
+getCurrentLocation.addEventListener("click", () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById("latInput").value = pos.coords.latitude;
+      document.getElementById("lngInput").value = pos.coords.longitude;
+    });
+  }
+});
+
+saveMemoryBtn.addEventListener("click", async () => {
+  const title = document.getElementById("memoryTitle").value.trim();
+  const desc = document.getElementById("memoryDesc").value.trim();
+  const lat = parseFloat(document.getElementById("latInput").value);
+  const lng = parseFloat(document.getElementById("lngInput").value);
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
+  if (!title || !lat || !lng) return alert("A memory needs a tale and a place.");
+  await addDoc(collections.memories, { title, desc, lat, lng, timestamp: serverTimestamp(), user });
+  addToTimeline(`Memory anchored by ${user}: ${title} at ${lat.toFixed(4)}, ${lng.toFixed(4)} 📍`);
+  memoryModal.classList.remove("active");
+  renderMemories();
+});
+
+function initMap() {
+  if (map) return;
+  // Load Leaflet CSS/JS dynamically
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(link);
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  script.onload = () => {
+    map = L.map('mapContainer').setView([37.7749, -122.4194], 13); // Default to SF
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    renderMemories();
+  };
+  document.head.appendChild(script);
+}
+
+function renderMemories() {
+  const q = query(collections.memories, orderBy("timestamp", "desc"));
+  onSnapshot(q, snapshot => {
+    // Clear markers
+    memoryMarkers.forEach(marker => map.removeLayer(marker));
+    memoryMarkers = [];
+    memoriesList.innerHTML = snapshot.empty ? "<div class='muted'>The map awaits your pins...</div>" : "";
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const marker = L.marker([data.lat, data.lng]).addTo(map).bindPopup(`
+        <b>${escapeHtml(data.title)}</b><br>
+        ${escapeHtml(data.desc)}<br>
+        <em>by ${data.user || 'Unknown'}</em>
+      `);
+      memoryMarkers.push(marker);
+      const card = document.createElement("div");
+      card.className = "memory-card card";
+      const when = data.timestamp?.toDate?.()?.toLocaleString() ?? "Timeless";
+      card.innerHTML = `
+        <div class="info">
+          <strong style="color: var(--accent);">${when} <span class="user-tag">by ${data.user || 'Unknown'}</span></strong>
+          <p>${escapeHtml(data.title)} – ${escapeHtml(data.desc)}</p>
+          <p>📍 ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}</p>
+          <button class="ghost" data-action="delete-item" data-id="${docSnap.id}" data-type="memories">🗑️</button>
+        </div>
+        <button class="favorite-btn" data-id="${docSnap.id}" data-type="memories">❤️</button>
+      `;
+      memoriesList.appendChild(card);
+      updateFavoriteButtons();
+    });
+    if (memoryMarkers.length > 0) {
+      map.fitBounds(memoryMarkers.map(m => m.getLatLng()), { padding: [20, 20] });
+    }
+  });
+}
+
 /* ================= TIMELINE ================= */
 async function addToTimeline(action, type = "milestone") {
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
   try {
-    await addDoc(collections.timeline, { action, type, timestamp: serverTimestamp() });
+    await addDoc(collections.timeline, { action: `${action} by ${user}`, type, timestamp: serverTimestamp() });
   } catch (err) { console.error("Timeline rift:", err); }
 }
 
@@ -630,12 +737,13 @@ function updateFavoriteButtons() {
 
 async function toggleFavorite(id, type, el) {
   const key = `${type}_${id}`;
+  const user = USER_MAP[currentUser?.email] || 'Unknown';
   if (favorites.has(key)) {
     await deleteDoc(doc(db, "favorites", favorites.get(key)));
   } else {
-    await addDoc(collections.favorites, { itemId: id, type, timestamp: serverTimestamp() });
+    await addDoc(collections.favorites, { itemId: id, type, timestamp: serverTimestamp(), user });
   }
-  addToTimeline(`${type} enshrined ❤️`);
+  addToTimeline(`${type} enshrined by ${user} ❤️`);
 }
 
 async function renderFavorites() {
@@ -648,7 +756,7 @@ async function renderFavorites() {
   const favItems = [];
   for (const [key, favId] of favorites) {
     const [type, itemId] = key.split("_");
-    const itemDoc = await getDoc(doc(db, type === "events" ? collections.events : collections[type], itemId));
+    const itemDoc = await getDoc(doc(db, type === "events" ? collections.events : collections[type === "memories" ? "memories" : type], itemId));
     if (itemDoc.exists()) {
       const data = itemDoc.data();
       favItems.push({ ...data, id: itemId, type });
@@ -667,7 +775,7 @@ async function renderFavorites() {
       const when = item.timestamp?.toDate?.()?.toLocaleDateString() ?? "Timeless";
       card.innerHTML = `
         <div class="info">
-          <strong style="color: var(--accent);">${when}</strong>
+          <strong style="color: var(--accent);">${when} <span class="user-tag">by ${item.user || 'Unknown'}</span></strong>
           <p style="font-style: italic; font-family: var(--font-serif);">${escapeHtml(item.text)}</p>
           ${item.audioUrl ? `<audio controls src="${item.audioUrl}" playsinline></audio>` : ''}
         </div>
@@ -678,8 +786,20 @@ async function renderFavorites() {
       card.className = "event-card card";
       card.innerHTML = `
         <div class="info">
-          <strong style="color: var(--accent);">${item.date} – ${escapeHtml(item.title)}</strong>
+          <strong style="color: var(--accent);">${item.date} – ${escapeHtml(item.title)} <span class="user-tag">by ${item.user || 'Unknown'}</span></strong>
           <p>${escapeHtml(item.desc)}</p>
+        </div>
+      `;
+      list.appendChild(card);
+    } else if (item.type === "memories") {
+      const card = document.createElement("div");
+      card.className = "memory-card card";
+      const when = item.timestamp?.toDate?.()?.toLocaleString() ?? "Timeless";
+      card.innerHTML = `
+        <div class="info">
+          <strong style="color: var(--accent);">${when} <span class="user-tag">by ${item.user || 'Unknown'}</span></strong>
+          <p>${escapeHtml(item.title)} – ${escapeHtml(item.desc)}</p>
+          <p>📍 ${item.lat.toFixed(4)}, ${item.lng.toFixed(4)}</p>
         </div>
       `;
       list.appendChild(card);
@@ -799,6 +919,7 @@ window.deleteItem = async (id, type) => {
   if (type === "photos" || type === "videos") {
     document.querySelector(`[data-id="${id}"]`)?.closest(".card")?.remove();
   }
+  if (type === "memories") renderMemories();
   renderFavorites(); // Refresh if needed
 };
 

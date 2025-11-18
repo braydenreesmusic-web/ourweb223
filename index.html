@@ -76,6 +76,7 @@
         <button data-section="notes">✍️ Reveries</button>
         <button data-section="schedule">📅 Horizons</button>
         <button data-section="timeline">🗺️ Tapestry</button>
+        <button data-section="map">🌍 Memories</button>
         <button data-section="favorites">❤️ Sanctum</button>
     </nav>
 
@@ -191,6 +192,19 @@
             <div id="timelineList" class="timeline-list"></div>
         </section>
 
+        <!-- Map -->
+        <section id="map" class="section">
+            <div class="section-header">
+                <h2>Cartography of Hearts 🌍</h2>
+                <p class="section-desc">Places where our souls intertwined.</p>
+            </div>
+            <div id="mapContainer" style="height: 500px; border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow);"></div>
+            <div class="map-actions">
+                <button id="addMemoryBtn" class="btn primary">Pin a Memory 📍</button>
+            </div>
+            <div id="memoriesList" class="timeline-list"></div>
+        </section>
+
         <!-- Favorites -->
         <section id="favorites" class="section">
             <div class="section-header">
@@ -225,6 +239,24 @@
             <button id="stopRecord" class="btn secondary" disabled>Still</button>
             <audio id="voicePreview" controls style="display: none; width: 100%; margin: 10px 0;"></audio>
             <button id="saveVoiceBtn" class="btn primary" disabled>Eternalize</button>
+        </div>
+    </div>
+
+    <!-- Memory Modal -->
+    <div id="memoryModal" class="modal">
+        <div class="modal-content">
+            <h3>Pin a Memory 📍</h3>
+            <input type="text" id="memoryTitle" placeholder="Where hearts met...">
+            <textarea id="memoryDesc" placeholder="The story etched in stone..."></textarea>
+            <div class="location-input">
+                <input type="number" id="latInput" step="any" placeholder="Latitude">
+                <input type="number" id="lngInput" step="any" placeholder="Longitude">
+                <button id="getCurrentLocation" class="btn ghost">Use Current 📍</button>
+            </div>
+            <div class="note-actions">
+                <button id="saveMemoryBtn" class="btn primary">Anchor</button>
+                <button id="cancelMemoryBtn" class="btn ghost">Drift</button>
+            </div>
         </div>
     </div>
 
