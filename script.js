@@ -1,10 +1,10 @@
-// script.js - Enhanced: iOS Native Feel, Masonry, Robust Error Handling
+// script.js - Fully Functional: Calendar, Map, Timeline, Favorites
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, where, limit, startAfter, getDocs, getDoc
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, where, limit
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 // --- Configuration ---
@@ -36,14 +36,15 @@ const collections = {
 
 const USER_MAP = { 'brayden@love.com': 'Brayden', 'youna@love.com': 'Youna' };
 const USERS = { brayden: 'brayden@love.com', youna: 'youna@love.com' };
-// Note: In production, passwords should not be client-side hardcoded.
-// Assuming this is a private hobby app.
-const START_DATE = new Date("2023-01-01"); // REPLACE WITH YOUR ACTUAL START DATE
+const START_DATE = new Date("2024-05-09"); // Set your real date here
 
 let currentUser = null;
 let currentSection = "photos";
 let mapInstance = null;
 let memoryMarkers = [];
+
+// Calendar State
+let currentCalDate = new Date();
 
 /* ================= UI HELPERS ================= */
 function showToast(message, type = 'info') {
@@ -51,24 +52,15 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span>${message}</span>`;
-  
   container.appendChild(toast);
-  
-  // Haptic feedback simulation
-  if(navigator.vibrate) navigator.vibrate(10);
-
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-20px)';
     setTimeout(() => toast.remove(), 300);
   }, 3000);
 }
 
 function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/[&<>"']/g, m => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  })[m]);
+  return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[m]);
 }
 
 function updateDaysCounter() {
@@ -77,42 +69,26 @@ function updateDaysCounter() {
   document.getElementById('daysCounter').textContent = `DAY ${days} TOGETHER`;
 }
 
-/* ================= AUTH & PRESENCE ================= */
+/* ================= AUTH ================= */
 const authModal = document.getElementById("authModal");
 const braydenLogin = document.getElementById("braydenLogin");
 const younaLogin = document.getElementById("younaLogin");
 const authEmail = document.getElementById("authEmail");
-const authPassword = document.getElementById("authPassword");
 
-// Presets
-braydenLogin.addEventListener("click", () => setAuthPreset('brayden'));
-younaLogin.addEventListener("click", () => setAuthPreset('youna'));
-
-function setAuthPreset(userKey) {
-  braydenLogin.classList.toggle("active", userKey === 'brayden');
-  younaLogin.classList.toggle("active", userKey === 'youna');
-  authEmail.value = USERS[userKey];
-  authPassword.focus();
-}
+braydenLogin.addEventListener("click", () => { braydenLogin.classList.add('active'); younaLogin.classList.remove('active'); authEmail.value = USERS.brayden; });
+younaLogin.addEventListener("click", () => { younaLogin.classList.add('active'); braydenLogin.classList.remove('active'); authEmail.value = USERS.youna; });
 
 document.getElementById("signInBtn").addEventListener("click", async () => {
   try {
-    await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
-    showToast("Welcome back, love.", "success");
+    await signInWithEmailAndPassword(auth, authEmail.value, document.getElementById("authPassword").value);
     authModal.classList.remove("active");
-  } catch (err) {
-    document.getElementById("authError").textContent = "The spell failed. Try again.";
-    showToast("Authentication failed.", "error");
-  }
+    showToast("Welcome home.", "success");
+  } catch (e) { showToast("Login failed.", "error"); }
 });
 
 document.getElementById("logoutBtn").addEventListener("click", async () => {
-  if(currentUser) {
-     const presenceRef = ref(rtdb, `presence/${currentUser.uid}`);
-     await set(presenceRef, { online: false, timestamp: Date.now() });
-  }
+  if (currentUser) set(ref(rtdb, `presence/${currentUser.uid}`), { online: false, timestamp: Date.now() });
   await signOut(auth);
-  authModal.classList.add("active");
 });
 
 onAuthStateChanged(auth, user => {
@@ -121,474 +97,385 @@ onAuthStateChanged(auth, user => {
     authModal.classList.remove("active");
     setupPresence(user);
     initApp();
-    document.getElementById("logoutBtn").style.display = "block";
   } else {
     authModal.classList.add("active");
   }
 });
 
 function setupPresence(user) {
-  const presenceRef = ref(rtdb, `presence/${user.uid}`);
-  const userName = USER_MAP[user.email] || 'Mystery';
+  const userRef = ref(rtdb, `presence/${user.uid}`);
+  set(userRef, { online: true, user: USER_MAP[user.email] });
+  onDisconnect(userRef).set({ online: false, user: USER_MAP[user.email] });
   
-  set(presenceRef, { online: true, timestamp: Date.now(), user: userName });
-  onDisconnect(presenceRef).set({ online: false, timestamp: Date.now(), user: userName });
-
-  // Listen to others
-  const presenceList = ['brayden@love.com', 'youna@love.com'];
-  presenceList.forEach(email => {
-    // Find key based on known map (simplified for this context)
-    // ideally we store uids in a document, but we'll scan RTDB or just hardcode listener for simplicity if we knew UIDs
-    // For this demo, we update UI based on whoever is in RTDB
-  });
-  
-  onValue(ref(rtdb, 'presence'), (snap) => {
-    const data = snap.val();
-    if(!data) return;
-    
+  onValue(ref(rtdb, 'presence'), snap => {
+    const data = snap.val() || {};
     Object.values(data).forEach(p => {
-        if(p.user === 'Brayden') togglePresence('braydenPresence', p.online);
-        if(p.user === 'Youna') togglePresence('younaPresence', p.online);
+       if(p.user === 'Brayden') document.getElementById('braydenPresence').classList.toggle('online', p.online);
+       if(p.user === 'Youna') document.getElementById('younaPresence').classList.toggle('online', p.online);
     });
   });
-}
-
-function togglePresence(id, isOnline) {
-    const el = document.getElementById(id);
-    if(el) el.classList.toggle('online', isOnline);
 }
 
 /* ================= NAVIGATION ================= */
-const tabButtons = document.querySelectorAll(".tab-btn");
-const sections = document.querySelectorAll(".section");
-
-tabButtons.forEach(btn => {
+document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    const sectionId = btn.dataset.section;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
     
-    // Update Tabs
-    tabButtons.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    
-    // Update Sections with animation
-    sections.forEach(s => s.classList.remove("active"));
-    const target = document.getElementById(sectionId);
-    target.classList.add("active");
-    
+    const sectionId = btn.dataset.section;
+    document.getElementById(sectionId).classList.add("active");
     currentSection = sectionId;
-    window.scrollTo({ top: 0, behavior: "smooth" });
     
-    // Specific inits
-    if (sectionId === "mapSection") setTimeout(initMap, 100); // Delay for layout
+    if (sectionId === "mapSection") setTimeout(initMap, 200);
+    if (sectionId === "schedule") renderCalendar(currentCalDate);
     if (sectionId === "favorites") renderFavorites();
+    if (sectionId === "timeline") renderTimeline();
   });
 });
 
-/* ================= MEDIA UPLOAD (Cloudinary) ================= */
-const CLOUD_NAME = "dgip2lmxu";
-const UPLOAD_PRESET = "unsigned_upload";
-
-async function uploadToCloudinary(file, progressBarId) {
-  return new Promise((resolve, reject) => {
-    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
-    const xhr = new XMLHttpRequest();
-    const fd = new FormData();
-    fd.append("upload_preset", UPLOAD_PRESET);
-    fd.append("file", file);
-
-    xhr.open("POST", url, true);
+/* ================= CALENDAR LOGIC (FIXED) ================= */
+function renderCalendar(date) {
+    const grid = document.getElementById('calendarGrid');
+    const monthYear = document.getElementById('monthYear');
+    grid.innerHTML = '';
     
-    if(progressBarId) {
-        const bar = document.getElementById(progressBarId);
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = (e.loaded / e.total) * 100;
-                bar.style.width = percent + '%';
-            }
-        };
-    }
-
-    xhr.onload = function() {
-      if (this.status === 200) {
-        const resp = JSON.parse(this.responseText);
-        resolve(resp.secure_url);
-      } else {
-        reject(this.statusText);
-      }
-    };
-    xhr.onerror = () => reject("Network Error");
-    xhr.send(fd);
-  });
-}
-
-// Handlers for inputs
-['photo', 'video'].forEach(type => {
-    const input = document.getElementById(`${type}Input`);
-    const wrapper = document.querySelector(`[data-type="${type}s"]`); // Note the 's' match
+    const year = date.getFullYear();
+    const month = date.getMonth();
     
-    if(wrapper) {
-        wrapper.addEventListener('click', () => input.click());
-        input.addEventListener('change', (e) => handleMediaUpload(e.target.files, type));
-    }
-});
-
-async function handleMediaUpload(files, type) {
-    if(!files.length) return;
-    showToast(`Uploading ${files.length} memories...`);
-    const user = USER_MAP[currentUser.email] || 'Us';
-    const collectionName = type + 's'; // photos or videos
+    monthYear.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     
-    for (let file of files) {
-        try {
-            const url = await uploadToCloudinary(file, `${type}Progress`);
-            await addDoc(collections[collectionName], {
-                url,
-                timestamp: serverTimestamp(),
-                user,
-                type: type // 'photo' or 'video'
-            });
-            addToTimeline(`Added a ${type}`);
-        } catch (e) {
-            console.error(e);
-            showToast("Upload failed.", "error");
-        }
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Empty slots
+    for(let i = 0; i < firstDay; i++) {
+        grid.appendChild(document.createElement('div'));
     }
     
-    showToast("Upload complete!", "success");
-    document.getElementById(`${type}Progress`).style.width = '0%';
-    renderGallery(collectionName);
-}
-
-/* ================= RENDERING GALLERIES (Masonry) ================= */
-function renderGallery(type) {
-    const galleryId = type === 'photos' ? 'photoGallery' : 'videoGallery';
-    const container = document.getElementById(galleryId);
-    
-    const q = query(collections[type], orderBy("timestamp", "desc"), limit(20));
-    
-    onSnapshot(q, (snapshot) => {
-        container.innerHTML = '';
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            const div = document.createElement('div');
-            div.className = 'masonry-item';
-            
-            let mediaEl;
-            if (type === 'photos') {
-                mediaEl = `<img src="${data.url}" loading="lazy" alt="Memory">`;
-            } else {
-                mediaEl = `<video src="${data.url}" preload="metadata"></video>`;
-            }
-            
-            div.innerHTML = `
-                ${mediaEl}
-                <div class="item-meta">
-                    <span>${data.user}</span>
-                    <button class="btn icon-btn fav-btn" data-id="${docSnap.id}" data-coll="${type}">❤️</button>
-                </div>
-            `;
-            
-            div.querySelector('img, video')?.addEventListener('click', () => openLightbox(data.url, type, data.user));
-            div.querySelector('.fav-btn').addEventListener('click', (e) => toggleFavorite(e, docSnap.id, type));
-            
-            container.appendChild(div);
-        });
-    });
-}
-
-/* ================= LIGHTBOX ================= */
-const lightbox = document.getElementById('lightbox');
-function openLightbox(url, type, caption) {
-    const container = lightbox.querySelector('.lightbox-media-container');
-    const captionEl = lightbox.querySelector('.lightbox-caption');
-    
-    container.innerHTML = '';
-    if(type === 'photos' || type === 'image') {
-        container.innerHTML = `<img src="${url}">`;
-    } else {
-        container.innerHTML = `<video src="${url}" controls autoplay></video>`;
-    }
-    
-    captionEl.textContent = `Captured by ${caption}`;
-    lightbox.classList.add('active');
-}
-
-document.querySelector('.close-lightbox').addEventListener('click', () => lightbox.classList.remove('active'));
-
-/* ================= MUSIC ================= */
-document.getElementById("addMusicBtn").addEventListener("click", searchMusic);
-
-async function searchMusic() {
-    const queryText = document.getElementById("musicInput").value;
-    if(!queryText) return;
-    
-    const container = document.getElementById("musicSearchResults");
-    container.innerHTML = '<p class="text-center">Tuning into the cosmos...</p>';
-    
-    try {
-        // Fallback to a generic list if the API is down, for demo reliability
-        const res = await fetch(`https://love-site-spotify-backend.vercel.app/search?q=${encodeURIComponent(queryText)}`);
-        const data = await res.json();
+    // Days
+    for(let d = 1; d <= daysInMonth; d++) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.textContent = d;
         
-        container.innerHTML = '';
-        data.slice(0, 5).forEach(track => {
-            const el = createMusicRow(track, false);
-            container.appendChild(el);
-        });
-    } catch (e) {
-        container.innerHTML = '<p class="text-center">The frequency is blocked. Try again later.</p>';
-    }
-}
-
-function createMusicRow(track, isSaved, docId = null) {
-    const div = document.createElement('div');
-    div.className = 'list-item';
-    const img = track.album?.images[0]?.url || 'https://via.placeholder.com/60';
-    
-    div.innerHTML = `
-        <img src="${img}" alt="Art">
-        <div class="list-info">
-            <span class="list-title">${escapeHtml(track.name)}</span>
-            <span class="list-sub">${escapeHtml(track.artists[0].name)}</span>
-        </div>
-        ${track.preview_url ? `<button class="btn icon-btn play-preview" data-src="${track.preview_url}">▶</button>` : ''}
-        <button class="btn icon-btn action-btn">${isSaved ? '🗑️' : '➕'}</button>
-    `;
-    
-    // Handlers
-    div.querySelector('.play-preview')?.addEventListener('click', (e) => {
-        const audio = new Audio(e.target.dataset.src);
-        audio.play();
-        showToast(`Playing snippet: ${track.name}`);
-    });
-
-    const actionBtn = div.querySelector('.action-btn');
-    actionBtn.addEventListener('click', async () => {
-        if(isSaved) {
-            if(confirm("Remove this song?")) await deleteDoc(doc(collections.music, docId));
-        } else {
-            const user = USER_MAP[currentUser.email];
-            await addDoc(collections.music, { ...track, user, timestamp: serverTimestamp() });
-            showToast("Song enshrined.");
+        // Highlight today
+        const today = new Date();
+        if(d === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+            dayEl.classList.add('today');
         }
-    });
-    
-    return div;
-}
-
-function renderMusic() {
-    onSnapshot(query(collections.music, orderBy("timestamp", "desc")), (snap) => {
-        const div = document.getElementById('savedMusic');
-        div.innerHTML = '';
-        snap.forEach(d => div.appendChild(createMusicRow(d.data(), true, d.id)));
-    });
-}
-
-/* ================= MAP ================= */
-function initMap() {
-    if (mapInstance) {
-        mapInstance.invalidateSize(); // CRITICAL for iOS/Tabs
-        return;
+        
+        dayEl.addEventListener('click', () => {
+            document.getElementById('eventDate').value = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            document.getElementById('eventForm').classList.remove('hidden');
+        });
+        
+        grid.appendChild(dayEl);
     }
     
-    mapInstance = L.map('mapContainer').setView([37.7749, -122.4194], 13);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB'
-    }).addTo(mapInstance);
+    loadEventsForMonth(date);
+}
+
+document.getElementById('prevMonth').addEventListener('click', () => {
+    currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+    renderCalendar(currentCalDate);
+});
+
+document.getElementById('nextMonth').addEventListener('click', () => {
+    currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+    renderCalendar(currentCalDate);
+});
+
+document.getElementById('addEventToggleBtn').addEventListener('click', () => {
+    document.getElementById('eventForm').classList.toggle('hidden');
+});
+
+document.getElementById('saveEventBtn').addEventListener('click', async () => {
+    const title = document.getElementById('eventTitle').value;
+    const date = document.getElementById('eventDate').value;
+    if(!title || !date) return;
     
-    renderMapPoints();
+    await addDoc(collections.events, {
+        title, date,
+        user: USER_MAP[currentUser.email],
+        timestamp: serverTimestamp()
+    });
+    
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventForm').classList.add('hidden');
+    renderCalendar(currentCalDate); // Refresh indicators
+    renderEventsList();
+    addToTimeline(`Planned: ${title}`);
+    showToast("Event added");
+});
+
+function loadEventsForMonth(date) {
+    // In a real app, query by date range. Here we fetch all and filter for simplicity
+    onSnapshot(collections.events, snap => {
+        const days = document.querySelectorAll('.calendar-day');
+        snap.forEach(doc => {
+            const data = doc.data();
+            const evtDate = new Date(data.date);
+            if(evtDate.getMonth() === date.getMonth() && evtDate.getFullYear() === date.getFullYear()) {
+                // Find the specific day element (offset by empty slots)
+                const firstDayOffset = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+                const dayIndex = firstDayOffset + evtDate.getDate() + 1; // Using getDate directly is safer usually
+                // Simple match: iterate text content
+                days.forEach(day => {
+                    if(parseInt(day.textContent) === evtDate.getDate()) day.classList.add('has-event');
+                });
+            }
+        });
+        renderEventsList();
+    });
+}
+
+function renderEventsList() {
+    const list = document.getElementById('eventsList');
+    list.innerHTML = '';
+    // Simple query for upcoming
+    onSnapshot(query(collections.events, orderBy('date', 'asc'), limit(5)), snap => {
+        snap.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'event-item card';
+            div.innerHTML = `
+                <div><strong>${data.date}</strong><br>${escapeHtml(data.title)}</div>
+                <div style="color:var(--subtext);">${data.user}</div>
+            `;
+            list.appendChild(div);
+        });
+    });
+}
+
+/* ================= MAP LOGIC (FIXED) ================= */
+function initMap() {
+    const container = document.getElementById('mapContainer');
+    if (!container) return;
+    
+    if (!mapInstance) {
+        mapInstance = L.map('mapContainer').setView([34.0522, -118.2437], 10); // Default LA
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap, &copy; CartoDB'
+        }).addTo(mapInstance);
+        renderMapPoints();
+    }
+    
+    setTimeout(() => { mapInstance.invalidateSize(); }, 200);
 }
 
 function renderMapPoints() {
-    onSnapshot(collections.memories, (snap) => {
-        // Clear old
+    onSnapshot(collections.memories, snap => {
         memoryMarkers.forEach(m => mapInstance.removeLayer(m));
         memoryMarkers = [];
         const list = document.getElementById('memoriesList');
         list.innerHTML = '';
-
-        snap.forEach(d => {
-            const data = d.data();
+        
+        snap.forEach(doc => {
+            const data = doc.data();
             const marker = L.marker([data.lat, data.lng]).addTo(mapInstance)
-                .bindPopup(`<b>${escapeHtml(data.title)}</b><br>${escapeHtml(data.desc)}`);
+                .bindPopup(`<b>${escapeHtml(data.title)}</b><p>${escapeHtml(data.desc)}</p>`);
             memoryMarkers.push(marker);
             
-            // List Item
-            const item = document.createElement('div');
-            item.className = 'list-item';
-            item.innerHTML = `
+            const div = document.createElement('div');
+            div.className = 'list-item card';
+            div.innerHTML = `
                 <div class="list-info">
                     <span class="list-title">${escapeHtml(data.title)}</span>
-                    <span class="list-sub">${data.user} • ${data.lat.toFixed(2)}, ${data.lng.toFixed(2)}</span>
+                    <span class="list-sub">${data.user}</span>
                 </div>
-                <button class="btn icon-btn" onclick="mapInstance.flyTo([${data.lat}, ${data.lng}], 15)">✈️</button>
+                <button class="btn icon-btn">✈️</button>
             `;
-            list.appendChild(item);
+            div.querySelector('button').onclick = () => {
+                mapInstance.flyTo([data.lat, data.lng], 15);
+                marker.openPopup();
+            };
+            list.appendChild(div);
         });
     });
 }
 
-document.getElementById('addMemoryBtn').addEventListener('click', () => {
-    document.getElementById('memoryModal').classList.add('active');
-    if(mapInstance) mapInstance.invalidateSize();
-});
+document.getElementById('addMemoryBtn').addEventListener('click', () => document.getElementById('memoryModal').classList.add('active'));
+document.getElementById('cancelMemoryBtn').addEventListener('click', () => document.getElementById('memoryModal').classList.remove('active'));
 
 document.getElementById('getCurrentLocation').addEventListener('click', () => {
-    if(navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            document.getElementById('latInput').value = pos.coords.latitude;
-            document.getElementById('lngInput').value = pos.coords.longitude;
-            showToast("Location acquired.");
-        });
-    }
+    navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById('latInput').value = pos.coords.latitude;
+        document.getElementById('lngInput').value = pos.coords.longitude;
+    });
 });
 
 document.getElementById('saveMemoryBtn').addEventListener('click', async () => {
     const title = document.getElementById('memoryTitle').value;
     const lat = parseFloat(document.getElementById('latInput').value);
     const lng = parseFloat(document.getElementById('lngInput').value);
-    const desc = document.getElementById('memoryDesc').value;
-
     if(title && lat && lng) {
         await addDoc(collections.memories, {
-            title, desc, lat, lng,
-            user: USER_MAP[currentUser.email],
-            timestamp: serverTimestamp()
+            title, lat, lng, desc: document.getElementById('memoryDesc').value,
+            user: USER_MAP[currentUser.email], timestamp: serverTimestamp()
         });
         document.getElementById('memoryModal').classList.remove('active');
-        showToast("Memory pinned on the map.");
+        showToast("Memory pinned!");
+        addToTimeline(`Pinned location: ${title}`);
     }
 });
 
-/* ================= FAVORITES & TIMELINE ================= */
-async function toggleFavorite(e, id, collectionName) {
-    e.stopPropagation();
-    e.target.classList.toggle('active');
-    // In a real app, you'd check if it exists first to delete, or add.
-    // Simplification: Just adding to favorites collection for now
-    await addDoc(collections.favorites, {
-        refId: id,
-        collection: collectionName,
-        timestamp: serverTimestamp()
-    });
-    showToast("Added to Sanctum ❤️");
-}
-
-async function addToTimeline(action) {
-    await addDoc(collections.timeline, {
-        action,
-        user: USER_MAP[currentUser.email],
-        timestamp: serverTimestamp()
-    });
-}
-
-/* ================= NOTES & VOICE ================= */
-// Basic implementation of Voice using Cloudinary (reusing upload logic)
-let mediaRecorder;
-let audioChunks = [];
-
-document.getElementById('voiceNoteBtn').addEventListener('click', () => {
-    document.getElementById('voiceModal').classList.add('active');
-});
-
-document.getElementById('startRecord').addEventListener('click', async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.start();
-    
-    document.getElementById('startRecord').disabled = true;
-    document.getElementById('stopRecord').disabled = false;
-    
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-    mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = document.getElementById('voicePreview');
-        audio.src = audioUrl;
-        audio.style.display = 'block';
-        document.getElementById('saveVoiceBtn').disabled = false;
-        
-        // Handle save
-        document.getElementById('saveVoiceBtn').onclick = async () => {
-            const url = await uploadToCloudinary(audioBlob, null);
-            await addDoc(collections.notes, {
-                type: 'voice',
-                url,
-                user: USER_MAP[currentUser.email],
-                timestamp: serverTimestamp()
-            });
-            document.getElementById('voiceModal').classList.remove('active');
-            showToast("Voice note saved.");
-        };
-    };
-});
-
-document.getElementById('stopRecord').addEventListener('click', () => {
-    mediaRecorder.stop();
-    document.getElementById('startRecord').disabled = false;
-});
-
-document.getElementById('saveNoteBtn').addEventListener('click', async () => {
-    const text = document.getElementById('noteInput').value;
-    if(!text) return;
-    await addDoc(collections.notes, {
-        text,
-        type: 'text',
-        user: USER_MAP[currentUser.email],
-        timestamp: serverTimestamp()
-    });
-    document.getElementById('noteInput').value = '';
-    showToast("Note inscribed.");
-});
-
-function renderNotes() {
-    onSnapshot(query(collections.notes, orderBy("timestamp", "desc")), snap => {
-        const list = document.getElementById('notesList');
-        list.innerHTML = '';
-        snap.forEach(d => {
-            const data = d.data();
+/* ================= TIMELINE LOGIC (FIXED) ================= */
+function renderTimeline() {
+    const container = document.getElementById('timelineContainer');
+    onSnapshot(query(collections.timeline, orderBy('timestamp', 'desc'), limit(50)), snap => {
+        container.innerHTML = '';
+        snap.forEach(doc => {
+            const data = doc.data();
+            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
             const div = document.createElement('div');
-            div.className = 'card';
-            if(data.type === 'voice') {
-                div.innerHTML = `<p>🎤 Voice Note by ${data.user}</p><audio controls src="${data.url}"></audio>`;
-            } else {
-                div.innerHTML = `<p style="font-family: var(--font-serif); font-size: 1.1rem;">"${escapeHtml(data.text)}"</p><p class="list-sub">- ${data.user}</p>`;
-            }
-            list.appendChild(div);
+            div.className = 'timeline-item';
+            div.innerHTML = `
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">${date} • ${data.user}</span>
+                    <p class="timeline-text">${escapeHtml(data.action)}</p>
+                </div>
+            `;
+            container.appendChild(div);
         });
     });
 }
 
-/* ================= INIT ================= */
+async function addToTimeline(action) {
+    if(!currentUser) return;
+    await addDoc(collections.timeline, {
+        action, user: USER_MAP[currentUser.email], timestamp: serverTimestamp()
+    });
+}
+
+/* ================= FAVORITES LOGIC (FIXED) ================= */
+async function toggleFavorite(e, docId, type, url, caption) {
+    e.stopPropagation();
+    const btn = e.target;
+    btn.classList.toggle('active');
+    
+    // Snapshot the data so we don't have to query the original collection later
+    await addDoc(collections.favorites, {
+        originalId: docId,
+        type: type,
+        url: url,
+        caption: caption || 'Memory',
+        user: USER_MAP[currentUser.email],
+        timestamp: serverTimestamp()
+    });
+    
+    showToast("Saved to Sanctum ❤️");
+}
+
+function renderFavorites() {
+    const grid = document.getElementById('favoritesGrid');
+    onSnapshot(query(collections.favorites, orderBy('timestamp', 'desc')), snap => {
+        grid.innerHTML = '';
+        snap.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'masonry-item';
+            
+            let mediaContent = '';
+            if (data.type === 'photos' || data.type === 'image') {
+                mediaContent = `<img src="${data.url}" loading="lazy">`;
+            } else if (data.type === 'videos') {
+                mediaContent = `<video src="${data.url}" controls></video>`;
+            }
+            
+            div.innerHTML = `
+                ${mediaContent}
+                <div class="item-meta">
+                    <span>${data.caption}</span>
+                    <span>❤️</span>
+                </div>
+            `;
+            grid.appendChild(div);
+        });
+    });
+}
+
+/* ================= MEDIA UPLOAD (Cloudinary) ================= */
+const CLOUD_NAME = "dgip2lmxu";
+const UPLOAD_PRESET = "unsigned_upload";
+
+document.getElementById('photoInput').addEventListener('change', e => handleUpload(e.target.files, 'photos'));
+document.getElementById('videoInput').addEventListener('change', e => handleUpload(e.target.files, 'videos'));
+
+async function handleUpload(files, type) {
+    if(!files.length) return;
+    showToast("Uploading...");
+    const bar = document.getElementById(type === 'photos' ? 'photoProgress' : 'videoProgress');
+    
+    for (let file of files) {
+        const fd = new FormData();
+        fd.append("upload_preset", UPLOAD_PRESET);
+        fd.append("file", file);
+        
+        try {
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, { method: 'POST', body: fd });
+            const data = await res.json();
+            bar.style.width = '100%';
+            
+            await addDoc(collections[type], {
+                url: data.secure_url, type,
+                user: USER_MAP[currentUser.email], timestamp: serverTimestamp()
+            });
+            addToTimeline(`Added a ${type.slice(0,-1)}`);
+        } catch(e) { console.error(e); }
+    }
+    showToast("Done!", "success");
+    setTimeout(() => bar.style.width = '0%', 1000);
+}
+
+function renderGallery(type) {
+    const container = document.getElementById(type === 'photos' ? 'photoGallery' : 'videoGallery');
+    onSnapshot(query(collections[type], orderBy('timestamp', 'desc'), limit(20)), snap => {
+        container.innerHTML = '';
+        snap.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'masonry-item';
+            const media = type === 'photos'
+                ? `<img src="${data.url}" loading="lazy">`
+                : `<video src="${data.url}" controls></video>`;
+            
+            div.innerHTML = `
+                ${media}
+                <div class="item-meta">
+                    <span>${data.user}</span>
+                    <button class="btn icon-btn fav-btn">🤍</button>
+                </div>
+            `;
+            
+            div.querySelector('.fav-btn').onclick = (e) => toggleFavorite(e, doc.id, type, data.url, data.user);
+            div.querySelector('img')?.addEventListener('click', () => {
+                document.querySelector('.lightbox-media-container').innerHTML = `<img src="${data.url}">`;
+                document.getElementById('lightbox').classList.add('active');
+            });
+            
+            container.appendChild(div);
+        });
+    });
+}
+
+/* ================= INITIALIZATION ================= */
 function initApp() {
     updateDaysCounter();
     renderGallery('photos');
     renderGallery('videos');
-    renderMusic();
-    renderNotes();
-    
-    // Dark Mode Logic
-    const toggle = document.getElementById('darkModeToggle');
-    toggle.addEventListener('change', (e) => {
-        document.body.classList.toggle('dark', e.target.checked);
-        localStorage.setItem('theme', e.target.checked ? 'dark' : 'light');
-    });
-    
+    // Initialize theme
     if(localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark');
-        toggle.checked = true;
+        document.getElementById('darkModeToggle').checked = true;
     }
 }
 
-// Close modals on outside click
-document.querySelectorAll('.modal').forEach(m => {
-    m.addEventListener('click', (e) => {
-        if(e.target === m && m.id !== 'authModal') m.classList.remove('active');
-    });
+document.getElementById('darkModeToggle').addEventListener('change', e => {
+    document.body.classList.toggle('dark', e.target.checked);
+    localStorage.setItem('theme', e.target.checked ? 'dark' : 'light');
 });
 
-document.querySelectorAll('.close-modal').forEach(b => {
-    b.addEventListener('click', (e) => {
-        e.target.closest('.modal').classList.remove('active');
-    });
-});
+// Modal Close Logic
+document.querySelectorAll('.close-lightbox').forEach(b => b.onclick = () => document.getElementById('lightbox').classList.remove('active'));
