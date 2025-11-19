@@ -23,7 +23,6 @@
 </head>
 <body class="ios-theme">
     <div id="toastContainer" class="toast-container"></div>
-    <div id="actionSheetBackdrop" class="action-sheet-backdrop"></div>
     
     <div id="authModal" class="modal">
         <div class="modal-content blur-bg">
@@ -95,7 +94,7 @@
                             <button id="addSavingsBtn" class="btn secondary small">Log Save</button>
                         </div>
                         <h2 id="currentSavings" style="font-size:1.8em; margin:0 0 5px; font-weight:700;">$0.00</h2>
-                        <div class="savings-progress-bar">
+                        <div class="savings-progress-bar" id="setGoalTrigger">
                             <div class="savings-progress-fill" id="savingsProgressFill" style="width: 0%;"></div>
                         </div>
                         <div class="savings-details">
@@ -103,53 +102,70 @@
                             <span id="savingsPercent">0%</span>
                         </div>
                     </div>
-                    <div class="card status-card">
-                        <div class="status-icon">👤</div>
-                        <div class="presence-bar-home">
+                    <div class="card presence-card-combined">
+                        <div class="presence-item">
                             <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
                             <span id="braydenPresenceText">Brayden Offline</span>
                         </div>
-                    </div>
-                    <div class="card status-card">
-                        <div class="status-icon">👤</div>
-                        <div class="presence-bar-home">
+                        <div class="presence-item">
                             <span id="younaPresence" class="presence-dot" title="Youna"></span>
                             <span id="younaPresenceText">Youna Offline</span>
                         </div>
                     </div>
-
                 </div>
 
                 <h3 class="sub-header">Upcoming Events</h3>
                 <div id="homeEventsList" class="list-layout"></div>
 
                 <h3 class="sub-header">Latest Note</h3>
-                <div id="homeLatestNote" class="list-layout"></div>
-
-                <h3 class="sub-header">Recent Media</h3>
-                <div id="homeRecentMedia" class="masonry-grid-compact"></div>
+                <div id="homeLatestNote">
+                     </div>
             </section>
-            
+
+            <section id="schedule" class="section">
+                <div class="section-header">
+                    <h2>Schedule</h2>
+                    <p>Plan your weeks together.</p>
+                </div>
+                <div class="card calendar-header">
+                    <button id="prevMonth" class="btn icon-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <h3 id="monthYear">November 2025</h3>
+                    <button id="nextMonth" class="btn icon-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+                <div class="calendar-grid-wrapper card">
+                    <div class="calendar-weekdays">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div id="calendarGrid" class="calendar-grid">
+                        </div>
+                </div>
+                <h3 class="sub-header">Event List</h3>
+                <div id="eventsList" class="list-layout">
+                    </div>
+                <div class="card input-block">
+                    <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
+                    <input type="date" id="eventDate" class="glass-input">
+                    <button id="addEventBtn" class="btn primary full-width">Add Event</button>
+                </div>
+            </section>
+
             <section id="notes" class="section">
                 <div class="section-header">
-                    <h2>Notes & Messages</h2>
-                    <p>Your private journal chat.</p>
+                    <h2>Notes</h2>
+                    <p>Share thoughts and updates.</p>
                 </div>
-                
-                <div class="search-pin-bar">
-                    <input type="text" id="noteSearchInput" placeholder="Search notes..." class="glass-input">
-                    <button id="viewPinnedNotesBtn" class="btn icon-btn" aria-label="View Pinned">📌</button>
-                </div>
-
-                <div class="note-composer card input-block">
+                <div class="card input-block note-composer">
                     <textarea id="noteInput" placeholder="Write a note..." rows="3"></textarea>
                     <div class="composer-footer">
-                        <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
+                        <button id="voiceNoteBtn" class="btn icon-btn" aria-label="Record Voice Note">🎤</button>
                         <button id="saveNoteBtn" class="btn primary small">Send</button>
                     </div>
                     <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
                 </div>
-                
                 <div id="notesList" class="list-layout">
                     </div>
             </section>
@@ -165,7 +181,8 @@
                     <input type="file" id="photoInput" accept="image/*" multiple hidden>
                     <div class="progress-bar"><div class="fill" id="photoProgress"></div></div>
                 </div>
-                <div class="masonry-grid" id="photoGallery"></div>
+                <div class="masonry-grid" id="photoGallery">
+                    </div>
             </section>
 
             <section id="videos" class="section">
@@ -179,135 +196,119 @@
                     <input type="file" id="videoInput" accept="video/*" multiple hidden>
                     <div class="progress-bar"><div class="fill" id="videoProgress"></div></div>
                 </div>
-                <div class="masonry-grid" id="videoGallery"></div>
+                <div class="masonry-grid" id="videoGallery">
+                    </div>
             </section>
-
+            
             <section id="music" class="section">
                 <div class="section-header">
                     <h2>Music</h2>
                     <p>Songs you've added.</p>
                 </div>
+                
                 <div class="music-controls-wrapper card input-block">
                     <div class="search-row">
-                        <input type="text" id="musicInput" class="glass-input" placeholder="Search songs">
-                        <button id="addMusicBtn" class="btn primary small">Search</button>
+                        <input type="text" id="musicInput" class="glass-input" placeholder="Search a song title or artist">
+                        <button id="musicSearchBtn" class="btn primary icon-btn" aria-label="Search">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
                     </div>
-                    <div id="musicSearchResults" class="search-results hidden"></div>
+                    <div id="musicSearchResults" class="list-layout hidden">
+                        </div>
                 </div>
-                <h3 class="sub-header">Saved Music</h3>
-                <div id="savedMusic" class="list-layout"></div>
-            </section>
 
-            <section id="schedule" class="section">
-                <div class="section-header">
-                    <h2>Schedule</h2>
-                    <p>Upcoming dates and plans.</p>
-                </div>
-                <div class="calendar-wrapper card">
-                    <div class="cal-nav">
-                        <button id="prevMonth" class="btn icon-btn">‹</button>
-                        <span id="monthYear">Loading...</span>
-                        <button id="nextMonth" class="btn icon-btn">›</button>
+                <h3 class="sub-header">Your Playlist</h3>
+                <div id="savedMusic" class="list-layout">
                     </div>
-                    <div class="cal-grid-header">
-                        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                    </div>
-                    <div id="calendarGrid" class="cal-grid-body"></div>
-                </div>
-                <div class="event-actions">
-                    <button id="addEventToggleBtn" class="btn primary full-width">Add Event</button>
-                </div>
-                <div id="eventForm" class="event-editor card hidden input-block">
-                    <h4>New Event</h4>
-                    <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
-                    <input type="date" id="eventDate" class="glass-input">
-                    <div class="form-actions">
-                        <button id="cancelEventBtn" class="btn ghost small">Cancel</button>
-                        <button id="saveEventBtn" class="btn primary small">Save</button>
-                    </div>
-                </div>
-                <h3 class="sub-header">Upcoming Events List</h3>
-                <div id="eventsList" class="list-layout"></div>
             </section>
 
             <section id="mapSection" class="section">
                 <div class="section-header">
                     <h2>Map</h2>
-                    <p>Pinned locations.</p>
+                    <p>Where we've been and where we're going.</p>
                 </div>
-                <div class="map-card card">
-                    <div id="mapContainer"></div>
-                    <button id="addMemoryBtn" class="btn primary floating-action">Add Location</button>
-                </div>
-                <h3 class="sub-header">Saved Locations</h3>
-                <div id="memoriesList" class="list-layout"></div>
+                <div id="mapContainer" class="card map-container">
+                    </div>
+                
+                <h3 class="sub-header">Pinned Memories</h3>
+                <button id="addMemoryBtn" class="btn secondary full-width" style="margin-bottom: 15px;">Pin a New Memory</button>
+                <div id="memoriesList" class="list-layout">
+                    </div>
             </section>
 
-            <section id="timeline" class="section">
+            <section id="timelineSection" class="section">
                 <div class="section-header">
-                    <h2>Activity</h2>
-                    <p>Recent actions.</p>
+                    <h2>Timeline</h2>
+                    <p>A history of our shared actions.</p>
                 </div>
-                <div id="timelineContainer" class="timeline-container"></div>
+                <div id="timelineContainer" class="timeline-container card">
+                    </div>
             </section>
 
-            <section id="favorites" class="section">
+            <section id="favoritesSection" class="section">
                 <div class="section-header">
                     <h2>Favorites</h2>
-                    <p>Saved items.</p>
+                    <p>Our favorite things, saved.</p>
                 </div>
-                <div class="masonry-grid" id="favoritesGrid"></div>
+                <div class="card input-block">
+                    <input type="text" id="favTitle" placeholder="Title (e.g., Restaurant name)" class="glass-input">
+                    <input type="text" id="favLink" placeholder="Link (Optional)" class="glass-input">
+                    <textarea id="favNotes" placeholder="Notes (e.g., What we liked)" rows="2"></textarea>
+                    <button id="saveFavoriteBtn" class="btn primary full-width">Add Favorite</button>
+                </div>
+                <div id="favoritesList" class="list-layout">
+                    </div>
             </section>
+
         </main>
-
-        <nav class="tab-bar">
-            <button class="tab-btn active" data-section="home"><span class="icon">🏠</span><span>Home</span></button>
-            <button class="tab-btn" data-section="notes"><span class="icon">💬</span><span>Messages</span></button>
-            <button class="tab-btn" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
-            <button class="tab-btn" data-section="schedule"><span class="icon">📅</span><span>Schedule</span></button>
-            <button class="tab-btn" data-section="mapSection"><span class="icon">📍</span><span>Map</span></button>
-        </nav>
-
-        <div id="lightbox" class="lightbox">
-            <button class="close-lightbox">&times;</button>
-            <div class="lightbox-media-container"></div>
-            <div class="lightbox-meta">
-                <p class="lightbox-caption"></p>
-            </div>
-        </div>
         
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-section="home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span class="tab-label">Home</span>
+            </button>
+            <button class="tab-btn" data-section="schedule">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="tab-label">Events</span>
+            </button>
+            <button class="tab-btn" data-section="notes">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="tab-label">Notes</span>
+            </button>
+            <button class="tab-btn" data-section="photos">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <span class="tab-label">Media</span>
+            </button>
+            <button class="tab-btn" data-section="mapSection">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span class="tab-label">Map</span>
+            </button>
+        </nav>
+        
+        <div id="lightbox" class="lightbox">
+            <button class="close-lightbox" aria-label="Close">&times;</button>
+            <div id="lightboxMediaContainer" class="lightbox-media-container">
+                </div>
+            <div id="lightboxCaption" class="lightbox-caption"></div>
+        </div>
+
         <div id="memoryModal" class="modal">
             <div class="modal-content card">
-                <h3>Add Location</h3>
-                <input type="text" id="memoryTitle" placeholder="Location Name" class="glass-input">
-                <textarea id="memoryDesc" placeholder="Description" class="glass-input"></textarea>
-                <div class="geo-controls">
-                    <input type="number" id="latInput" placeholder="Lat" class="glass-input small">
-                    <input type="number" id="lngInput" placeholder="Lng" class="glass-input small">
-                    <button id="getCurrentLocation" class="btn secondary small">GPS 📍</button>
+                <h3>Pin a Memory</h3>
+                <input type="text" id="memoryTitle" placeholder="Memory Title" class="glass-input" required>
+                <textarea id="memoryDesc" placeholder="Description (Optional)" class="glass-input" rows="2"></textarea>
+                <div class="input-group-inline">
+                    <input type="number" id="latInput" placeholder="Latitude" class="glass-input" step="0.000001">
+                    <input type="number" id="lngInput" placeholder="Longitude" class="glass-input" step="0.000001">
                 </div>
+                <button id="getCurrentLocation" class="btn ghost full-width">Use Current Location</button>
                 <div class="modal-footer">
                     <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
-                    <button id="saveMemoryBtn" class="btn primary">Save</button>
+                    <button id="saveMemoryBtn" class="btn primary">Pin</button>
                 </div>
             </div>
         </div>
         
-        <div id="replyModal" class="modal action-sheet">
-            <div class="modal-content action-sheet-content">
-                <div class="sheet-header">
-                    <h4>Reply to Note</h4>
-                    <button class="btn icon-btn close-sheet">&times;</button>
-                </div>
-                <div id="originalNoteContent" class="original-note-preview card"></div>
-                <div id="repliesList" class="list-layout note-replies-list"></div>
-                <div class="reply-composer input-block">
-                    <input type="text" id="replyInput" placeholder="Your reply or emoji..." class="glass-input">
-                    <button id="sendReplyBtn" class="btn primary small">Send</button>
-                </div>
-            </div>
-        </div>
-
         <div id="savingsModal" class="modal">
             <div class="modal-content card">
                 <h3>Log Savings</h3>
@@ -322,10 +323,25 @@
         <div id="goalModal" class="modal">
             <div class="modal-content card">
                 <h3>Set Savings Goal</h3>
-                <input type="number" id="goalAmountInput" placeholder="Goal Amount ($)" class="glass-input" step="0.01">
+                <input type="number" id="goalAmountInput" placeholder="Goal Amount ($10,000)" class="glass-input" step="0.01">
                 <div class="modal-footer">
                     <button id="cancelGoalBtn" class="btn ghost">Cancel</button>
                     <button id="setGoalBtn" class="btn primary">Set Goal</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="replyModal" class="modal action-sheet">
+            <div class="modal-content action-sheet-content">
+                <div class="sheet-header">
+                    <h4>Reply to Note</h4>
+                    <button class="btn icon-btn close-sheet">&times;</button>
+                </div>
+                <div id="originalNoteContent" class="original-note-preview card">
+                    </div>
+                <div class="input-block reply-input-block">
+                    <input type="text" id="replyInput" placeholder="Your reply or emoji..." class="glass-input">
+                    <button id="sendReplyBtn" class="btn primary small">Send</button>
                 </div>
             </div>
         </div>
