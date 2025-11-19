@@ -12,16 +12,15 @@ import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.um
 import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
-  authDomain: "ourwebsite223.firebaseapp.com",
-  databaseURL: "https://ourwebsite223-default-rtdb.firebaseio.com",
-  projectId: "ourwebsite223",
-  storageBucket: "ourwebsite223.firebasestorage.app",
-  messagingSenderId: "978864749848",
-  appId: "1:978864749848:web:dc2a053e7c6647c407f26d",
-  measurementId: "G-0PQL5ZR1R5"
+  apiKey: "AIza...",
+  authDomain: "brayden-youna-app.firebaseapp.com",
+  projectId: "brayden-youna-app",
+  storageBucket: "brayden-youna-app.appspot.com",
+  messagingSenderId: "...",
+  appId: "...",
+  databaseURL: "https://brayden-youna-app-default-rtdb.firebaseio.com",
+  measurementId: "..."
 };
 
 // --- Initialization (REQUIRED) ---
@@ -46,7 +45,6 @@ const USER_MAP = {
     'brayden@love.com': 'Brayden',
     'youna@love.com': 'Youna'
 };
-// REMOVED: USER_CREDENTIALS object
 
 // --- Authentication State (UPDATED) ---
 let selectedUser = null;
@@ -179,9 +177,11 @@ function selectProfile(user) {
     checkFormValidity();
 }
 
+// ADDED DEBUG LOGIC HERE
 function checkFormValidity() {
     // Firebase min password length is 6
-    const passwordValid = authPasswordInput?.value?.length >= 6;
+    const minPasswordLength = 6;
+    const passwordValid = authPasswordInput?.value?.length >= minPasswordLength;
     const emailValid = authEmailInput?.value?.length > 0;
     // Require display name only in sign-up mode
     const displayNameValid = isSignUpState ? authDisplayNameInput?.value?.length > 0 : true;
@@ -194,6 +194,16 @@ function checkFormValidity() {
         authPrimaryBtn?.classList.remove('primary');
         authPrimaryBtn?.classList.add('ghost');
         if(authPrimaryBtn) authPrimaryBtn.disabled = true;
+
+        // --- NEW DEBUG/FEEDBACK BLOCK ---
+        if (isSignUpState && authPrimaryBtn?.disabled) {
+            let reason = "Creation blocked. Please ensure: ";
+            if (!emailValid) reason += "1. Email is entered. ";
+            if (!passwordValid) reason += `2. Password is at least ${minPasswordLength} characters long. `;
+            if (!displayNameValid) reason += "3. Display Name is entered. ";
+            console.warn("Sign Up Button Disabled:", reason);
+        }
+        // --- END OF NEW DEBUG/FEEDBACK BLOCK ---
     }
 }
 
@@ -239,12 +249,19 @@ async function handleSignUp(email, password, displayName) {
 
 // New: Dispatcher for Sign In and Sign Up
 async function handleAuthAction() {
-    if (authPrimaryBtn?.disabled) return;
+    if (authPrimaryBtn?.disabled) {
+        // Provide immediate feedback if the button is blocked by validation
+        if (isSignUpState) {
+            alert("Please check your input: Email, a password of 6+ characters, and a Display Name are required.");
+        }
+        return;
+    }
     
     const email = authEmailInput?.value.trim();
     const password = authPasswordInput?.value;
     const displayName = authDisplayNameInput?.value?.trim();
     
+    // This redundant check ensures an error message if inputs are cleared after button enablement
     if (!email || !password || (isSignUpState && !displayName)) {
         showToast('Please fill out all required fields.', 'error');
         return;
@@ -278,7 +295,7 @@ async function handleAuthAction() {
         }
         
         showToast(displayError, 'error');
-        // alert(displayError); // Optional: use a more intrusive alert for serious errors
+        alert("Firebase Error: " + displayError); // Ensure the user sees the final error
     } finally {
         if(authPrimaryBtn) authPrimaryBtn.textContent = isSignUpState ? 'Create Account' : 'Sign In';
         if(authPrimaryBtn) authPrimaryBtn.disabled = false;
