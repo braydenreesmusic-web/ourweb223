@@ -1,4 +1,4 @@
-// script.js - Optimized, Functional, and Amazing (CLEANED ACCOUNT SWITCHING)
+// script.js - Optimized, Functional, and Amazing (SIMPLIFIED LOGIN)
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
@@ -11,6 +11,7 @@ import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } f
 import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js";
 import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
@@ -155,10 +156,7 @@ function getProfileFromEmail(email) {
 
 
 function selectProfile(user) {
-    // CRITICAL FIX: If we're in sign up state, we switch to sign in mode first.
-    // The call to toggleAuthState(false) internally calls selectProfile('brayden').
-    // By removing the confusing conditional return, we ensure the function continues
-    // and the *clicked* profile (Brayden or Youna) is the final selected profile.
+    // If we're in sign up state, we switch to sign in mode first.
     if (isSignUpState) {
         toggleAuthState(false);
     }
@@ -184,13 +182,13 @@ function selectProfile(user) {
     checkFormValidity();
 }
 
-// IMPROVED DEBUG LOGIC HERE
+// SIMPLIFIED LOGIC
 function checkFormValidity() {
-    // Firebase min password length is 6
-    const minPasswordLength = 6;
-    const passwordValid = authPasswordInput?.value?.length >= minPasswordLength;
-    const emailValid = authEmailInput?.value?.length > 0 && authEmailInput?.value?.includes('@');
-    // Require display name only in sign-up mode
+    // 1. Removed min password length check.
+    const passwordValid = authPasswordInput?.value?.length > 0;
+    // 2. Simplied email check (just needs to be non-empty)
+    const emailValid = authEmailInput?.value?.length > 0;
+    // 3. Require display name only in sign-up mode
     const displayNameValid = isSignUpState ? authDisplayNameInput?.value?.length > 0 : true;
 
     if (passwordValid && emailValid && displayNameValid) {
@@ -205,8 +203,8 @@ function checkFormValidity() {
         // --- IMPROVED DEBUG/FEEDBACK BLOCK ---
         if (authPrimaryBtn?.disabled) {
             let reason = `Creation/Login blocked. Please ensure: `;
-            if (!emailValid) reason += "1. Valid Email is entered. ";
-            if (!passwordValid) reason += `2. Password is at least ${minPasswordLength} characters long. `;
+            if (!emailValid) reason += "1. Email is entered. ";
+            if (!passwordValid) reason += `2. Password is entered. `;
             if (isSignUpState && !displayNameValid) reason += "3. Display Name is entered. ";
             
             console.warn(`Auth Button Disabled (Mode: ${isSignUpState ? 'Sign Up' : 'Sign In'}):`, reason);
@@ -260,8 +258,8 @@ async function handleAuthAction() {
     if (authPrimaryBtn?.disabled) {
         // Provide immediate feedback if the button is blocked by validation
         let reason = isSignUpState
-            ? "Email, 6+ character password, and Display Name are required."
-            : "Email and a 6+ character password are required.";
+            ? "Email, password, and Display Name are required."
+            : "Email and password are required.";
             
         alert(`Validation Error: ${reason}`);
         return;
@@ -300,12 +298,15 @@ async function handleAuthAction() {
             displayError = 'Invalid email format.';
         } else if (error.code === 'auth/too-many-requests') {
             displayError = 'Too many failed attempts. Try again later.';
+        } else if (error.code === 'auth/network-request-failed') {
+            displayError = 'Network error or Firebase is misconfigured (check API key/connection).';
         } else {
             displayError = `Authentication failed. Please try again. (Code: ${error.code})`;
         }
         
         showToast(displayError, 'error');
-        alert("Firebase Error: " + displayError); // Ensure the user sees the final error
+        // This alert is critical for debugging the Firebase-side error
+        alert("Firebase Error: " + displayError);
     } finally {
         if(authPrimaryBtn) authPrimaryBtn.textContent = isSignUpState ? 'Create Account' : 'Sign In';
         if(authPrimaryBtn) authPrimaryBtn.disabled = false;
@@ -342,7 +343,6 @@ function toggleAuthState(signUp = !isSignUpState) {
         if(younaLoginBtn) younaLoginBtn.style.display = 'inline-block';
         
         // Reset to default selected profile *after* buttons are visible
-        // This is necessary for initial load/logout to pre-fill Brayden's credentials
         selectProfile('brayden');
     }
     checkFormValidity();
