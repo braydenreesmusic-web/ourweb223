@@ -1,4 +1,4 @@
-// script.js - Optimized, Functional, and Amazing (MERGED + COMPLETE)
+// script.js - Optimized, Functional, and Amazing (CLEANED ACCOUNT SWITCHING)
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
@@ -13,14 +13,14 @@ import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "brayden-youna-app.firebaseapp.com",
-  projectId: "brayden-youna-app",
-  storageBucket: "brayden-youna-app.appspot.com",
-  messagingSenderId: "...",
-  appId: "...",
-  databaseURL: "https://brayden-youna-app-default-rtdb.firebaseio.com",
-  measurementId: "..."
+  apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
+  authDomain: "ourwebsite223.firebaseapp.com",
+  databaseURL: "https://ourwebsite223-default-rtdb.firebaseio.com",
+  projectId: "ourwebsite223",
+  storageBucket: "ourwebsite223.firebasestorage.app",
+  messagingSenderId: "978864749848",
+  appId: "1:978864749848:web:f1e635f87e2ddcc007f26d",
+  measurementId: "G-823MYFCCMG"
 };
 
 // --- Initialization (REQUIRED) ---
@@ -155,12 +155,12 @@ function getProfileFromEmail(email) {
 
 
 function selectProfile(user) {
-    // If we're in sign up state, we should switch to sign in mode first
+    // CRITICAL FIX: If we're in sign up state, we switch to sign in mode first.
+    // The call to toggleAuthState(false) internally calls selectProfile('brayden').
+    // By removing the confusing conditional return, we ensure the function continues
+    // and the *clicked* profile (Brayden or Youna) is the final selected profile.
     if (isSignUpState) {
         toggleAuthState(false);
-        // We will call selectProfile('brayden') at the end of toggleAuthState(false)
-        // So we only need to ensure the user is 'brayden' if we get here
-        if (user === 'brayden') return;
     }
     
     console.log(`Profile selected: ${user}`);
@@ -342,7 +342,7 @@ function toggleAuthState(signUp = !isSignUpState) {
         if(younaLoginBtn) younaLoginBtn.style.display = 'inline-block';
         
         // Reset to default selected profile *after* buttons are visible
-        // This is where the account switching starts in sign-in mode
+        // This is necessary for initial load/logout to pre-fill Brayden's credentials
         selectProfile('brayden');
     }
     checkFormValidity();
