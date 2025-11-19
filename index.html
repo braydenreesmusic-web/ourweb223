@@ -14,169 +14,201 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
-    <meta name="theme-color" content="#F8..."/>
-
+    <meta name="theme-color" content="#F8F4F0">
 </head>
 <body>
-    
-    <div id="toastContainer"></div>
+    <div id="toastContainer" class="toast-container"></div>
 
-    <div id="mainAppContainer">
-        
-        <header class="header">
-            <div class="user-info">
-                <h1 id="currentUserDisplay"></h1>
-                <p id="partnerStatus" class="subtext"></p>
+    <div id="authModal" class="modal active">
+        <div class="modal-content blur-bg">
+            <div class="modal-header">
+                <h2>Sign In</h2>
+                <p class="subtitle">Choose your profile</p>
             </div>
-            <div class="status-indicators">
-                <div id="countdown" class="subtext"></div>
-                <button id="addMediaBtn" class="btn primary small icon"><i class="fas fa-plus"></i></button>
+            <div class="auth-switch">
+                <button id="braydenLogin" class="btn primary active">Brayden</button>
+                <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
-        </header>
-
-        <nav class="tab-bar">
-            <button class="tab-btn active" data-section="dashboard"><i class="fas fa-home"></i>Dashboard</button>
-            <button class="tab-btn" data-section="timeline"><i class="fas fa-heart"></i>Timeline</button>
-            <button class="tab-btn" data-section="map"><i class="fas fa-map-marker-alt"></i>Map</button>
-            <button class="tab-btn" data-section="gallery"><i class="fas fa-images"></i>Gallery</button>
-            <button class="tab-btn" data-section="notes"><i class="fas fa-pen"></i>Notes</button>
-            <button class="tab-btn" data-section="settings"><i class="fas fa-cog"></i>Settings</button>
-        </nav>
-
-        <main id="appContent">
-            
-            <section id="dashboard" class="content-section active">
-                <div class="card-grid">
-                    <div id="weatherCard" class="card dash-card blur-bg" style="grid-column: span 2;">
-                        <h3>Weather</h3>
-                        <div style="display: flex; justify-content: space-around;">
-                            <div id="weatherCardBrayden" class="weather-col">Loading...</div>
-                            <div id="weatherCardYouna" class="weather-col">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div id="moodCard" class="card dash-card blur-bg" style="grid-column: span 2;">
-                        <h3>Our Mood</h3>
-                        <canvas id="moodChartCanvas"></canvas>
-                        <p class="card-footer subtext">Last updated: <span id="lastMoodUpdate"></span></p>
-                    </div>
-                    
-                    <div id="statsCard" class="card dash-card blur-bg">
-                        <h3>Our Stats</h3>
-                        <div id="statsContent" class="stat-grid">Loading stats...</div>
-                    </div>
-
-                    <div id="milestonesCard" class="card dash-card blur-bg">
-                        <h3>Milestones</h3>
-                        <div id="milestonesContent" class="list-container">Loading milestones...</div>
-                    </div>
-
-                    <div id="musicCard" class="card dash-card blur-bg">
-                        <h3>Currently Listening</h3>
-                        <div id="currentMusic" class="music-info">
-                            <i class="fas fa-music"></i>
-                            <p>Loading...</p>
-                        </div>
-                        <div class="music-search-area" style="margin-top: 15px;">
-                            <input type="text" id="musicInput" placeholder="Search song/artist" class="glass-input full-width">
-                            <button id="addMusicBtn" class="btn primary small full-width" style="margin-top: 10px;">Search & Add Song</button>
-                            <div id="musicSearchResults" class="list-container hidden" style="margin-top: 10px;"></div>
-                        </div>
-                        <div id="musicList" class="list-container" style="margin-top: 15px;"></div>
-                    </div>
-
-                    <div id="favoritesCard" class="card dash-card blur-bg" style="grid-column: span 2;">
-                        <h3>Our Favorites</h3>
-                        <div id="favoritesGrid" class="masonry-grid list-container"></div>
-                        <button id="addFavoriteBtn" class="btn secondary small full-width">Add New</button>
-                    </div>
-                    
-                    <div id="notesSnippetCard" class="card dash-card blur-bg">
-                        <h3>Latest Note</h3>
-                        <div id="latestNoteSnippet" class="snippet-content">
-                            <p class="subtext">No notes yet.</p>
-                        </div>
-                        <button class="btn secondary small full-width" onclick="document.querySelector('.tab-btn[data-section=\"notes\"]').click()">Go to Notes</button>
-                    </div>
-
-                    <div id="recentCard" class="card dash-card blur-bg">
-                        <h3>Recent Activity</h3>
-                        <div id="recentContent" class="list-container">Loading recent activity...</div>
-                    </div>
-                </div>
-            </section>
-            
-            <section id="timeline" class="content-section">
-                <h2>Our Journey</h2>
-                <div id="timeline-list" class="timeline-container">
-                    </div>
-            </section>
-            
-            <section id="map" class="content-section full-height">
-                <div class="map-layer-toggles">
-                    <button class="btn primary small active" data-layer="memories">Memories</button>
-                    <button class="btn ghost small" data-layer="visits">Visits</button>
-                </div>
-                <div id="leafletMap" class="full-map"></div>
-                <button id="addMemoryBtn" class="btn primary fab"><i class="fas fa-map-pin"></i></button>
-            </section>
-
-            <section id="gallery" class="content-section">
-                <div class="gallery-tabs">
-                    <button class="btn secondary small active" data-type="photos">Photos</button>
-                    <button class="btn ghost small" data-type="videos">Videos</button>
-                </div>
-                <div id="photoGallery" class="gallery-grid active">
-                    </div>
-                <div id="videoGallery" class="gallery-grid" style="display: none;">
-                    </div>
-            </section>
-
-            <section id="notes" class="content-section">
-                <h2>Notes & Letters</h2>
-                
-                <div class="card blur-bg note-controls" style="margin-bottom: 20px;">
-                    <textarea id="noteInput" placeholder="Write a new note or reply..." class="glass-input" rows="3"></textarea>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button id="saveNoteBtn" class="btn primary small flex-grow"><i class="fas fa-paper-plane"></i> Send</button>
-                        <button id="pinNoteBtn" class="btn secondary small"><i class="fas fa-thumbtack"></i> Pin</button>
-                        <button id="startVoiceNote" class="btn secondary small"><i class="fas fa-microphone"></i> Start Voice</button>
-                        <button id="stopVoiceNote" class="btn error small hidden"><i class="fas fa-stop-circle"></i> Stop</button>
-                    </div>
-                    <div id="voiceNoteStatus" class="subtext" style="margin-top: 5px;"></div>
-                </div>
-                
-                <div id="notesContainer">
-                    </div>
-                </section>
-            
-            <section id="settings" class="content-section">
-                <h2>Settings</h2>
-                <div class="settings-group card blur-bg">
-                    <h4>Theme</h4>
-                    <div class="setting-item">
-                        <span>Dark Mode</span>
-                        <input type="checkbox" id="darkModeToggle" class="ios-switch">
-                    </div>
-                </div>
-                
-                <div class="settings-group card blur-bg">
-                    <h4>Account</h4>
-                    <div class="setting-item">
-                        <span>Signed in as: <strong id="settingsUserEmail"></strong></span>
-                    </div>
-                    <button id="logoutBtn" class="btn error full-width">Sign Out</button>
-                </div>
-            </section>
-
-        </main>
+            <div class="input-group">
+                <input type="email" id="authEmail" placeholder="Email" readonly>
+                <input type="password" id="authPassword" placeholder="Password" required>
+            </div>
+            <button id="signInBtn" class="btn primary full-width">Sign In</button>
+        </div>
     </div>
 
-    
+    <div class="background-animation"></div>
+
+    <header class="header">
+        <div class="header-top">
+            <div class="logo-area">
+                <h1 class="logo">B & Y</h1>
+                <div id="daysCounter" class="days-counter">Calculating...</div>
+            </div>
+            
+            <div class="header-controls">
+                <div class="theme-toggle-wrapper">
+                    <input type="checkbox" id="darkModeToggle">
+                    <label for="darkModeToggle" class="theme-switch">
+                        <span class="icon sun">☀</span>
+                        <span class="icon moon">☾</span>
+                    </label>
+                </div>
+                <div class="divider-vertical"></div>
+                <button id="logoutBtn" class="btn icon-btn logout-btn" aria-label="Logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="header-bottom">
+            <div class="presence-bar">
+                <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
+                <span id="younaPresence" class="presence-dot" title="Youna"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="photos" class="section active">
+            <div class="section-header">
+                <h2>Photos</h2>
+                <p>Your uploaded pictures.</p>
+            </div>
+            <div class="upload-card" data-type="photos">
+                <div class="upload-icon">📷</div>
+                <span>Add Photo</span>
+                <input type="file" id="photoInput" accept="image/*" multiple hidden>
+                <div class="progress-bar"><div class="fill" id="photoProgress"></div></div>
+            </div>
+            <div class="masonry-grid" id="photoGallery"></div>
+        </section>
+
+        <section id="videos" class="section">
+            <div class="section-header">
+                <h2>Videos</h2>
+                <p>Your uploaded videos.</p>
+            </div>
+            <div class="upload-card" data-type="videos">
+                <div class="upload-icon">🎥</div>
+                <span>Add Video</span>
+                <input type="file" id="videoInput" accept="video/*" multiple hidden>
+                <div class="progress-bar"><div class="fill" id="videoProgress"></div></div>
+            </div>
+            <div class="masonry-grid" id="videoGallery"></div>
+        </section>
+
+        <section id="music" class="section">
+            <div class="section-header">
+                <h2>Music</h2>
+                <p>Songs you've added.</p>
+            </div>
+            <div class="music-controls-wrapper card">
+                <div class="search-row">
+                    <input type="text" id="musicInput" class="glass-input" placeholder="Search songs">
+                    <button id="addMusicBtn" class="btn primary small">Search</button>
+                </div>
+                <div id="musicSearchResults" class="search-results hidden"></div>
+            </div>
+            <h3 class="sub-header">Saved Music</h3>
+            <div id="savedMusic" class="list-layout"></div>
+        </section>
+
+        <section id="notes" class="section">
+            <div class="section-header">
+                <h2>Notes</h2>
+                <p>Your personal notes.</p>
+            </div>
+            <div class="note-composer card">
+                <textarea id="noteInput" placeholder="Write a note..."></textarea>
+                <div class="composer-footer">
+                    <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
+                    <button id="saveNoteBtn" class="btn primary small">Save</button>
+                </div>
+                <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
+            </div>
+            <div id="notesList" class="list-layout"></div>
+        </section>
+
+        <section id="schedule" class="section">
+            <div class="section-header">
+                <h2>Schedule</h2>
+                <p>Upcoming dates and plans.</p>
+            </div>
+            <div class="calendar-wrapper card">
+                <div class="cal-nav">
+                    <button id="prevMonth" class="btn icon-btn">‹</button>
+                    <span id="monthYear">Loading...</span>
+                    <button id="nextMonth" class="btn icon-btn">›</button>
+                </div>
+                <div class="cal-grid-header">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div id="calendarGrid" class="cal-grid-body"></div>
+            </div>
+            <div class="event-actions">
+                <button id="addEventToggleBtn" class="btn primary full-width">Add Event</button>
+            </div>
+            <div id="eventForm" class="event-editor card hidden">
+                <h4>New Event</h4>
+                <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
+                <input type="date" id="eventDate" class="glass-input">
+                <div class="form-actions">
+                    <button id="cancelEventBtn" class="btn ghost small">Cancel</button>
+                    <button id="saveEventBtn" class="btn primary small">Save</button>
+                </div>
+            </div>
+            <div id="eventsList" class="list-layout"></div>
+        </section>
+
+        <section id="mapSection" class="section">
+            <div class="section-header">
+                <h2>Map</h2>
+                <p>Pinned locations.</p>
+            </div>
+            <div class="map-card card">
+                <div id="mapContainer"></div>
+                <button id="addMemoryBtn" class="btn primary floating-action">Add Location</button>
+            </div>
+            <div id="memoriesList" class="list-layout"></div>
+        </section>
+
+        <section id="timeline" class="section">
+            <div class="section-header">
+                <h2>Activity</h2>
+                <p>Recent actions.</p>
+            </div>
+            <div id="timelineContainer" class="timeline-container"></div>
+        </section>
+
+        <section id="favorites" class="section">
+            <div class="section-header">
+                <h2>Favorites</h2>
+                <p>Saved items.</p>
+            </div>
+            <div id="favoritesGrid" class="masonry-grid"></div>
+        </section>
+    </main>
+
+    <nav class="tab-bar">
+        <button class="tab-btn active" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
+        <button class="tab-btn" data-section="videos"><span class="icon">🎥</span><span>Videos</span></button>
+        <button class="tab-btn" data-section="music"><span class="icon">🎵</span><span>Music</span></button>
+        <button class="tab-btn" data-section="notes"><span class="icon">✍️</span><span>Notes</span></button>
+        <button class="tab-btn" data-section="schedule"><span class="icon">📅</span><span>Schedule</span></button>
+        <button class="tab-btn" data-section="mapSection"><span class="icon">🌍</span><span>Map</span></button>
+        <button class="tab-btn" data-section="timeline"><span class="icon">📜</span><span>Activity</span></button>
+        <button class="tab-btn" data-section="favorites"><span class="icon">❤️</span><span>Favorites</span></button>
+    </nav>
+
     <div id="lightbox" class="lightbox">
-        <div class="lightbox-close close-lightbox"><i class="fas fa-times"></i></div>
+        <div class="lightbox-backdrop"></div>
+        <button class="close-lightbox">&times;</button>
         <div class="lightbox-media-container"></div>
         <div class="lightbox-meta">
             <p class="lightbox-caption"></p>
@@ -196,16 +228,6 @@
             <div class="modal-footer">
                 <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
                 <button id="saveMemoryBtn" class="btn primary">Save</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="mediaModal" class="modal">
-        <div class="modal-content card" style="max-width: 600px;">
-            <h3 id="mediaModalTitle">Media Options</h3>
-            <div id="mediaModalContent"></div>
-            <div class="modal-footer">
-                <button id="closeMediaModalBtn" class="btn ghost">Done</button>
             </div>
         </div>
     </div>
