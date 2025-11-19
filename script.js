@@ -115,43 +115,62 @@ function updateUserDisplay(user) {
 /* ================= UI HELPERS ================= */
 
 function showToast(message, type = 'info') {
+    console.log(`[TOAST ${type.toUpperCase()}]:`, message);
+    
     const container = document.getElementById('toastContainer');
-    if(!container) return;
+    if(!container) {
+        console.error('Toast container not found! Message was:', message);
+        return;
+    }
+    
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    
+    const bgColor = type === 'error' ? '#FF3B30' : type === 'success' ? '#34C759' : 'var(--surface)';
+    const textColor = (type === 'error' || type === 'success') ? 'white' : 'var(--text)';
+    
     toast.style.cssText = `
-        background: var(--surface); color: var(--text); padding: 12px 18px; 
-        border-radius: 28px; margin-bottom: 10px; box-shadow: var(--shadow);
-        border: 1px solid var(--border); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
-        animation: slideIn 0.25s ease;
+        background: ${bgColor};
+        color: ${textColor};
+        padding: 14px 20px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        border: 1px solid ${type === 'error' ? '#FF3B30' : 'var(--border)'};
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease;
+        position: relative;
+        z-index: 10000;
+        font-weight: 500;
     `;
+    
     const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-    toast.innerHTML = `<span style="font-size:16px">${icon}</span><span>${message}</span>`;
+    toast.innerHTML = `<span style="font-size:18px">${icon}</span><span>${message}</span>`;
+    
     container.appendChild(toast);
     
     setTimeout(() => {
         toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        toast.style.transition = 'all 0.3s ease';
         setTimeout(() => toast.remove(), 300);
-    }, 2600);
+    }, 3500);
 }
 
 function escapeHtml(str) {
-    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&','<':'<','>':'>','"':'"','\'':''' })[m]);
+    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' })[m]);
 }
 
 /* ================= LOGIN & AUTH (FIXED) ================= */
 
-/**
- * Handles profile selection in the login modal.
- * This function also sets the necessary classes for the button styling.
- * @param {string} user - 'brayden' or 'youna'.
- */
 function selectProfile(user) {
-    console.log(`Profile selected: ${user}`); // DEBUG LOG to confirm click is registered
+    console.log(`Profile selected: ${user}`);
     selectedUser = user;
     if (authEmailInput) authEmailInput.value = USER_CREDENTIALS[user].email;
     
-    // UI updates for buttons: make selected primary, unselected ghost
     braydenLoginBtn?.classList.remove('active', 'primary', 'ghost');
     younaLoginBtn?.classList.remove('active', 'primary', 'ghost');
 
@@ -161,22 +180,15 @@ function selectProfile(user) {
     selectedBtn?.classList.add('active', 'primary');
     otherBtn?.classList.add('ghost');
     
-    // Clear password when switching profiles for clarity
     if (authPasswordInput) authPasswordInput.value = '';
-    
-    // The email input is no longer readonly, but we still fill it on button click
     if (authPasswordInput) authPasswordInput.disabled = false;
     authPasswordInput?.focus();
     
     checkFormValidity();
 }
 
-/**
- * Checks if the sign-in button should be enabled.
- */
 function checkFormValidity() {
     const passwordValid = authPasswordInput?.value?.length > 0;
-    // FIX: Check if email field is also populated, as it's no longer readonly (Bug: sign in button disabled)
     const emailValid = authEmailInput?.value?.length > 0;
     
     if (passwordValid && emailValid) {
@@ -190,17 +202,13 @@ function checkFormValidity() {
     }
 }
 
-/**
- * Handles the actual sign-in process with Firebase Auth.
- */
 async function handleSignIn() {
-    // FIX: Removed !selectedUser check, now only rely on input validity (Bug: cannot log in)
     if (signInBtn.disabled) return;
     
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
     
-    console.log(`Attempting login for: ${email}`); // DEBUG LOG
+    console.log(`Attempting login for: ${email}`);
 
     if (!email || !password) {
         showToast('Please enter both email and password.', 'error');
@@ -213,13 +221,11 @@ async function handleSignIn() {
 
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         
-        // FIX: Determine profile from authenticated email for robustness (Bug: profile mismatch/cannot log in)
         const userKey = Object.keys(USERS).find(key => USERS[key] === userCredential.user.email);
         
         if (userKey) {
             currentUserProfile = USER_CREDENTIALS[userKey];
         } else {
-            // Fallback for an unknown but authenticated user
             currentUserProfile = { displayName: userCredential.user.email, email: userCredential.user.email };
         }
         
@@ -227,23 +233,26 @@ async function handleSignIn() {
         showToast(`Welcome back, ${currentUserProfile.displayName}!`, 'success');
 
         hideLogin();
-        // onAuthStateChanged will handle initApp()
-
-        // Re-enable button on success state (though it will be hidden by hideLogin)
         if (signInBtn) signInBtn.textContent = 'Sign In';
         
     } catch (error) {
         console.error('Sign In Error:', error.message);
-        // CRITICAL FIX: Enhanced error messaging for common Firebase errors
+        
         let displayError;
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
             displayError = 'Login failed. Invalid email or password. Please check your credentials.';
+        } else if (error.code === 'auth/invalid-email') {
+            displayError = 'Invalid email format.';
+        } else if (error.code === 'auth/too-many-requests') {
+            displayError = 'Too many failed attempts. Please try again later.';
+        } else if (error.code === 'auth/network-request-failed') {
+            displayError = 'Network error. Check your connection.';
         } else {
-            // This will show a clear error message even if the toast system is somehow failing
             displayError = `Login failed. An unexpected error occurred: ${error.code || error.message}.`;
         }
 
         showToast(displayError, 'error');
+        alert(displayError);
         if (signInBtn) signInBtn.textContent = 'Sign In';
         if (signInBtn) signInBtn.disabled = false;
         checkFormValidity();
@@ -260,26 +269,37 @@ function hideLogin() {
     document.body.classList.remove('modal-open');
 }
 
-// --- Attach Login Event Listeners (FIXED) ---
-braydenLoginBtn?.addEventListener('click', () => selectProfile('brayden'));
-younaLoginBtn?.addEventListener('click', () => selectProfile('youna'));
+// Attach Login Event Listeners - ONLY ONCE
+if (braydenLoginBtn) {
+    braydenLoginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectProfile('brayden');
+    });
+}
+
+if (younaLoginBtn) {
+    younaLoginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectProfile('youna');
+    });
+}
+
 authPasswordInput?.addEventListener('input', checkFormValidity);
-authEmailInput?.addEventListener('input', checkFormValidity); // Check validity on email input too
+authEmailInput?.addEventListener('input', checkFormValidity);
 signInBtn?.addEventListener('click', handleSignIn);
 
-// Handle Enter keypress in password field
 authPasswordInput?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !signInBtn.disabled) {
         handleSignIn();
     }
 });
 
-
 // Logout Functionality
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     try {
         if (currentUser) {
-            // Clear RTDB presence for the logged-in user
             await set(ref(rtdb, `presence/${USER_MAP[currentUser.email]}`), { status: 'offline', timestamp: Date.now() });
         }
         await signOut(auth);
@@ -290,22 +310,18 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     }
 });
 
-
-// --- Authentication State Observer ---
+// Authentication State Observer
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Determine the profile based on the authenticated email
         const userKey = user.email === USERS.brayden ? 'brayden' : 'youna';
         currentUserProfile = USER_CREDENTIALS[userKey];
         currentUser = user;
-        // Ensure the correct profile is visually selected in case the user reloads while logged in
         selectProfile(userKey);
         hideLogin();
         setupPresence(user);
         updateUserDisplay(user);
-        initApp(); // Call initApp once authenticated
+        initApp();
     } else {
-        // Force initial state setup for login
         selectedUser = null;
         currentUserProfile = null;
         currentUser = null;
@@ -313,11 +329,10 @@ onAuthStateChanged(auth, (user) => {
         if(authPasswordInput) authPasswordInput.value = '';
         checkFormValidity();
         
-        // Automatically select Brayden on initial load if no one is logged in
         if (braydenLoginBtn && !braydenLoginBtn.classList.contains('active') && !younaLoginBtn.classList.contains('active')) {
              selectProfile('brayden');
         }
-        updateUserDisplay(null); // Reset user display
+        updateUserDisplay(null);
         showLogin();
     }
 });
