@@ -8,23 +8,20 @@
     <title>Brayden & Youna – Timeless Bond</title>
     <link rel="stylesheet" href="style.css">
     
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Spectral:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Spectral:wght@300;400;500;600&display=swap" rel="stylesheet">
     
-    <!-- Map & Icons -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <!-- FIXED: Added Leaflet JS library -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <meta name="theme-color" content="#F8F4F0">
 </head>
 <body>
     <div id="toastContainer" class="toast-container"></div>
+    <div id="clickEffects"></div>
 
-    <!-- Auth Modal -->
-    <div id="authModal" class="modal active" style="display: flex;"> <!-- Default to flex for center alignment -->
+    <div id="authModal" class="modal active">
         <div class="modal-content blur-bg">
             <div class="modal-header">
                 <h2>Enter Our Realm</h2>
@@ -35,11 +32,9 @@
                 <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
             <div class="input-group">
-                <input type="email" id="authEmail" placeholder="email@love.com" required autocomplete="email">
-                <input type="password" id="authPassword" placeholder="Our sacred vow..." required>
+                <input type="email" id="authEmail" placeholder="email@love.com" readonly> <input type="password" id="authPassword" placeholder="Our sacred vow..." required>
             </div>
             <button id="signInBtn" class="btn primary full-width">Awaken</button>
-            <p id="authError" class="error-msg"></p>
         </div>
     </div>
 
@@ -49,10 +44,9 @@
         <div class="header-top">
             <div class="logo-area">
                 <h1 class="logo">B & Y</h1>
-                <div id="daysCounter" class="days-counter">loading...</div>
+                <div id="daysCounter" class="days-counter">Calculating time...</div>
             </div>
             
-            <!-- FIXED: Separated controls for better UI -->
             <div class="header-controls">
                  <div class="theme-toggle-wrapper">
                     <input type="checkbox" id="darkModeToggle">
@@ -77,7 +71,6 @@
     </header>
 
     <main class="container">
-        <!-- Photos Section -->
         <section id="photos" class="section active">
             <div class="section-header">
                 <h2>Echoes</h2>
@@ -92,7 +85,6 @@
             <div class="masonry-grid" id="photoGallery"></div>
         </section>
 
-        <!-- Videos Section -->
         <section id="videos" class="section">
             <div class="section-header">
                 <h2>Reveries</h2>
@@ -107,24 +99,22 @@
             <div class="masonry-grid" id="videoGallery"></div>
         </section>
 
-        <!-- Music Section -->
         <section id="music" class="section">
             <div class="section-header">
                 <h2>Symphony</h2>
                 <p>The soundtrack of our lives.</p>
             </div>
-            <div class="music-controls-wrapper">
+            <div class="music-controls-wrapper card">
                 <div class="search-row">
-                    <input type="text" id="musicInput" class="glass-input" placeholder="Search song...">
+                    <input type="text" id="musicInput" class="glass-input" placeholder="Search song (e.g. 'Lover Taylor Swift')">
                     <button id="addMusicBtn" class="btn primary small">Find</button>
                 </div>
+                <div id="musicSearchResults" class="search-results hidden"></div>
             </div>
-            <div id="musicSearchResults" class="list-layout"></div>
             <h3 class="sub-header">Our Collection</h3>
             <div id="savedMusic" class="list-layout"></div>
         </section>
 
-        <!-- Notes Section -->
         <section id="notes" class="section">
             <div class="section-header">
                 <h2>Confessions</h2>
@@ -136,11 +126,11 @@
                     <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
                     <button id="saveNoteBtn" class="btn primary small">Inscribe</button>
                 </div>
+                <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
             </div>
             <div id="notesList" class="list-layout"></div>
         </section>
 
-        <!-- Schedule Section (FIXED) -->
         <section id="schedule" class="section">
             <div class="section-header">
                 <h2>Alignments</h2>
@@ -172,7 +162,6 @@
             <div id="eventsList" class="list-layout"></div>
         </section>
 
-        <!-- Map Section (FIXED) -->
         <section id="mapSection" class="section">
             <div class="section-header">
                 <h2>Cartography</h2>
@@ -185,30 +174,25 @@
             <div id="memoriesList" class="list-layout"></div>
         </section>
 
-        <!-- Timeline Section (FIXED) -->
         <section id="timeline" class="section">
             <div class="section-header">
                 <h2>The Weave</h2>
                 <p>A history of us.</p>
             </div>
             <div id="timelineContainer" class="timeline-container">
-                <!-- Timeline items will be injected here -->
-            </div>
+                </div>
         </section>
 
-        <!-- Favorites Section (FIXED) -->
         <section id="favorites" class="section">
             <div class="section-header">
                 <h2>Sanctum</h2>
                 <p>The pieces we love most.</p>
             </div>
             <div id="favoritesGrid" class="masonry-grid">
-                <!-- Favorites will be injected here -->
-            </div>
+                </div>
         </section>
     </main>
 
-    <!-- Tab Navigation -->
     <nav class="tab-bar">
         <button class="tab-btn active" data-section="photos">
             <span class="icon">📷</span><span class="label">Echoes</span>
@@ -236,7 +220,6 @@
         </button>
     </nav>
 
-    <!-- Lightbox -->
     <div id="lightbox" class="lightbox">
         <div class="lightbox-backdrop"></div>
         <button class="close-lightbox">&times;</button>
@@ -246,24 +229,6 @@
         </div>
     </div>
 
-    <!-- Voice Modal -->
-    <div id="voiceModal" class="modal">
-        <div class="modal-content card">
-            <h3>Capture Echo</h3>
-            <div class="voice-visualizer">🎤</div>
-            <div class="voice-controls">
-                <button id="startRecord" class="btn primary">Record</button>
-                <button id="stopRecord" class="btn secondary" disabled>Stop</button>
-            </div>
-            <audio id="voicePreview" controls style="display:none; width:100%; margin-top:15px;"></audio>
-            <div class="modal-footer">
-                <button class="btn ghost close-modal">Cancel</button>
-                <button id="saveVoiceBtn" class="btn primary" disabled>Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Memory Map Modal -->
     <div id="memoryModal" class="modal">
         <div class="modal-content card">
             <h3>Pin Memory</h3>
