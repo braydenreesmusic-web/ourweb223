@@ -20,8 +20,16 @@
 
     <style>
         .auth-switch {
+            /* Keep z-index for the container */
             position: relative;
-            z-index: 100; /* Force buttons above potential interfering elements */
+            z-index: 100;
+            /* Ensure the content is visible */
+            overflow: visible;
+        }
+        /* New: Target the buttons directly with a high z-index and relative position */
+        .auth-switch .btn {
+            position: relative;
+            z-index: 101;
         }
     </style>
 </head>

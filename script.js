@@ -147,6 +147,7 @@ function escapeHtml(str) {
  * @param {string} user - 'brayden' or 'youna'.
  */
 function selectProfile(user) {
+    console.log(`Profile selected: ${user}`); // DEBUG LOG to confirm click is registered
     selectedUser = user;
     if (authEmailInput) authEmailInput.value = USER_CREDENTIALS[user].email;
     
@@ -199,6 +200,8 @@ async function handleSignIn() {
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
     
+    console.log(`Attempting login for: ${email}`); // DEBUG LOG
+
     if (!email || !password) {
         showToast('Please enter both email and password.', 'error');
         return;
@@ -231,10 +234,14 @@ async function handleSignIn() {
         
     } catch (error) {
         console.error('Sign In Error:', error.message);
-        // FIX: Provide a clearer error message for the user
-        const displayError = error.code === 'auth/invalid-credential' ?
-                             'Login failed. Invalid email or password.' :
-                             'Login failed. Please check your credentials.';
+        // CRITICAL FIX: Enhanced error messaging for common Firebase errors
+        let displayError;
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            displayError = 'Login failed. Invalid email or password. Please check your credentials.';
+        } else {
+            // This will show a clear error message even if the toast system is somehow failing
+            displayError = `Login failed. An unexpected error occurred: ${error.code || error.message}.`;
+        }
 
         showToast(displayError, 'error');
         if (signInBtn) signInBtn.textContent = 'Sign In';
