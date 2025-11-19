@@ -6,6 +6,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+// Re-adding necessary imports for the rest of the app functionality
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
+import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js";
+import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 // --- Configuration ---
 const firebaseConfig = {
@@ -23,6 +27,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const rtdb = getDatabase(app);
+const storage = getStorage(app); // Initialize Storage
 
 // NEW COLLECTIONS ADDED
 const collections = {
@@ -59,7 +64,24 @@ let mediaRecorder = null;
 let audioChunks = [];
 let moodChart = null; // For mood chart in checkins
 
+// --- DOM Elements for Login (REQUIRED) ---
+const authModal = document.getElementById('authModal');
+const braydenLoginBtn = document.getElementById('braydenLogin');
+const younaLoginBtn = document.getElementById('younaLogin');
+const authEmailInput = document.getElementById('authEmail');
+const authPasswordInput = document.getElementById('authPassword');
+const signInBtn = document.getElementById('signInBtn');
+
+// --- User Mock Data (REQUIRED) ---
+const USER_CREDENTIALS = {
+    'brayden': { email: USERS.brayden, displayName: USER_MAP[USERS.brayden], password: 'password123' },
+    'youna': { email: USERS.youna, displayName: USER_MAP[USERS.youna], password: 'password123' }
+};
+let selectedUser = null;
+let currentUserProfile = null;
+
 /* ================= UI HELPERS ================= */
+
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     if(!container) return;
@@ -85,72 +107,151 @@ function escapeHtml(str) {
     return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' })[m]);
 }
 
-function updateTimeTogether() {
-    const counter = document.getElementById('daysCounter');
-    if(!counter) return;
-    
-    const now = new Date();
-    const diff = now - START_DATE;
-    
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    const seconds = Math.floor((diff / 1000) % 60);
-    
-    counter.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s Together`;
-}
-setInterval(updateTimeTogether, 1000);
+/* ================= LOGIN & AUTH (FIXED) ================= */
 
-/* ================= AUTH & STARTUP (Partial, using original implementation) ================= */
+/**
+ * Handles profile selection in the login modal.
+ * This function also sets the necessary classes for the button styling.
+ * @param {string} user - 'brayden' or 'youna'.
+ */
+function selectProfile(user) {
+    selectedUser = user;
+    if (authEmailInput) authEmailInput.value = USER_CREDENTIALS[user].email;
+    
+    // UI updates for buttons: make selected primary, unselected ghost
+    braydenLoginBtn?.classList.remove('active', 'primary', 'ghost');
+    younaLoginBtn?.classList.remove('active', 'primary', 'ghost');
 
-const authModal = document.getElementById("authModal");
-const braydenLogin = document.getElementById("braydenLogin");
-const younaLogin = document.getElementById("younaLogin");
-const authEmail = document.getElementById("authEmail");
+    const selectedBtn = document.getElementById(`${user}Login`);
+    const otherBtn = document.getElementById(`${user === 'brayden' ? 'youna' : 'brayden'}Login`);
 
-// Default Selection (Retained original logic for selection UI)
-if(braydenLogin && younaLogin && authEmail) {
-    authEmail.value = USERS.brayden;
-    braydenLogin.addEventListener("click", () => {
-        braydenLogin.classList.add('active');
-        younaLogin.classList.remove('active');
-        authEmail.value = USERS.brayden;
-    });
-    younaLogin.addEventListener("click", () => {
-        younaLogin.classList.add('active');
-        braydenLogin.classList.remove('active');
-        authEmail.value = USERS.youna;
-    });
+    selectedBtn?.classList.add('active', 'primary');
+    otherBtn?.classList.add('ghost');
+    
+    // Clear password when switching profiles for clarity
+    if (authPasswordInput) authPasswordInput.value = '';
+    
+    // Enable the password input and focus it
+    if (authPasswordInput) authPasswordInput.disabled = false;
+    authPasswordInput?.focus();
+    
+    checkFormValidity();
 }
 
-document.getElementById("signInBtn")?.addEventListener("click", async () => {
+/**
+ * Checks if the sign-in button should be enabled.
+ */
+function checkFormValidity() {
+    const passwordValid = authPasswordInput?.value?.length > 0;
+    const profileSelected = selectedUser !== null;
+    
+    if (passwordValid && profileSelected) {
+        signInBtn?.classList.remove('ghost');
+        signInBtn?.classList.add('primary');
+        if(signInBtn) signInBtn.disabled = false;
+    } else {
+        signInBtn?.classList.remove('primary');
+        signInBtn?.classList.add('ghost');
+        if(signInBtn) signInBtn.disabled = true;
+    }
+}
+
+/**
+ * Handles the actual sign-in process with Firebase Auth.
+ */
+async function handleSignIn() {
+    if (!selectedUser || signInBtn.disabled) return;
+    
+    const email = authEmailInput.value;
+    const password = authPasswordInput.value;
+
     try {
-        const pass = document.getElementById("authPassword").value;
-        await signInWithEmailAndPassword(auth, authEmail.value, pass);
-        showToast("Welcome home.", "success");
-    } catch (e) {
-        console.error(e);
-        showToast("Incorrect vow.", "error");
+        if (signInBtn) signInBtn.textContent = 'Signing In...';
+        if (signInBtn) signInBtn.disabled = true;
+
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        currentUserProfile = USER_CREDENTIALS[selectedUser];
+        currentUser = userCredential.user;
+        showToast(`Welcome back, ${currentUserProfile.displayName}!`, 'success');
+
+        hideLogin();
+        initApp();
+        
+    } catch (error) {
+        console.error('Sign In Error:', error.message);
+        showToast('Login failed. Please check your password.', 'error');
+        if (signInBtn) signInBtn.textContent = 'Sign In';
+        if (signInBtn) signInBtn.disabled = false;
+        checkFormValidity();
+    }
+}
+
+function showLogin() {
+    authModal?.classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function hideLogin() {
+    authModal?.classList.remove('active');
+    document.body.classList.remove('modal-open');
+}
+
+// --- Attach Login Event Listeners (FIXED) ---
+braydenLoginBtn?.addEventListener('click', () => selectProfile('brayden'));
+younaLoginBtn?.addEventListener('click', () => selectProfile('youna'));
+authPasswordInput?.addEventListener('input', checkFormValidity);
+signInBtn?.addEventListener('click', handleSignIn);
+
+// Handle Enter keypress in password field
+authPasswordInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !signInBtn.disabled) {
+        handleSignIn();
     }
 });
 
-document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    if (currentUser) {
-        // Clear RTDB presence for the logged-in user
-        await set(ref(rtdb, `presence/${USER_MAP[currentUser.email]}`), { status: 'offline', timestamp: Date.now() });
+
+// Logout Functionality
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    try {
+        if (currentUser) {
+            // Clear RTDB presence for the logged-in user
+            await set(ref(rtdb, `presence/${USER_MAP[currentUser.email]}`), { status: 'offline', timestamp: Date.now() });
+        }
+        await signOut(auth);
+        showToast('You have been signed out.', 'info');
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('Logout failed. Try again.', 'error');
     }
-    await signOut(auth);
 });
 
 
-onAuthStateChanged(auth, user => {
-    currentUser = user;
+// --- Authentication State Observer ---
+onAuthStateChanged(auth, (user) => {
     if (user) {
-        authModal.classList.remove("active");
+        // Determine the profile based on the authenticated email
+        const userKey = user.email === USERS.brayden ? 'brayden' : 'youna';
+        currentUserProfile = USER_CREDENTIALS[userKey];
+        currentUser = user;
+        selectProfile(userKey);
+        hideLogin();
         setupPresence(user);
         initApp();
     } else {
-        authModal.classList.add("active");
+        // Force initial state setup for login
+        selectedUser = null;
+        currentUserProfile = null;
+        currentUser = null;
+        if(authEmailInput) authEmailInput.value = '';
+        if(authPasswordInput) authPasswordInput.value = '';
+        checkFormValidity();
+        
+        // Automatically select Brayden on initial load if no one is logged in
+        if (braydenLoginBtn && !braydenLoginBtn.classList.contains('active') && !younaLoginBtn.classList.contains('active')) {
+             selectProfile('brayden');
+        }
+        showLogin();
     }
 });
 
@@ -193,6 +294,21 @@ function updatePresenceUI(dot, text, user, data) {
     }
 }
 
+function updateTimeTogether() {
+    const counter = document.getElementById('daysCounter');
+    if(!counter) return;
+    
+    const now = new Date();
+    const diff = now - START_DATE;
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+    
+    counter.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s Together`;
+}
+setInterval(updateTimeTogether, 1000);
 
 /* ================= NAVIGATION ================= */
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -817,38 +933,36 @@ function clearMediaMarkers() {
 }
 
 // Function to render media locations on the map
-function renderMediaLocations(forceRender = false) {
+async function renderMediaLocations(forceRender = false) {
     if (!mapInstance || (!forceRender && !document.getElementById('toggleMedia')?.classList.contains('active'))) return;
     
     // Clear existing media markers before re-rendering
     clearMediaMarkers();
 
-    onSnapshot(collections.photos, snapPhotos => {
-        onSnapshot(collections.videos, snapVideos => {
+    const snapPhotos = await getDocs(collections.photos);
+    const snapVideos = await getDocs(collections.videos);
             
-            const photoLocations = getMediaWithLocation(snapPhotos, 'photos');
-            const videoLocations = getMediaWithLocation(snapVideos, 'videos');
-            const allMediaLocations = [...photoLocations, ...videoLocations];
+    const photoLocations = getMediaWithLocation(snapPhotos, 'photos');
+    const videoLocations = getMediaWithLocation(snapVideos, 'videos');
+    const allMediaLocations = [...photoLocations, ...videoLocations];
             
-            allMediaLocations.forEach(loc => {
-                // Different color/icon based on media type
-                const colorCode = loc.type === 'photos' ? '#C38D9E' : '#E8DFF5';
-                const iconHtml = loc.type === 'photos' ? '📸' : '📹';
+    allMediaLocations.forEach(loc => {
+        // Different color/icon based on media type
+        const colorCode = loc.type === 'photos' ? '#C38D9E' : '#E8DFF5';
+        const iconHtml = loc.type === 'photos' ? '📸' : '📹';
 
-                const icon = L.divIcon({
-                    className: 'media-marker-icon',
-                    html: `<span style="color:${colorCode}; font-size: 20px;">${iconHtml}</span>`,
-                    iconSize: [20, 20]
-                });
-
-                const marker = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(mapInstance)
-                    .bindPopup(`
-                        <b>${escapeHtml(loc.title)}</b><br>
-                        <a href="${loc.url}" target="_blank">View Media</a>
-                    `);
-                mediaMarkers.push(marker);
-            });
+        const icon = L.divIcon({
+            className: 'media-marker-icon',
+            html: `<span style="color:${colorCode}; font-size: 20px;">${iconHtml}</span>`,
+            iconSize: [20, 20]
         });
+
+        const marker = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(mapInstance)
+            .bindPopup(`
+                <b>${escapeHtml(loc.title)}</b><br>
+                <a href="${loc.url}" target="_blank">View Media</a>
+            `);
+        mediaMarkers.push(marker);
     });
 }
 
@@ -1597,41 +1711,6 @@ async function handleUpload(files, type) {
 document.getElementById('photoInput')?.addEventListener('change', e => handleUpload(e.target.files, 'photos'));
 document.getElementById('videoInput')?.addEventListener('change', e => handleUpload(e.target.files, 'videos'));
 
-function renderGallery(type) {
-    const container = document.getElementById(type === 'photos' ? 'photoGallery' : 'videoGallery');
-    if(!container) return;
-    onSnapshot(query(collections[type], orderBy('timestamp', 'desc'), limit(50)), snap => {
-        container.innerHTML = '';
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
-            const id = docSnap.id;
-            const div = document.createElement('div');
-            div.className = 'masonry-item';
-            const media = type === 'photos'
-                ? `<img src="${escapeHtml(data.url)}" loading="lazy" data-url="${escapeHtml(data.url)}" alt="photo">`
-                : `<video src="${escapeHtml(data.url)}" controls></video>`;
-            
-            div.innerHTML = `
-                ${media}
-                <div class="item-meta">
-                    <span>${escapeHtml(data.user)}</span>
-                    <button class="btn small fav-btn" data-url="${escapeHtml(data.url)}" data-type="${type}">Save</button>
-                </div>
-            `;
-            
-            div.querySelector('.fav-btn').onclick = (e) => toggleFavorite(e, data.url, type);
-            if(type === 'photos') {
-                const img = div.querySelector('img');
-                img.style.cursor = 'zoom-in';
-                img.addEventListener('click', () => {
-                    openLightbox({ type: 'image', src: img.dataset.url, caption: `${escapeHtml(data.user)}` });
-                });
-            }
-            container.appendChild(div);
-        });
-    });
-}
-
 /* ================= CONTEXT MENU SIMULATION (Delete/Edit) ================= */
 let pressTimer = null;
 const CONTEXT_MENU_DURATION = 700; // ms to simulate long press
@@ -1745,5 +1824,5 @@ document.getElementById('darkModeToggle')?.addEventListener('change', e => {
     localStorage.setItem('theme', e.target.checked ? 'dark' : 'light');
 });
 
-// Close lightbox shortcut (already set above) - double bind guard
+// Close lightbox shortcut shortcut (already set above) - double bind guard
 document.querySelectorAll('.close-lightbox').forEach(el => el.addEventListener('click', closeLightbox));
