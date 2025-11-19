@@ -88,40 +88,26 @@ let currentUserProfile = null;
 
 // script.js (updateUserDisplay function)
 function updateUserDisplay(user) {
-    const loginBtn = document.getElementById('loginButton');
-    const profileBtn = document.getElementById('profileButton');
-    const switchUserBtn = document.getElementById('switchUserButton');
-    const profileName = document.getElementById('profileName');
-    const profileEmail = document.getElementById('profileEmail');
-    const mainContainer = document.getElementById('mainAppContainer'); // Added
+    // The user display logic for loginButton, profileButton, etc. is mostly removed
+    // as it relates to a header structure not present in the current HTML.
+    // The main focus here is showing/hiding the primary app container.
+    const mainContainer = document.getElementById('mainAppContainer');
 
     if (user) {
         // User is signed in
         currentUser = user;
         
-        // Set display name and email
-        const displayName = USER_MAP[user.email] || 'Unknown User';
-        if(profileName) profileName.textContent = displayName;
-        if(profileEmail) profileEmail.textContent = user.email;
+        // Check if the HTML structure for the header exists (it does)
+        // If you had profile elements in the header, you'd update them here.
 
-        // Show profile/logout elements, hide login button
-        if(loginBtn) loginBtn.style.display = 'none';
-        if(profileBtn) profileBtn.style.display = 'flex';
-        if(switchUserBtn) switchUserBtn.style.display = 'none';
-        if(mainContainer) mainContainer.style.display = 'block'; // Show app content
+        // Show app content
+        if(mainContainer) mainContainer.style.display = 'block';
 
     } else {
         // User is signed out (user is null)
         currentUser = null;
-        if(profileName) profileName.textContent = 'Guest';
-        if(profileEmail) profileEmail.textContent = '';
-
-        // Hide profile/logout elements, show login button
-        if(loginBtn) loginBtn.style.display = 'block';
-        if(profileBtn) profileBtn.style.display = 'none';
-        if(switchUserBtn) switchUserBtn.style.display = 'none';
         
-        // Reset the app view
+        // Hide app content
         if(mainContainer) mainContainer.style.display = 'none';
     }
 }
@@ -150,7 +136,7 @@ function showToast(message, type = 'info') {
 }
 
 function escapeHtml(str) {
-    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' })[m]);
+    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&','<':'<','>':'>','"':'"','\'':''' })[m]);
 }
 
 /* ================= LOGIN & AUTH (FIXED) ================= */
@@ -905,7 +891,7 @@ function initMap() {
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(mapInstance);
 
     // Initial load of layers
@@ -1144,7 +1130,7 @@ function startRecording() {
             const cancelBtn = document.getElementById('cancelRecordingBtn');
             const status = document.getElementById('voiceStatus');
 
-            if(recordBtn) recordBtn.innerHTML = '&#128721; Stop Recording';
+            if(recordBtn) recordBtn.innerHTML = '🛑 Stop Recording';
             if(uploadBtn) uploadBtn.style.display = 'none';
             if(cancelBtn) cancelBtn.style.display = 'none';
             if(status) { status.textContent = 'Recording...'; status.classList.remove('hidden'); }
@@ -1167,7 +1153,7 @@ function stopRecording() {
         const cancelBtn = document.getElementById('cancelRecordingBtn');
         const status = document.getElementById('voiceStatus');
 
-        if(recordBtn) recordBtn.innerHTML = '&#127908; Re-record';
+        if(recordBtn) recordBtn.innerHTML = '🎤 Re-record';
         if(uploadBtn) uploadBtn.style.display = 'inline-block';
         if(cancelBtn) cancelBtn.style.display = 'inline-block';
         if(status) status.classList.add('hidden');
@@ -1841,7 +1827,10 @@ function renderMoodChart() {
 /* ================= INIT ================= */
 function initApp() {
     // Show the main container once the user is authenticated and data is ready to load
-    document.getElementById('mainAppContainer').style.display = 'block';
+    // This is the CRITICAL line that enables the app content after login
+    const mainContainer = document.getElementById('mainAppContainer');
+    if(mainContainer) mainContainer.style.display = 'block';
+
     updateTimeTogether();
     renderGallery('photos');
     renderGallery('videos');

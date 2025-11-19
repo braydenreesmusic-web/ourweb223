@@ -17,6 +17,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
     <meta name="theme-color" content="#F8F4F0">
+
+    <style>
+        .auth-switch {
+            position: relative;
+            z-index: 100; /* Force buttons above potential interfering elements */
+        }
+    </style>
 </head>
 <body>
     <div id="toastContainer" class="toast-container"></div>
@@ -27,8 +34,7 @@
                 <h2>Sign In</h2>
                 <p class="subtitle">Choose your profile</p>
             </div>
-            <div class="auth-switch">
-                <button id="braydenLogin" class="btn primary active">Brayden</button>
+            <div class="auth-switch"> <button id="braydenLogin" class="btn primary active">Brayden</button>
                 <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
             <div class="input-group">
