@@ -14,6 +14,7 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
     <meta name="theme-color" content="#F8F4F0">
 </head>
@@ -78,7 +79,30 @@
     </header>
 
     <main class="container">
-        <section id="photos" class="section active">
+        <section id="dashboard" class="section active">
+            <div class="section-header">
+                <h2>Our Home</h2>
+                <p>Your personalized shared overview.</p>
+            </div>
+            <div class="dashboard-grid">
+                <div id="weatherCardBrayden" class="card dash-card weather-card"></div>
+                <div id="weatherCardYouna" class="card dash-card weather-card"></div>
+                <div id="statsCard" class="card dash-card full-span">
+                    <h3>Activity Snapshot</h3>
+                    <div id="statsContent" class="stats-content"></div>
+                </div>
+                <div id="milestonesCard" class="card dash-card full-span">
+                    <h3>Milestones</h3>
+                    <div id="milestonesContent" class="list-layout"></div>
+                </div>
+                <div id="recentlyAddedCard" class="card dash-card full-span">
+                    <h3>Recently Added</h3>
+                    <div id="recentContent" class="list-layout"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="photos" class="section">
             <div class="section-header">
                 <h2>Photos</h2>
                 <p>Your uploaded pictures.</p>
@@ -124,13 +148,14 @@
 
         <section id="notes" class="section">
             <div class="section-header">
-                <h2>Notes</h2>
-                <p>Your personal notes.</p>
+                <h2>Notes & Chats</h2>
+                <p>Private conversations and pinned thoughts.</p>
             </div>
             <div class="note-composer card">
-                <textarea id="noteInput" placeholder="Write a note..."></textarea>
+                <textarea id="noteInput" placeholder="Write a note..." data-parent-id=""></textarea>
                 <div class="composer-footer">
                     <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
+                    <button id="pinNoteBtn" class="btn ghost small">📌 Pin</button>
                     <button id="saveNoteBtn" class="btn primary small">Save</button>
                 </div>
                 <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
@@ -169,13 +194,48 @@
             <div id="eventsList" class="list-layout"></div>
         </section>
 
+        <section id="lists" class="section">
+            <div class="section-header">
+                <h2>Shared Lists & Decisions</h2>
+                <p>To-Dos and Polls for two.</p>
+            </div>
+
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 class="sub-header">Shared To-Do List</h3>
+                <div class="input-group todo-input-group">
+                    <input type="text" id="todoInput" placeholder="Add a new task..." class="glass-input">
+                    <button id="addTodoBtn" class="btn primary small">Add</button>
+                </div>
+                <div id="todoList" class="list-layout"></div>
+            </div>
+
+            <div class="card">
+                <h3 class="sub-header">Open Polls</h3>
+                <button id="addPollToggleBtn" class="btn secondary small">Create New Poll</button>
+                <div id="pollForm" class="event-editor card hidden" style="margin-top: 15px;">
+                    <h4>New Poll</h4>
+                    <input type="text" id="pollQuestion" placeholder="Question (e.g. Dinner tonight?)" class="glass-input">
+                    <textarea id="pollOptions" placeholder="Enter options, separated by a comma (e.g. Thai, Pizza, Sushi)" class="glass-input"></textarea>
+                    <div class="form-actions">
+                        <button id="cancelPollBtn" class="btn ghost small">Cancel</button>
+                        <button id="savePollBtn" class="btn primary small">Create Poll</button>
+                    </div>
+                </div>
+                <div id="pollsList" class="list-layout"></div>
+            </div>
+        </section>
+
         <section id="mapSection" class="section">
             <div class="section-header">
                 <h2>Map</h2>
-                <p>Pinned locations.</p>
+                <p>Pinned locations & Photo memories.</p>
             </div>
             <div class="map-card card">
                 <div id="mapContainer"></div>
+                <div class="map-layer-toggles">
+                    <button id="toggleMemories" class="btn small primary active">Memories 📌</button>
+                    <button id="toggleMedia" class="btn small ghost">Media 📸</button>
+                </div>
                 <button id="addMemoryBtn" class="btn primary floating-action">Add Location</button>
             </div>
             <div id="memoriesList" class="list-layout"></div>
@@ -196,17 +256,39 @@
             </div>
             <div id="favoritesGrid" class="masonry-grid"></div>
         </section>
+
+        <section id="checkins" class="section">
+            <div class="section-header">
+                <h2>Daily Check-Ins</h2>
+                <p>Log your mood and track it over time.</p>
+            </div>
+            <div id="checkinCard" class="card">
+                <h3 id="checkinQuestion">How are you feeling today?</h3>
+                <div id="checkinInputContainer" class="checkin-input-container">
+                    </div>
+                <p id="checkinStatus" style="margin-top: 15px; color: var(--subtext);"></p>
+                <button id="saveCheckinBtn" class="btn primary full-width hidden">Log Check-In</button>
+            </div>
+
+            <h3 class="sub-header">Mood History</h3>
+            <div class="card">
+                 <canvas id="moodChartCanvas"></canvas>
+            </div>
+        </section>
     </main>
 
     <nav class="tab-bar">
-        <button class="tab-btn active" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
+        <button class="tab-btn active" data-section="dashboard"><span class="icon">🏠</span><span>Home</span></button>
+        <button class="tab-btn" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
         <button class="tab-btn" data-section="videos"><span class="icon">🎥</span><span>Videos</span></button>
         <button class="tab-btn" data-section="music"><span class="icon">🎵</span><span>Music</span></button>
         <button class="tab-btn" data-section="notes"><span class="icon">✍️</span><span>Notes</span></button>
         <button class="tab-btn" data-section="schedule"><span class="icon">📅</span><span>Schedule</span></button>
+        <button class="tab-btn" data-section="lists"><span class="icon">📋</span><span>Lists</span></button>
         <button class="tab-btn" data-section="mapSection"><span class="icon">🌍</span><span>Map</span></button>
         <button class="tab-btn" data-section="timeline"><span class="icon">📜</span><span>Activity</span></button>
         <button class="tab-btn" data-section="favorites"><span class="icon">❤️</span><span>Favorites</span></button>
+        <button class="tab-btn" data-section="checkins"><span class="icon">😊</span><span>Mood</span></button>
     </nav>
 
     <div id="lightbox" class="lightbox">
@@ -231,6 +313,16 @@
             <div class="modal-footer">
                 <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
                 <button id="saveMemoryBtn" class="btn primary">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="mediaModal" class="modal">
+        <div class="modal-content card" style="max-width: 600px;">
+            <h3 id="mediaModalTitle">Media Options</h3>
+            <div id="mediaModalContent"></div>
+            <div class="modal-footer">
+                <button id="closeMediaModalBtn" class="btn ghost">Done</button>
             </div>
         </div>
     </div>
