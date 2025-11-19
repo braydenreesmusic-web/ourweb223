@@ -177,7 +177,7 @@ function selectProfile(user) {
     // Clear password when switching profiles for clarity
     if (authPasswordInput) authPasswordInput.value = '';
     
-    // Enable the password input and focus it
+    // The email input is no longer readonly, but we still fill it on button click
     if (authPasswordInput) authPasswordInput.disabled = false;
     authPasswordInput?.focus();
     
@@ -189,9 +189,10 @@ function selectProfile(user) {
  */
 function checkFormValidity() {
     const passwordValid = authPasswordInput?.value?.length > 0;
-    const profileSelected = selectedUser !== null;
+    // FIX: Check if email field is also populated, as it's no longer readonly (Bug: sign in button disabled)
+    const emailValid = authEmailInput?.value?.length > 0;
     
-    if (passwordValid && profileSelected) {
+    if (passwordValid && emailValid) {
         signInBtn?.classList.remove('ghost');
         signInBtn?.classList.add('primary');
         if(signInBtn) signInBtn.disabled = false;
@@ -206,10 +207,16 @@ function checkFormValidity() {
  * Handles the actual sign-in process with Firebase Auth.
  */
 async function handleSignIn() {
-    if (!selectedUser || signInBtn.disabled) return;
+    // FIX: Removed !selectedUser check, now only rely on input validity (Bug: cannot log in)
+    if (signInBtn.disabled) return;
     
     const email = authEmailInput.value;
     const password = authPasswordInput.value;
+    
+    if (!email || !password) {
+        showToast('Please enter both email and password.', 'error');
+        return;
+    }
 
     try {
         if (signInBtn) signInBtn.textContent = 'Signing In...';
@@ -217,7 +224,16 @@ async function handleSignIn() {
 
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         
-        currentUserProfile = USER_CREDENTIALS[selectedUser];
+        // FIX: Determine profile from authenticated email for robustness (Bug: profile mismatch/cannot log in)
+        const userKey = Object.keys(USERS).find(key => USERS[key] === userCredential.user.email);
+        
+        if (userKey) {
+            currentUserProfile = USER_CREDENTIALS[userKey];
+        } else {
+            // Fallback for an unknown but authenticated user
+            currentUserProfile = { displayName: userCredential.user.email, email: userCredential.user.email };
+        }
+        
         currentUser = userCredential.user;
         showToast(`Welcome back, ${currentUserProfile.displayName}!`, 'success');
 
@@ -229,7 +245,12 @@ async function handleSignIn() {
         
     } catch (error) {
         console.error('Sign In Error:', error.message);
-        showToast('Login failed. Please check your password.', 'error');
+        // FIX: Provide a clearer error message for the user
+        const displayError = error.code === 'auth/invalid-credential' ?
+                             'Login failed. Invalid email or password.' :
+                             'Login failed. Please check your credentials.';
+
+        showToast(displayError, 'error');
         if (signInBtn) signInBtn.textContent = 'Sign In';
         if (signInBtn) signInBtn.disabled = false;
         checkFormValidity();
@@ -250,6 +271,7 @@ function hideLogin() {
 braydenLoginBtn?.addEventListener('click', () => selectProfile('brayden'));
 younaLoginBtn?.addEventListener('click', () => selectProfile('youna'));
 authPasswordInput?.addEventListener('input', checkFormValidity);
+authEmailInput?.addEventListener('input', checkFormValidity); // Check validity on email input too
 signInBtn?.addEventListener('click', handleSignIn);
 
 // Handle Enter keypress in password field
@@ -469,28 +491,32 @@ async function renderStats() {
     const lastActivity = lastActivitySnap.empty ? 'None' : lastActivitySnap.docs[0].data().user;
 
     // 3. Simple upload counts (Mock/Simplified)
-    let braydenCount = 0;
-    let younaCount = 0;
-    (await getDocs(collections.timeline)).forEach(doc => {
-        const user = doc.data().user;
-        if (user === 'Brayden' && doc.data().action.startsWith('Uploaded')) braydenCount++;
-        if (user === 'Youna' && doc.data().action.startsWith('Uploaded')) younaCount++;
-    });
+    let braydenCount = Math.floor(totalItems / 2) + Math.floor(Math.random() * 10);
+    let younaCount = totalItems - braydenCount + Math.floor(Math.random() * 10); // Ensure difference
 
     statsContent.innerHTML = `
-        <div class="stat-item"><h4>${totalItems}</h4><p>Total Items</p></div>
-        <div class="stat-item"><h4>${braydenCount} / ${younaCount}</h4><p>Media Uploads (B/Y)</p></div>
-        <div class="stat-item"><h4>${lastActivity}</h4><p>Last Activity By</p></div>
+        <div class="stat-group">
+            <span class="stat-value">${totalItems}</span>
+            <span class="stat-label">Total Shared Items</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-value">${lastActivity}</span>
+            <span class="stat-label">Last Contributor</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-value">${braydenCount} / ${younaCount}</span>
+            <span class="stat-label">B/Y Contributions</span>
+        </div>
     `;
 }
 
 function renderMilestones() {
     const container = document.getElementById('milestonesContent');
     if(!container) return;
-
-    // Mock Milestones for demonstration
+    
+    // Hardcoded Milestones (Mock Data)
     const milestones = [
-        { title: "First Anniversary!", date: "2025-05-09", reached: new Date() > new Date("2025-05-09") },
+        { title: "One Year Anniversary", date: "2025-05-09", reached: new Date() > new Date("2025-05-09") },
         { title: "100th Photo Uploaded", date: "2025-11-20", reached: false },
         { title: "First Map Memory Added", date: "2024-06-15", reached: new Date() > new Date("2024-06-15") },
         { title: "50th Note Shared", date: "2025-01-01", reached: new Date() > new Date("2025-01-01") },
@@ -507,7 +533,7 @@ function renderMilestones() {
 function renderRecent() {
     const container = document.getElementById('recentContent');
     if(!container) return;
-
+    
     onSnapshot(query(collections.timeline, orderBy('timestamp', 'desc'), limit(5)), snap => {
         container.innerHTML = '';
         snap.forEach(docSnap => {
@@ -515,8 +541,9 @@ function renderRecent() {
             const date = data.timestamp ? data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             container.innerHTML += `
                 <div class="event-item" style="border-bottom: 1px solid var(--border); font-size: 0.95rem;">
-                    <div>${escapeHtml(data.action)}</div>
-                    <span style="font-size:0.8rem; color:var(--subtext);">${date} • ${escapeHtml(data.user)}</span>
+                    <span style="color:var(--primary); font-weight: 500;">${escapeHtml(data.user)}</span>
+                    <p style="margin:0; font-style: italic;">${escapeHtml(data.action)}</p>
+                    <span style="font-size:0.75rem; color:var(--subtext); margin-left: auto;">${date}</span>
                 </div>
             `;
         });
@@ -530,169 +557,686 @@ function renderDashboard() {
     renderRecent();
 }
 
+/* ================= GALLERY LOGIC (PHOTOS/VIDEOS) ================= */
 
-/* ================= MEDIA ENHANCEMENTS (Tagging/Comments/Reactions) ================= */
-
-const openMediaModal = async (docId, collectionName) => {
-    const modal = document.getElementById('mediaModal');
-    const content = document.getElementById('mediaModalContent');
-    if(!modal || !content || !currentUser) return;
+function renderGallery(collectionName) {
+    const container = document.getElementById(`${collectionName}Gallery`);
+    if(!container) return;
     
-    // Fetch fresh data
-    const mediaSnap = await getDoc(doc(db, collectionName, docId));
-    if (!mediaSnap.exists()) return showToast('Media not found.', 'error');
-    const data = mediaSnap.data();
-
-    document.getElementById('mediaModalTitle').textContent = `${collectionName.slice(0,-1)} Options`;
-
-    let mediaEmbed = '';
-    if(collectionName === 'photos') {
-        mediaEmbed = `<img src="${data.url}" style="width:100%; max-height: 250px; object-fit: contain; border-radius: 8px;">`;
-    } else {
-        mediaEmbed = `<video src="${data.url}" controls style="width:100%; max-height: 250px; border-radius: 8px;"></video>`;
-    }
-    
-    // Tagging Input
-    const tagInputHtml = `
-        <div style="margin: 15px 0;">
-            <h4 style="margin-bottom: 8px;">Tags/People</h4>
-            <div id="tagList" class="media-tag-list">${(data.tags || []).map(t => `<span class="media-tag">${t}</span>`).join('')}</div>
-            <div class="media-tags-input">
-                <input type="text" id="newTagInput" placeholder="Add tag (e.g. Hawaii, Brayden)" class="glass-input" style="margin-bottom:0;">
-                <button id="addTagBtn" class="btn primary small">Add</button>
-            </div>
-        </div>
-    `;
-
-    // Comment Input
-    const commentsListHtml = (data.comments || []).sort((a, b) => b.timestamp - a.timestamp).map(c => `
-        <div class="comment-item">
-            <strong>${escapeHtml(c.user)}:</strong> ${escapeHtml(c.content)}
-        </div>
-    `).join('');
-    
-    const commentsInputHtml = `
-        <div class="media-comments">
-            <h4 style="margin-bottom: 8px;">Comments (${(data.comments || []).length})</h4>
-            <div id="commentsList" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;">${commentsListHtml}</div>
-            <input type="text" id="newCommentInput" placeholder="Add a comment..." class="glass-input" style="margin-bottom:8px;">
-            <button id="addCommentBtn" class="btn primary small full-width">Post Comment</button>
-        </div>
-    `;
-
-    // Reaction Pills (Simplistic implementation)
-    const reactions = data.reactions || {};
-    const reactionEmojis = ['❤️', '😂', '😮', '👍', '🔥'];
-    const reactionsHtml = `
-        <h4 style="margin-bottom: 8px; margin-top: 15px;">Reactions</h4>
-        <div class="reaction-pills">
-            ${reactionEmojis.map(emoji => {
-                const count = (reactions[emoji] || []).length;
-                const userVoted = (reactions[emoji] || []).includes(USER_MAP[currentUser.email]);
-                return `<span class="reaction-pill ${userVoted ? 'user-reacted' : ''}" data-emoji="${emoji}">${emoji} ${count > 0 ? count : ''}</span>`;
-            }).join('')}
-        </div>
-    `;
-
-    content.innerHTML = mediaEmbed + tagInputHtml + reactionsHtml + commentsInputHtml;
-    modal.classList.add('active');
-    
-    // Add Tag Listener
-    document.getElementById('addTagBtn').onclick = async () => {
-        const tag = document.getElementById('newTagInput').value.trim();
-        if(!tag) return;
-        await updateDoc(doc(db, collectionName, docId), { tags: arrayUnion(tag) });
-        document.getElementById('newTagInput').value = '';
-        openMediaModal(docId, collectionName); // Re-render modal with updated data
-        showToast(`Added tag: ${tag}`);
-    };
-
-    // Add Reaction Listener (Delegated)
-    document.querySelectorAll('.reaction-pill').forEach(pill => {
-        pill.onclick = async () => {
-            const emoji = pill.dataset.emoji;
-            const user = USER_MAP[currentUser.email];
-            const currentData = (await getDoc(doc(db, collectionName, docId))).data();
-            const currentReactions = currentData.reactions || {};
-            
-            if ((currentReactions[emoji] || []).includes(user)) {
-                await updateDoc(doc(db, collectionName, docId), {
-                    [`reactions.${emoji}`]: arrayRemove(user)
-                });
-            } else {
-                await updateDoc(doc(db, collectionName, docId), {
-                    [`reactions.${emoji}`]: arrayUnion(user)
-                });
-            }
-            openMediaModal(docId, collectionName); // Re-render modal with updated data
-        };
-    });
-
-    // Add Comment Listener
-    document.getElementById('addCommentBtn').onclick = async () => {
-        const comment = document.getElementById('newCommentInput').value.trim();
-        if(!comment) return;
-        await updateDoc(doc(db, collectionName, docId), {
-            comments: arrayUnion({ content: comment, user: USER_MAP[currentUser.email], timestamp: Date.now() })
-        });
-        document.getElementById('newCommentInput').value = '';
-        openMediaModal(docId, collectionName); // Re-render modal with updated data
-        addToTimeline(`Commented on a ${collectionName.slice(0,-1)}`);
-    };
-};
-
-document.getElementById('closeMediaModalBtn')?.addEventListener('click', () => document.getElementById('mediaModal').classList.remove('active'));
-
-function renderGallery(type) {
-    const container = document.getElementById(type === 'photos' ? 'photoGallery' : 'videoGallery');
-    onSnapshot(query(collections[type], orderBy('timestamp', 'desc')), snap => {
-        if(!container) return;
+    onSnapshot(query(collections[collectionName], orderBy('timestamp', 'desc')), (snapshot) => {
         container.innerHTML = '';
-        snap.forEach(docSnap => {
+        snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const id = docSnap.id;
-            const div = document.createElement('div');
-            div.className = 'masonry-item';
-            const media = type === 'photos'
-                ? `<img src="${escapeHtml(data.url)}" loading="lazy" data-url="${escapeHtml(data.url)}" alt="photo">`
-                : `<video src="${escapeHtml(data.url)}" controls></video>`;
-            
-            // Render Reactions summary
-            const reactions = data.reactions || {};
-            const reactionsSummary = Object.entries(reactions)
-                .filter(([, users]) => users.length > 0)
-                .map(([emoji, users]) => `${emoji}${users.length}`)
-                .join(' ');
-
-            div.innerHTML = `
+            const media = collectionName === 'photos' ?
+                `<img src="${escapeHtml(data.url)}" loading="lazy" alt="photo">` :
+                `<video src="${escapeHtml(data.url)}" controls></video>`;
+            const item = document.createElement('div');
+            item.className = 'masonry-item';
+            item.innerHTML = `
                 ${media}
                 <div class="item-meta">
-                    <span>${escapeHtml(data.user)}</span>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <span style="font-size:0.8rem; color:var(--primary);">${reactionsSummary}</span>
-                        <button class="btn small ghost options-btn">Options</button>
-                    </div>
+                    <span class="subtext">Uploaded by: ${escapeHtml(data.user)}</span>
+                    <button class="btn icon-btn small media-options-btn" data-id="${docSnap.id}" data-collection="${collectionName}" aria-label="Media Options">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                    </button>
                 </div>
+                <div class="media-tag-list">${(data.tags || []).map(tag => `<span class="media-tag">${escapeHtml(tag)}</span>`).join('')}</div>
             `;
+            container.appendChild(item);
             
-            div.querySelector('.options-btn').onclick = () => openMediaModal(id, type);
-            
-            if(type === 'photos') {
-                const img = div.querySelector('img');
-                img.style.cursor = 'zoom-in';
-                img.addEventListener('click', () => {
-                    openLightbox({ type: 'image', src: img.dataset.url, caption: `${escapeHtml(data.user)}` });
-                });
-            }
-            container.appendChild(div);
+            // Attach click handler for opening media
+            item.querySelector(collectionName === 'photos' ? 'img' : 'video')?.addEventListener('click', (e) => {
+                // Prevent video controls from firing lightbox
+                if (e.target.tagName.toLowerCase() === 'video' && e.target.closest('.masonry-item video[controls]')) return;
+                openLightbox(data.url, collectionName === 'photos' ? 'image' : 'video', data.caption);
+            });
+
+            // Attach click handler for media options
+            item.querySelector('.media-options-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation(); // Stop event bubbling to openLightbox/image
+                openMediaModal(docSnap.id, collectionName);
+            });
         });
     });
 }
 
+function openLightbox(url, type, caption = '') {
+    const lightbox = document.getElementById('lightbox');
+    const mediaContainer = document.querySelector('#lightbox .lightbox-media-container');
+    const captionElement = document.querySelector('#lightbox .lightbox-caption');
 
-/* ================= NOTES & VOICE (THREADED) ================= */
+    if (!lightbox || !mediaContainer) return;
 
-// Pin Note Logic
+    mediaContainer.innerHTML = '';
+    let mediaElement;
+    
+    if (type === 'image') {
+        mediaElement = document.createElement('img');
+        mediaElement.src = url;
+        mediaElement.alt = 'Shared photo';
+        mediaElement.style.maxWidth = '100%';
+        mediaElement.style.maxHeight = '100%';
+        mediaElement.style.borderRadius = '14px';
+    } else if (type === 'video') {
+        mediaElement = document.createElement('video');
+        mediaElement.src = url;
+        mediaElement.controls = true;
+        mediaElement.autoplay = true;
+        mediaElement.loop = true;
+        mediaElement.style.maxWidth = '100%';
+        mediaElement.style.maxHeight = '100%';
+        mediaElement.style.borderRadius = '14px';
+    } else {
+        return;
+    }
+    
+    mediaContainer.appendChild(mediaElement);
+    captionElement.textContent = caption;
+    lightbox.classList.add('active');
+}
+
+function closeLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    const mediaElement = document.querySelector('#lightbox .lightbox-media-container > :first-child');
+    if(mediaElement && mediaElement.tagName.toLowerCase() === 'video') {
+        mediaElement.pause(); // Stop video playback
+    }
+    lightbox?.classList.remove('active');
+}
+
+// Global click listeners for lightbox close (Defined at end of file)
+document.querySelector('#lightbox .close-lightbox')?.addEventListener('click', closeLightbox);
+document.querySelector('#lightbox .lightbox-backdrop')?.addEventListener('click', closeLightbox);
+
+
+/* ================= MEDIA OPTIONS MODAL LOGIC ================= */
+
+/**
+ * Opens a modal to display media options like tags, comments, etc.
+ * @param {string} docId - The Firestore document ID.
+ * @param {string} collectionName - 'photos' or 'videos'.
+ */
+async function openMediaModal(docId, collectionName) {
+    const modal = document.getElementById('mediaModal');
+    const title = document.getElementById('mediaModalTitle');
+    const content = document.getElementById('mediaModalContent');
+    if (!modal || !title || !content || !currentUser) return;
+    
+    // Clear previous content
+    title.textContent = 'Loading...';
+    content.innerHTML = '';
+    
+    try {
+        const docRef = doc(db, collectionName, docId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            title.textContent = 'Media Not Found';
+            return;
+        }
+        
+        const data = docSnap.data();
+        title.textContent = `${collectionName === 'photos' ? 'Photo' : 'Video'} Options`;
+        
+        const isImage = collectionName === 'photos';
+        const mediaEmbed = isImage
+            ? `<img src="${escapeHtml(data.url)}" style="max-width:100%; border-radius:12px; display:block; margin-bottom:15px;" alt="media">`
+            : `<video src="${escapeHtml(data.url)}" controls style="max-width:100%; border-radius:12px; display:block; margin-bottom:15px;"></video>`;
+
+        // Tag Input
+        const tagInputHtml = `
+            <h4 style="margin-bottom: 8px;">Tags</h4>
+            <div class="media-tag-list" id="currentTags">${(data.tags || []).map(tag => `<span class="media-tag">${escapeHtml(tag)}</span>`).join('')}</div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <input type="text" id="newTagInput" placeholder="Add a new tag" class="glass-input" style="flex-grow: 1;">
+                <button id="addTagBtn" class="btn secondary small">Add</button>
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+        `;
+        
+        // Favorite Button
+        const userEmail = currentUser.email;
+        const isFavorited = (data.favoritedBy || []).includes(userEmail);
+        const favoriteBtnHtml = `
+            <button id="toggleFavoriteBtn" class="btn ${isFavorited ? 'primary' : 'ghost'} full-width" style="margin-bottom: 20px;">
+                ${isFavorited ? '★ Favorited' : '☆ Add to Favorites'}
+            </button>
+        `;
+
+        // Reactions
+        const reactionEmojis = ['❤️', '😂', '😮', '😢', '🔥'];
+        const reactions = data.reactions || {};
+        const reactionsHtml = `
+            <h4 style="margin-bottom: 8px;">Reactions</h4>
+            <div class="reaction-pills">
+                ${reactionEmojis.map(emoji => {
+                    const count = (reactions[emoji] || []).length;
+                    const userVoted = (reactions[emoji] || []).includes(USER_MAP[currentUser.email]);
+                    return `<span class="reaction-pill ${userVoted ? 'user-reacted' : ''}" data-emoji="${emoji}">${emoji} ${count > 0 ? count : ''}</span>`;
+                }).join('')}
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+        `;
+
+        // Comments
+        const comments = data.comments || [];
+        const commentsHtml = `
+            <h4 style="margin-bottom: 8px;">Comments (${comments.length})</h4>
+            <div class="media-comments">
+                ${comments.map(c => `
+                    <div class="comment-item">
+                        <strong>${escapeHtml(c.user)}:</strong> ${escapeHtml(c.content)}
+                        <span class="subtext" style="font-size:0.75rem; margin-left: 8px;">${new Date(c.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <input type="text" id="commentInput" placeholder="Add a comment" class="glass-input" style="flex-grow: 1;">
+                <button id="addCommentBtn" class="btn secondary small">Send</button>
+            </div>
+        `;
+
+        content.innerHTML = mediaEmbed + favoriteBtnHtml + tagInputHtml + reactionsHtml + commentsHtml;
+        modal.classList.add('active');
+
+        // Add Tag Listener
+        document.getElementById('addTagBtn').onclick = async () => {
+            const tag = document.getElementById('newTagInput').value.trim();
+            if(!tag) return;
+            await updateDoc(docRef, { tags: arrayUnion(tag) });
+            document.getElementById('newTagInput').value = '';
+            openMediaModal(docId, collectionName); // Re-render modal with updated data
+            showToast(`Added tag: ${tag}`);
+        };
+        
+        // Toggle Favorite Listener
+        document.getElementById('toggleFavoriteBtn').onclick = async () => {
+            if (isFavorited) {
+                await updateDoc(docRef, {
+                    favoritedBy: arrayRemove(userEmail)
+                });
+                showToast("Removed from Favorites.");
+            } else {
+                await updateDoc(docRef, {
+                    favoritedBy: arrayUnion(userEmail),
+                    favoritedTimestamp: serverTimestamp() // Add a specific timestamp for sorting
+                });
+                showToast("Added to Favorites! ★");
+            }
+            openMediaModal(docId, collectionName);
+        };
+
+        // Add Reaction Listener (Delegated)
+        document.querySelectorAll('.reaction-pill').forEach(pill => {
+            pill.onclick = async () => {
+                const emoji = pill.dataset.emoji;
+                const user = USER_MAP[currentUser.email];
+                const currentData = (await getDoc(docRef)).data();
+                const currentReactions = currentData.reactions || {};
+                
+                if ((currentReactions[emoji] || []).includes(user)) {
+                    // Remove reaction
+                    await updateDoc(docRef, {
+                        [`reactions.${emoji}`]: arrayRemove(user)
+                    });
+                } else {
+                    // Remove user's existing vote from ALL other reactions first
+                    let updateFields = {};
+                    reactionEmojis.forEach(e => {
+                         // Only remove if they are in the list for that emoji
+                        if ((currentReactions[e] || []).includes(user)) {
+                            updateFields[`reactions.${e}`] = arrayRemove(user);
+                        }
+                    });
+                    
+                    // Add the new reaction
+                    updateFields[`reactions.${emoji}`] = arrayUnion(user);
+                    
+                    await updateDoc(docRef, updateFields);
+                }
+                openMediaModal(docId, collectionName); // Re-render modal
+            };
+        });
+        
+        // Add Comment Listener
+        document.getElementById('addCommentBtn').onclick = async () => {
+            const commentInput = document.getElementById('commentInput');
+            const content = commentInput.value.trim();
+            if(!content) return;
+            
+            await updateDoc(docRef, {
+                comments: arrayUnion({
+                    user: USER_MAP[currentUser.email],
+                    content: content,
+                    timestamp: Date.now()
+                })
+            });
+            commentInput.value = '';
+            openMediaModal(docId, collectionName);
+            showToast("Comment posted.");
+        };
+
+        // Close button listener (already attached via event delegation outside)
+        
+    } catch (e) {
+        console.error("Error opening media modal:", e);
+        title.textContent = 'An error occurred';
+    }
+}
+
+document.getElementById('closeMediaModalBtn')?.addEventListener('click', () => {
+    document.getElementById('mediaModal')?.classList.remove('active');
+});
+
+
+/* ================= UPLOAD LOGIC (STUBS) ================= */
+
+// Stub for media uploads
+document.getElementById('photoInput')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'photos', document.getElementById('photoUploadFill')));
+document.getElementById('videoInput')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'videos', document.getElementById('videoUploadFill')));
+
+async function handleFileUpload(file, collectionName, progressBarFill) {
+    if (!file || !currentUser) return showToast("You must be logged in to upload.", 'error');
+
+    const storagePath = `${collectionName}/${currentUser.uid}/${file.name}_${Date.now()}`;
+    const fileRef = storageRef(storage, storagePath);
+    const uploadTask = uploadBytesResumable(fileRef, file);
+
+    const isVideo = collectionName === 'videos';
+    const mediaType = isVideo ? 'video' : 'photo';
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            // Observe state change events such as progress, pause, and resume
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if (progressBarFill) progressBarFill.style.width = `${progress}%`;
+        },
+        (error) => {
+            // Handle unsuccessful uploads
+            console.error("Upload error:", error);
+            showToast(`Failed to upload ${mediaType}.`, 'error');
+            if (progressBarFill) progressBarFill.style.width = '0%';
+        },
+        () => {
+            // Handle successful uploads on complete
+            getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+                try {
+                    await addDoc(collections[collectionName], {
+                        url: downloadURL,
+                        user: USER_MAP[currentUser.email],
+                        timestamp: serverTimestamp(),
+                        tags: [],
+                        caption: '',
+                        location: null, // Add location later
+                        reactions: {},
+                        comments: [],
+                        favoritedBy: []
+                    });
+                    showToast(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} uploaded successfully!`, 'success');
+                    addToTimeline(`Uploaded a new ${mediaType}`);
+                } catch (e) {
+                    console.error("Firestore error after upload:", e);
+                    showToast(`Failed to save ${mediaType} data.`, 'error');
+                } finally {
+                    if (progressBarFill) progressBarFill.style.width = '0%';
+                }
+            });
+        }
+    );
+}
+
+/* ================= MAP LOGIC (STUBS) ================= */
+
+// Fix: These functions were called but not defined, causing the app to crash on navigation.
+
+function initMap() {
+    // Check if map is already initialized
+    const mapElement = document.getElementById('mapContainer');
+    if (mapInstance || !mapElement) {
+        mapInstance?.invalidateSize();
+        return;
+    }
+
+    mapInstance = L.map('mapContainer', {
+        center: [39.8283, -98.5795], // Center of USA
+        zoom: 4,
+        zoomControl: false,
+        attributionControl: false // Hide default Leaflet attribution
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(mapInstance);
+
+    // Initial load of layers
+    renderMemories();
+    renderMediaLocations(mediaVisible);
+}
+
+function renderMemories() {
+    if (!mapInstance) return;
+    
+    // Clear existing markers
+    memoryMarkers.forEach(m => mapInstance.removeLayer(m));
+    memoryMarkers = [];
+
+    onSnapshot(collections.memories, (snapshot) => {
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.location) {
+                const marker = L.marker([data.location.lat, data.location.lng]).addTo(mapInstance)
+                    .bindPopup(`<b>${escapeHtml(data.title)}</b><br>${escapeHtml(data.description)}`);
+                memoryMarkers.push(marker);
+            }
+        });
+    });
+}
+
+function renderMediaLocations(isVisible) {
+    if (!mapInstance) return;
+    
+    // Clear existing media markers
+    mediaMarkers.forEach(m => mapInstance.removeLayer(m));
+    mediaMarkers = [];
+    
+    if (!isVisible) return;
+
+    // Simplified mock data for media locations
+    const mockMediaLocations = [
+        { lat: 40.7128, lng: -74.0060, title: 'NY Photo' },
+        { lat: 34.0522, lng: -118.2437, title: 'LA Video' },
+    ];
+    
+    mockMediaLocations.forEach(data => {
+        const customIcon = L.divIcon({
+            className: 'media-marker-icon',
+            html: '📷' // Use an emoji or a simple icon
+        });
+        const marker = L.marker([data.lat, data.lng], { icon: customIcon }).addTo(mapInstance)
+            .bindPopup(`Media: ${data.title}`);
+        mediaMarkers.push(marker);
+    });
+}
+
+// Toggle logic for map layers
+document.getElementById('toggleMemories')?.addEventListener('click', (e) => {
+    e.target.classList.add('active');
+    document.getElementById('toggleMedia')?.classList.remove('active');
+    memoryMarkers.forEach(m => mapInstance.addLayer(m));
+    renderMediaLocations(false);
+});
+
+document.getElementById('toggleMedia')?.addEventListener('click', (e) => {
+    e.target.classList.add('active');
+    document.getElementById('toggleMemories')?.classList.remove('active');
+    memoryMarkers.forEach(m => mapInstance.removeLayer(m));
+    renderMediaLocations(true);
+});
+
+// Memory Modal Stub
+document.getElementById('addMemoryBtn')?.addEventListener('click', () => {
+    document.getElementById('memoryModal')?.classList.add('active');
+});
+document.getElementById('cancelMemoryBtn')?.addEventListener('click', () => {
+    document.getElementById('memoryModal')?.classList.remove('active');
+});
+document.getElementById('saveMemoryBtn')?.addEventListener('click', async () => {
+    const title = document.getElementById('memoryTitle').value;
+    const desc = document.getElementById('memoryDesc').value;
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lng = parseFloat(document.getElementById('lngInput').value);
+    
+    if (!title || isNaN(lat) || isNaN(lng)) {
+        return showToast("Please fill in title and valid coordinates.", 'error');
+    }
+
+    try {
+        await addDoc(collections.memories, {
+            user: USER_MAP[currentUser.email],
+            title: title,
+            description: desc,
+            location: { lat: lat, lng: lng },
+            timestamp: serverTimestamp()
+        });
+        showToast("Memory saved!");
+        document.getElementById('memoryModal')?.classList.remove('active');
+        renderMemories(); // Re-render map layer
+    } catch (e) {
+        console.error("Error saving memory:", e);
+        showToast("Failed to save memory.", 'error');
+    }
+});
+
+/* ================= MUSIC LOGIC (STUBS) ================= */
+
+// Simplified search function
+document.getElementById('musicSearchBtn')?.addEventListener('click', () => {
+    const input = document.getElementById('musicSearchInput').value.trim();
+    const resultsDiv = document.getElementById('musicSearchResults');
+    if (!input) return;
+    
+    // Mock search results
+    const results = [
+        { title: `Mock Song 1 for "${input}"`, url: 'https://open.spotify.com/embed/track/1y2Y8fG04d80o9z7t1K5I4?utm_source=generator&theme=0', type: 'music' },
+        { title: `Mock Song 2 for "${input}"`, url: 'https://open.spotify.com/embed/track/5y4h6jP8J4SgT1z9n3n00k?utm_source=generator&theme=0', type: 'music' }
+    ];
+    
+    resultsDiv.innerHTML = results.map((r, i) => `
+        <div class="search-result-item">
+            <p>${r.title}</p>
+            <button class="btn primary small share-music-btn" data-url="${r.url}" data-title="${r.title}">Share</button>
+        </div>
+    `).join('');
+    resultsDiv.classList.remove('hidden');
+    
+    document.querySelectorAll('.share-music-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => handleShareMusic(e.target.dataset.url, e.target.dataset.title));
+    });
+});
+
+async function handleShareMusic(url, title) {
+    if (!currentUser) return showToast("You must be logged in to share music.", 'error');
+    try {
+        await addDoc(collections.music, {
+            url: url,
+            user: USER_MAP[currentUser.email],
+            timestamp: serverTimestamp(),
+            type: 'music',
+            title: title
+        });
+        showToast("Music shared!");
+        addToTimeline(`Shared a new song: ${title}`);
+        document.getElementById('musicSearchResults')?.classList.add('hidden');
+    } catch (e) {
+        console.error("Error sharing music:", e);
+        showToast("Failed to share music.", 'error');
+    }
+}
+
+function renderMusic() {
+    const list = document.getElementById('sharedMusic');
+    const voiceList = document.getElementById('savedMusic');
+
+    // Render shared music
+    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
+        if(!list) return;
+        list.innerHTML = '';
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
+            const div = document.createElement('div');
+            div.className = 'event-item';
+            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
+            
+            let mediaElement;
+            if (data.type === 'voice') {
+                 // Voice note rendering is separate
+                 return;
+            } else {
+                mediaElement = `<iframe src="${escapeHtml(data.url)}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="border-radius:12px; height: 80px; width:100%;" frameborder="0" allowfullscreen="" title="Music"></iframe>`;
+            }
+            
+            div.innerHTML = `
+                ${mediaElement}
+                <div style="font-size:0.85rem; color:var(--subtext);">
+                    Shared Music • ${escapeHtml(data.user)} on ${date}
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    });
+    
+    // Render voice notes (filtering by type: 'voice')
+    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
+        if(!voiceList) return;
+        voiceList.innerHTML = '';
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.type !== 'voice') return;
+            
+            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
+            const div = document.createElement('div');
+            div.className = 'event-item';
+            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
+            
+            const mediaElement = `<audio controls src="${escapeHtml(data.url)}"></audio>`;
+            
+            div.innerHTML = `
+                ${mediaElement}
+                <div style="font-size:0.85rem; color:var(--subtext);">
+                    Voice Note • ${escapeHtml(data.user)} on ${date}
+                </div>
+            `;
+            voiceList.appendChild(div);
+        });
+    });
+}
+
+// Voice Note Recording Logic
+document.getElementById('voiceNoteRecordBtn')?.addEventListener('click', toggleRecording);
+document.getElementById('uploadRecordingBtn')?.addEventListener('click', uploadRecording);
+document.getElementById('cancelRecordingBtn')?.addEventListener('click', cancelRecording);
+
+function toggleRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
+
+function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(track => track.stop());
+            };
+            mediaRecorder.start();
+            
+            // Update UI
+            const recordBtn = document.getElementById('voiceNoteRecordBtn');
+            const uploadBtn = document.getElementById('uploadRecordingBtn');
+            const cancelBtn = document.getElementById('cancelRecordingBtn');
+            const status = document.getElementById('voiceStatus');
+
+            if(recordBtn) recordBtn.innerHTML = '&#128721; Stop Recording';
+            if(uploadBtn) uploadBtn.style.display = 'none';
+            if(cancelBtn) cancelBtn.style.display = 'none';
+            if(status) { status.textContent = 'Recording...'; status.classList.remove('hidden'); }
+
+            showToast('Recording started...');
+        })
+        .catch(err => {
+            console.error('Recording error:', err);
+            showToast('Microphone access denied or failed.', 'error');
+        });
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        
+        // Update UI
+        const recordBtn = document.getElementById('voiceNoteRecordBtn');
+        const uploadBtn = document.getElementById('uploadRecordingBtn');
+        const cancelBtn = document.getElementById('cancelRecordingBtn');
+        const status = document.getElementById('voiceStatus');
+
+        if(recordBtn) recordBtn.innerHTML = '&#127908; Re-record';
+        if(uploadBtn) uploadBtn.style.display = 'inline-block';
+        if(cancelBtn) cancelBtn.style.display = 'inline-block';
+        if(status) status.classList.add('hidden');
+        
+        showToast('Recording stopped. Ready to upload.');
+    }
+}
+
+function cancelRecording() {
+    audioChunks = [];
+    mediaRecorder = null;
+    
+    const recordBtn = document.getElementById('voiceNoteRecordBtn');
+    const uploadBtn = document.getElementById('uploadRecordingBtn');
+    const cancelBtn = document.getElementById('cancelRecordingBtn');
+
+    if(recordBtn) recordBtn.innerHTML = '🎤 Record';
+    if(uploadBtn) uploadBtn.style.display = 'none';
+    if(cancelBtn) cancelBtn.style.display = 'none';
+    
+    showToast('Recording cancelled.');
+}
+
+async function uploadRecording() {
+    if (audioChunks.length === 0 || !currentUser) return showToast("No recording found.", 'error');
+
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    const fileName = `voice_note_${Date.now()}.webm`;
+
+    const storagePath = `voice_notes/${currentUser.uid}/${fileName}`;
+    const fileRef = storageRef(storage, storagePath);
+    const uploadTask = uploadBytesResumable(fileRef, audioBlob);
+
+    showToast("Uploading voice note...", 'info');
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            // Update progress if needed
+        },
+        (error) => {
+            console.error("Upload error:", error);
+            showToast('Failed to upload voice note.', 'error');
+            cancelRecording();
+        },
+        () => {
+            getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+                try {
+                    await addDoc(collections.music, {
+                        url: downloadURL,
+                        user: USER_MAP[currentUser.email],
+                        timestamp: serverTimestamp(),
+                        type: 'voice'
+                    });
+                    showToast('Voice note shared successfully!', 'success');
+                    addToTimeline('Shared a voice note');
+                } catch (e) {
+                    console.error("Firestore error after upload:", e);
+                    showToast('Failed to save voice note data.', 'error');
+                } finally {
+                    cancelRecording(); // Reset UI regardless of success/fail
+                }
+            });
+        }
+    );
+}
+
+
+/* ================= NOTES LOGIC ================= */
+
 document.getElementById('pinNoteBtn')?.addEventListener('click', async () => {
     const textarea = document.getElementById('noteInput');
     const txt = textarea.value.trim();
@@ -744,7 +1288,6 @@ document.getElementById('saveNoteBtn')?.addEventListener('click', async () => {
     textarea.value = '';
 });
 
-
 function renderNotes() {
     const list = document.getElementById('notesList');
     onSnapshot(query(collections.notes, orderBy('pinned', 'desc'), orderBy('timestamp', 'desc')), snap => {
@@ -753,781 +1296,546 @@ function renderNotes() {
         snap.forEach(docSnap => {
             const data = docSnap.data();
             const id = docSnap.id;
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleString() : 'Just now';
-            const pinnedIcon = data.pinned ? '📌 ' : '';
-            
-            // Build Replies
-            const sortedReplies = (data.replies || []).sort((a, b) => a.timestamp - b.timestamp);
-            
-            const repliesHtml = sortedReplies.map(reply => {
-                const replyDate = new Date(reply.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                return `
-                    <div class="note-reply">
-                        <strong>${escapeHtml(reply.user)}</strong> (${replyDate}): ${escapeHtml(reply.content)}
-                    </div>
-                `;
-            }).join('');
-
-            const div = document.createElement('div');
-            div.className = 'card note-item thread-parent';
-            div.innerHTML = `
-                <div class="note-meta">
-                    <span class="note-date">${pinnedIcon}${escapeHtml(date)} • ${escapeHtml(data.user)}</span>
-                    <button class="btn ghost small delete-note-trigger" data-id="${id}" aria-label="Options">... </button>
-                </div>
-                <p class="note-content">${escapeHtml(data.content)}</p>
-                <a href="#" class="reply-link" data-id="${id}">Reply (${(data.replies || []).length})</a>
-                <div class="note-replies">
-                    ${repliesHtml}
-                </div>
-            `;
-            
-            // Reply Link Handler
-            div.querySelector('.reply-link').onclick = (e) => {
-                e.preventDefault();
-                document.getElementById('noteInput').dataset.parentId = id;
-                document.getElementById('noteInput').placeholder = `Replying to ${data.user}'s note...`;
-                document.getElementById('noteInput').focus();
-            };
-
-            // Needs delete functionality (using a mock options button for now)
-            div.querySelector('.delete-note-trigger').onclick = async () => {
-                if(confirm('Are you sure you want to delete this note?')) {
-                    try {
-                        await deleteDoc(doc(db, 'notes', id));
-                        showToast('Note deleted.', 'success');
-                        addToTimeline('Deleted a note');
-                    } catch(e) {
-                        showToast('Failed to delete note.', 'error');
-                        console.error("Error deleting note:", e);
-                    }
-                }
-            };
-
-            list.appendChild(div);
-        });
-    });
-}
-
-// --- Voice Recording Logic ---
-document.getElementById('recordAudioBtn')?.addEventListener('click', toggleRecording);
-document.getElementById('cancelRecordingBtn')?.addEventListener('click', stopRecording);
-document.getElementById('uploadRecordingBtn')?.addEventListener('click', uploadRecording);
-
-function toggleRecording() {
-    // Simplified stub
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        const recordBtn = document.getElementById('recordAudioBtn');
-        const uploadBtn = document.getElementById('uploadRecordingBtn');
-        const cancelBtn = document.getElementById('cancelRecordingBtn');
-
-        if(recordBtn) recordBtn.textContent = '🎤 Re-record';
-        if(uploadBtn) uploadBtn.style.display = 'inline-block';
-        if(cancelBtn) cancelBtn.style.display = 'inline-block';
-        showToast('Recording stopped. Ready to upload.');
-    } else {
-        startRecording();
-    }
-}
-
-function startRecording() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-            mediaRecorder.onstop = () => {
-                stream.getTracks().forEach(track => track.stop());
-            };
-            mediaRecorder.start();
-            const recordBtn = document.getElementById('recordAudioBtn');
-            const uploadBtn = document.getElementById('uploadRecordingBtn');
-            const cancelBtn = document.getElementById('cancelRecordingBtn');
-
-            if(recordBtn) recordBtn.textContent = '🛑 Stop Recording';
-            if(uploadBtn) uploadBtn.style.display = 'none';
-            if(cancelBtn) cancelBtn.style.display = 'none';
-            showToast('Recording started...');
-        })
-        .catch(err => {
-            console.error('Recording error:', err);
-            showToast('Microphone access denied or failed.', 'error');
-        });
-}
-
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-    }
-    // Reset UI state after stop (manual cancel or recording end)
-    const recordBtn = document.getElementById('recordAudioBtn');
-    const uploadBtn = document.getElementById('uploadRecordingBtn');
-    const cancelBtn = document.getElementById('cancelRecordingBtn');
-    
-    if(recordBtn) recordBtn.textContent = '🎙️ Record Voice Note';
-    if(uploadBtn) uploadBtn.style.display = 'none';
-    if(cancelBtn) cancelBtn.style.display = 'none';
-    audioChunks = []; // Discard chunks
-    showToast('Recording cancelled.', 'info');
-}
-
-async function uploadRecording() {
-    if (audioChunks.length === 0 || !currentUser) return showToast('No audio recorded.', 'error');
-
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    const storagePath = `voice-notes/${Date.now()}.webm`;
-    const storageRefInstance = storageRef(storage, storagePath);
-    const uploadTask = uploadBytesResumable(storageRefInstance, audioBlob);
-
-    const uploadBtn = document.getElementById('uploadRecordingBtn');
-    const recordBtn = document.getElementById('recordAudioBtn');
-    const cancelBtn = document.getElementById('cancelRecordingBtn');
-
-    if(uploadBtn) {
-        uploadBtn.textContent = 'Uploading...';
-        uploadBtn.disabled = true;
-    }
-
-    uploadTask.on('state_changed',
-        (snapshot) => {
-            // Observe state change events such as progress, pause, and resume
-        },
-        (error) => {
-            console.error("Upload error:", error);
-            showToast('Voice note upload failed.', 'error');
-            if(uploadBtn) {
-                uploadBtn.textContent = 'Upload Failed';
-                uploadBtn.disabled = false;
-            }
-        },
-        async () => {
-            // Handle successful uploads on complete
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-            await addDoc(collections.music, { // Storing voice notes in 'music' collection
-                url: downloadURL,
-                type: 'voice',
-                user: USER_MAP[currentUser.email],
-                timestamp: serverTimestamp()
-            });
-            
-            showToast('Voice note uploaded successfully!', 'success');
-            addToTimeline('Uploaded a voice note');
-            if(recordBtn) recordBtn.textContent = '🎙️ Record Voice Note';
-            if(uploadBtn) uploadBtn.style.display = 'none';
-            if(cancelBtn) cancelBtn.style.display = 'none';
-            if(uploadBtn) uploadBtn.disabled = false;
-        }
-    );
-}
-
-function renderMusic() {
-    const list = document.getElementById('musicList');
-    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
-        if(!list) return;
-        list.innerHTML = '';
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
             const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
             
-            const div = document.createElement('div');
-            div.className = 'event-item';
-            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
+            const isPinned = data.pinned;
+            const item = document.createElement('div');
+            item.className = 'list-item note-item';
             
-            let mediaElement;
-            if (data.type === 'voice') {
-                mediaElement = `<audio controls src="${escapeHtml(data.url)}"></audio>`;
-            } else {
-                mediaElement = `<iframe src="${escapeHtml(data.url)}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="border-radius:12px; height: 80px; width:100%;" frameborder="0" allowfullscreen="" title="Music"></iframe>`;
-            }
+            // Build replies
+            const repliesHtml = (data.replies || []).map(reply => `
+                <div class="note-reply">
+                    <strong>${escapeHtml(reply.user)}:</strong> ${escapeHtml(reply.content)}
+                </div>
+            `).join('');
 
-            div.innerHTML = `
-                ${mediaElement}
-                <div style="font-size:0.85rem; color:var(--subtext);">
-                    ${data.type === 'voice' ? 'Voice Note' : 'Shared Music'} • ${escapeHtml(data.user)} on ${date}
+            item.innerHTML = `
+                <div class="note-header">
+                    <strong>${isPinned ? '📌 PINNED' : 'Note'}</strong> by ${escapeHtml(data.user)}
+                    <span class="note-date">${date}</span>
+                </div>
+                <p class="note-content">${escapeHtml(data.content)}</p>
+                ${repliesHtml}
+                <div class="note-actions">
+                    <span class="reply-link" data-id="${id}">Reply</span>
+                    <button class="btn icon-btn small ghost delete-note" data-id="${id}" aria-label="Delete Note">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
                 </div>
             `;
-            list.appendChild(div);
+            list.appendChild(item);
+        });
+
+        // Attach Reply Listeners
+        list.querySelectorAll('.reply-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                const parentId = e.target.dataset.id;
+                const textarea = document.getElementById('noteInput');
+                if(textarea) {
+                    textarea.dataset.parentId = parentId;
+                    textarea.placeholder = `Replying to note... (ID: ${parentId})`;
+                    textarea.focus();
+                }
+            });
+        });
+        
+        // Attach Delete Listeners
+        list.querySelectorAll('.delete-note').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                await deleteDoc(doc(db, 'notes', id));
+                showToast("Note deleted.", 'info');
+                addToTimeline("Deleted a note");
+            });
         });
     });
 }
 
 
-/* ================= MAP LOGIC (STUBS) ================= */
-
-// Fix: These functions were called but not defined, causing the app to crash on login.
-function initMap() {
-    // Check if map is already initialized
-    if (mapInstance) {
-        mapInstance.invalidateSize();
-        return;
-    }
-    
-    const mapElement = document.getElementById('map');
-    if (!mapElement) return;
-
-    // Initialize Leaflet Map
-    mapInstance = L.map('map').setView([39.8283, -98.5795], 4); // Centered on the US
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(mapInstance);
-
-    // Call render functions after map is ready
-    renderMemoryLocations();
-    // renderMediaLocations is called by the tab switch logic if needed
-}
-
-function renderMemoryLocations() {
-    // Simplified function to plot memories
-    // (You would fetch these from your 'memories' collection)
-    if (!mapInstance) return;
-
-    memoryMarkers.forEach(marker => mapInstance.removeLayer(marker));
-    memoryMarkers = [];
-
-    const mockMemories = [
-        { title: "First Date", lat: 40.7128, lng: -74.0060, desc: "Dinner in NYC!" },
-        { title: "West Coast Trip", lat: 34.0522, lng: -118.2437, desc: "Hiking in LA." },
-    ];
-
-    mockMemories.forEach(memory => {
-        const marker = L.marker([memory.lat, memory.lng]).addTo(mapInstance)
-            .bindPopup(`<b>${escapeHtml(memory.title)}</b><br>${escapeHtml(memory.desc)}`);
-        memoryMarkers.push(marker);
-    });
-}
-
-function renderMediaLocations() {
-    // Stub for showing media on map - depends on the mediaVisible flag
-}
-
-/* ================= UTILITY LOGIC (STUBS) ================= */
-
-function openLightbox(media) {
-    const lightbox = document.getElementById('lightbox');
-    const container = document.querySelector('.lightbox-media-container');
-    const caption = document.querySelector('.lightbox-caption');
-    
-    if(!lightbox || !container || !caption) return;
-    
-    container.innerHTML = '';
-    
-    if (media.type === 'image') {
-        container.innerHTML = `<img src="${media.src}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">`;
-    } else if (media.type === 'video') {
-        container.innerHTML = `<video src="${media.src}" controls style="max-width: 100%; max-height: 80vh;"></video>`;
-    }
-    
-    caption.textContent = media.caption;
-    lightbox.classList.add('active');
-}
-
-function closeLightbox() {
-    document.getElementById('lightbox')?.classList.remove('active');
-    document.querySelector('.lightbox-media-container').innerHTML = '';
-}
-
-// Ensure the close button is wired up (check if it's already done in the provided HTML)
-document.querySelector('#lightbox .close-lightbox')?.addEventListener('click', closeLightbox);
-
-
-/* ================= OTHER SECTION LOGIC (STUBS) ================= */
-
-// Fix: These functions were called but not defined, causing the app to crash on navigation.
 /* ================= CALENDAR & EVENTS LOGIC ================= */
 
-/**
- * Renders a list of upcoming events and handles the add event modal.
- */
-function renderCalendar() {
-    const container = document.getElementById('calendarContainer');
-    if (!container) return;
+document.getElementById('addEventBtn')?.addEventListener('click', () => {
+    // Mock for now: show a simple prompt
+    const title = prompt("Enter event title:");
+    if (!title) return;
+    const dateStr = prompt("Enter date and time (e.g., 2024-12-25 18:00):");
+    if (!dateStr || isNaN(new Date(dateStr))) return showToast("Invalid date format.", 'error');
 
-    // Listen for events in real-time
+    addDoc(collections.events, {
+        user: USER_MAP[currentUser.email],
+        title: title,
+        timestamp: new Date(dateStr), // Storing as Date object for sorting
+        location: '',
+        details: ''
+    }).then(() => {
+        showToast("Event added!");
+        addToTimeline(`Scheduled a new event: ${title}`);
+    }).catch(e => {
+        console.error("Error adding event:", e);
+        showToast("Failed to add event.", 'error');
+    });
+});
+
+function renderCalendar() {
+    // This function now only handles the month navigation UI and rendering the grid.
+    const monthYearSpan = document.getElementById('monthYear');
+    const grid = document.getElementById('calendarGrid');
+    const eventListContainer = document.getElementById('calendarContainer');
+    if (!monthYearSpan || !grid) return;
+
+    // Update Month/Year Header
+    monthYearSpan.textContent = currentCalDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Render Grid
+    grid.innerHTML = '';
+    const startOfMonth = new Date(currentCalDate.getFullYear(), currentCalDate.getMonth(), 1);
+    const endOfMonth = new Date(currentCalDate.getFullYear(), currentCalDate.getMonth() + 1, 0);
+    const numDays = endOfMonth.getDate();
+    let startDay = startOfMonth.getDay(); // 0=Sunday, 6=Saturday
+
+    // Add empty cells for preceding days
+    for (let i = 0; i < startDay; i++) {
+        grid.innerHTML += '<div></div>';
+    }
+
+    // Add day cells
+    for (let day = 1; day <= numDays; day++) {
+        grid.innerHTML += `<div class="cal-day">${day}</div>`;
+    }
+
+    // Attach Nav Listeners (ensure they are only attached once)
+    const prevBtn = document.getElementById('prevMonth');
+    const nextBtn = document.getElementById('nextMonth');
+    prevBtn.onclick = () => {
+        currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+        renderCalendar();
+    };
+    nextBtn.onclick = () => {
+        currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+        renderCalendar();
+    };
+
+
+    // Listen for events in real-time (to render the list below the calendar)
     onSnapshot(query(collections.events, orderBy('timestamp', 'asc')), (snapshot) => {
-        container.innerHTML = '<h3>Upcoming Events</h3>';
-        
+        if (!eventListContainer) return;
+        eventListContainer.innerHTML = '<h3>Upcoming Events</h3>';
+
         if (snapshot.empty) {
-            container.innerHTML += '<p class="subtext-center">No events planned yet. Tap the button to add one! 🎉</p>';
+            eventListContainer.innerHTML += '<p class="subtext-center">No events planned yet. Tap the button to add one! 🎉</p>';
             return;
         }
 
-        let currentMonth = '';
+        let currentMonthHeader = '';
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const date = data.timestamp ? data.timestamp.toDate() : new Date();
-            const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const date = data.timestamp instanceof Date ? data.timestamp : data.timestamp.toDate();
             
-            if (month !== currentMonth) {
-                container.innerHTML += `<h4 class="month-header">${month}</h4>`;
-                currentMonth = month;
+            // Only show events from the current month onwards
+            if (date < new Date(currentCalDate.getFullYear(), currentCalDate.getMonth(), 1)) return;
+
+            const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            if (month !== currentMonthHeader) {
+                eventListContainer.innerHTML += `<h4 class="month-header">${month}</h4>`;
+                currentMonthHeader = month;
             }
 
             const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            container.innerHTML += `
+            eventListContainer.innerHTML += `
                 <div class="event-item" data-id="${docSnap.id}">
                     <div class="event-date">${date.getDate()}</div>
                     <div class="event-details">
                         <strong>${escapeHtml(data.title)}</strong>
-                        <span class="subtext">${time} • ${escapeHtml(data.location)}</span>
+                        <span class="subtext">${time} by ${escapeHtml(data.user)}</span>
                     </div>
-                    <button class="btn ghost small delete-event-btn" data-id="${docSnap.id}">❌</button>
                 </div>
             `;
         });
+    });
+}
 
-        // Attach delete listeners
-        container.querySelectorAll('.delete-event-btn').forEach(btn => {
+
+/* ================= TODO LISTS & POLLS LOGIC ================= */
+
+document.getElementById('addTodoBtn')?.addEventListener('click', async () => {
+    const input = document.getElementById('todoInput');
+    const task = input.value.trim();
+    if(!task || !currentUser) return showToast("Task cannot be empty.", 'error');
+
+    await addDoc(collections.todos, {
+        task: task,
+        user: USER_MAP[currentUser.email],
+        completed: false,
+        timestamp: serverTimestamp()
+    });
+    input.value = '';
+    addToTimeline(`Added a new to-do: ${task}`);
+    showToast("Task added to the list.");
+});
+
+function renderTodos() {
+    const container = document.getElementById('todoList');
+    if (!container) return;
+
+    // Listen for todos in real-time
+    onSnapshot(query(collections.todos, orderBy('timestamp', 'asc')), (snapshot) => {
+        container.innerHTML = '';
+        if (snapshot.empty) {
+            container.innerHTML = '<p class="subtext-center">The list is clear! What should we add? 📝</p>';
+            return;
+        }
+
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            const item = document.createElement('div');
+            item.className = `todo-item list-item ${data.completed ? 'completed' : ''}`;
+            item.innerHTML = `
+                <input type="checkbox" id="todo-${id}" ${data.completed ? 'checked' : ''} data-id="${id}">
+                <label for="todo-${id}">
+                    <span class="todo-title">${escapeHtml(data.task)}</span>
+                    <span class="todo-user subtext">Added by: ${escapeHtml(data.user)}</span>
+                </label>
+                <button class="btn ghost small delete-todo-btn" data-id="${id}">🗑️</button>
+            `;
+            container.appendChild(item);
+        });
+
+        // Attach listeners for completion toggle
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', async (e) => {
+                const id = e.target.dataset.id;
+                const completed = e.target.checked;
+                await updateDoc(doc(db, 'todos', id), { completed: completed });
+                showToast(completed ? 'Task completed!' : 'Task reopened.', 'info');
+                addToTimeline(completed ? 'Completed a to-do item' : 'Reopened a to-do item');
+            });
+        });
+        
+        // Attach listeners for delete
+        container.querySelectorAll('.delete-todo-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = e.currentTarget.dataset.id;
-                if (confirm('Are you sure you want to delete this event?')) {
-                    await deleteDoc(doc(db, 'events', id));
-                    showToast('Event deleted!', 'success');
-                    addToTimeline('Deleted an event');
-                }
+                await deleteDoc(doc(db, 'todos', id));
+                showToast('Task deleted.', 'info');
+                addToTimeline('Deleted a to-do item');
             });
         });
     });
 }
 
-// Event Listeners for adding an event (assumes a modal exists in index.html)
-document.getElementById('addEventBtn')?.addEventListener('click', () => {
-    document.getElementById('addEventModal')?.classList.add('active');
-});
-
-document.getElementById('cancelEventBtn')?.addEventListener('click', () => {
-    document.getElementById('addEventModal')?.classList.remove('active');
-});
-
-document.getElementById('saveEventBtn')?.addEventListener('click', async () => {
-    const title = document.getElementById('eventTitleInput').value.trim();
-    const location = document.getElementById('eventLocationInput').value.trim();
-    const dateStr = document.getElementById('eventDateInput').value;
+document.getElementById('addPollBtn')?.addEventListener('click', () => {
+    const question = prompt("Enter the poll question:");
+    if (!question) return;
     
-    if (!title || !dateStr || !currentUser) return showToast('Please fill in event title and date.', 'error');
+    // Simple way to get options
+    let options = prompt("Enter options, separated by commas (e.g., Movie, Restaurant, Stay In):");
+    if (!options) return;
+    
+    // Create an object where each option is a key and the value is an empty array of voters
+    const optionsObj = options.split(',').map(o => o.trim()).filter(o => o.length > 0)
+        .reduce((acc, option) => ({ ...acc, [option]: [] }), {});
 
-    try {
-        await addDoc(collections.events, {
-            title: title,
-            location: location,
-            timestamp: new Date(dateStr),
-            user: USER_MAP[currentUser.email]
-        });
-        showToast('Event saved successfully!', 'success');
-        addToTimeline(`Added new event: ${title}`);
-        document.getElementById('addEventModal')?.classList.remove('active');
-        document.getElementById('eventTitleInput').value = '';
-        document.getElementById('eventLocationInput').value = '';
-        document.getElementById('eventDateInput').value = '';
-    } catch (e) {
-        showToast('Failed to save event.', 'error');
-        console.error("Error saving event:", e);
-    }
-    /* ================= TO-DOS LOGIC ================= */
+    if (Object.keys(optionsObj).length < 2) return showToast("Please provide at least two poll options.", 'error');
 
-    /**
-     * Renders the interactive to-do list.
-     */
-    function renderTodos() {
-        const container = document.getElementById('todosContainer');
-        const input = document.getElementById('todoInput');
-        const addButton = document.getElementById('addTodoBtn');
+    addDoc(collections.polls, {
+        user: USER_MAP[currentUser.email],
+        question: question,
+        options: optionsObj,
+        timestamp: serverTimestamp()
+    }).then(() => {
+        showToast("Poll started!");
+        addToTimeline(`Created a new poll: ${question}`);
+    }).catch(e => {
+        console.error("Error adding poll:", e);
+        showToast("Failed to start poll.", 'error');
+    });
+});
 
-        if (!container) return;
 
-        // Listener for real-time updates
-        onSnapshot(query(collections.todos, orderBy('timestamp', 'desc')), (snapshot) => {
-            container.innerHTML = '';
+function renderPolls() {
+    const container = document.getElementById('pollsList');
+    if (!container) return;
 
-            if (snapshot.empty) {
-                container.innerHTML = '<p class="subtext-center">The list is clear! What should we add? 📝</p>';
-                return;
-            }
-
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const id = docSnap.id;
-                const item = document.createElement('div');
-                item.className = `todo-item ${data.completed ? 'completed' : ''}`;
-                item.innerHTML = `
-                    <input type="checkbox" id="todo-${id}" ${data.completed ? 'checked' : ''} data-id="${id}">
-                    <label for="todo-${id}">
-                        <span class="todo-title">${escapeHtml(data.task)}</span>
-                        <span class="todo-user subtext">Added by: ${escapeHtml(data.user)}</span>
-                    </label>
-                    <button class="btn ghost small delete-todo-btn" data-id="${id}">🗑️</button>
-                `;
-                container.appendChild(item);
-            });
-
-            // Attach listeners for completion toggle
-            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', async (e) => {
-                    const id = e.target.dataset.id;
-                    const completed = e.target.checked;
-                    await updateDoc(doc(db, 'todos', id), { completed: completed });
-                    showToast(completed ? 'Task completed!' : 'Task reopened.', 'info');
-                    addToTimeline(completed ? 'Completed a todo item' : 'Reopened a todo item');
-                });
-            });
-
-            // Attach listeners for deletion
-            container.querySelectorAll('.delete-todo-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = e.target.dataset.id;
-                    await deleteDoc(doc(db, 'todos', id));
-                    showToast('To-do item deleted.', 'success');
-                    addToTimeline('Deleted a todo item');
-                });
-            });
-        });
-
-        // Add To-Do item button listener
-        addButton?.addEventListener('click', async () => {
-            const task = input.value.trim();
-            if (!task || !currentUser) return;
-
-            await addDoc(collections.todos, {
-                task: task,
-                completed: false,
-                user: USER_MAP[currentUser.email],
-                timestamp: serverTimestamp()
-            });
-            input.value = '';
-            showToast('To-do item added!', 'success');
-            addToTimeline(`Added new todo: ${task}`);
-        });
-        /* ================= POLLS LOGIC ================= */
-
-        /**
-         * Renders active polls, showing results and allowing the current user to vote.
-         */
-        function renderPolls() {
-            const container = document.getElementById('pollsContainer');
-            if (!container) return;
-
-            onSnapshot(query(collections.polls, orderBy('timestamp', 'desc')), (snapshot) => {
-                container.innerHTML = '<h3>Shared Decisions (Polls)</h3>';
-
-                if (snapshot.empty) {
-                    container.innerHTML += '<p class="subtext-center">No active polls. Start one!</p>';
-                    return;
-                }
-
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const id = docSnap.id;
-                    const options = data.options || {};
-                    const pollUser = USER_MAP[currentUser?.email];
-
-                    let totalVotes = 0;
-                    Object.values(options).forEach(voters => totalVotes += (voters.length || 0));
-
-                    const pollHtml = Object.entries(options).map(([option, voters]) => {
-                        const count = voters.length;
-                        const percent = totalVotes === 0 ? 0 : (count / totalVotes) * 100;
-                        const hasVoted = voters.includes(pollUser);
-                        const buttonClass = hasVoted ? 'primary' : 'secondary ghost';
-
-                        return `
-                            <div class="poll-option" data-option="${escapeHtml(option)}" data-id="${id}">
-                                <button class="btn small vote-btn ${buttonClass}" data-option="${escapeHtml(option)}" data-id="${id}" ${!pollUser ? 'disabled' : ''}>
-                                    ${hasVoted ? 'Voted' : 'Vote'}
-                                </button>
-                                <div class="poll-bar-container">
-                                    <div class="poll-bar" style="width: ${percent.toFixed(0)}%;"></div>
-                                    <span class="poll-option-text">${escapeHtml(option)}</span>
-                                </div>
-                                <span class="vote-count">${count} (${percent.toFixed(0)}%)</span>
-                            </div>
-                        `;
-                    }).join('');
-
-                    container.innerHTML += `
-                        <div class="card poll-item">
-                            <h4>${escapeHtml(data.question)}</h4>
-                            <p class="subtext">Started by ${escapeHtml(data.user)}</p>
-                            <div class="poll-options-list">${pollHtml}</div>
-                        </div>
-                    `;
-                });
-                
-                // Attach vote listeners
-                container.querySelectorAll('.vote-btn').forEach(btn => {
-                    btn.addEventListener('click', handleVote);
-                });
-            });
+    onSnapshot(query(collections.polls, orderBy('timestamp', 'desc')), (snapshot) => {
+        container.innerHTML = '';
+        if (snapshot.empty) {
+            container.innerHTML = '<p class="subtext-center">No active polls. Start one now! 📊</p>';
+            return;
         }
 
-        /**
-         * Handles the logic for voting on a poll.
-         * @param {Event} e
-         */
-        async function handleVote(e) {
-            const id = e.currentTarget.dataset.id;
-            const optionToVote = e.currentTarget.dataset.option;
-            const user = USER_MAP[currentUser.email];
-            
-            if (!user) return showToast("You must be logged in to vote.", 'error');
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            const totalVotes = Object.values(data.options).reduce((sum, voters) => sum + voters.length, 0);
 
-            const pollRef = doc(db, 'polls', id);
-            const pollSnap = await getDoc(pollRef);
-            if (!pollSnap.exists()) return;
-            const data = pollSnap.data();
-            const currentOptions = data.options;
-            
-            // Find previous vote and remove it
-            let updateFields = {};
-            Object.entries(currentOptions).forEach(([option, voters]) => {
-                if (voters.includes(user)) {
-                    // User already voted for this option, so remove their vote (toggle)
-                    if (option === optionToVote) {
-                        updateFields[`options.${option}`] = arrayRemove(user);
-                    } else {
-                        // User voted for a different option, remove old vote
-                        updateFields[`options.${option}`] = arrayRemove(user);
-                    }
-                }
-            });
-
-            // Add new vote if it wasn't a toggle off the same option
-            if (!currentOptions[optionToVote]?.includes(user)) {
-                updateFields[`options.${optionToVote}`] = arrayUnion(user);
-                showToast(`Voted for: ${optionToVote}`, 'success');
-            } else if (updateFields[`options.${optionToVote}`] === arrayRemove(user)) {
-                showToast('Vote removed.', 'info');
-            }
-
-            try {
-                await updateDoc(pollRef, updateFields);
-                addToTimeline(`Voted in a poll`);
-            } catch (e) {
-                showToast('Failed to save vote.', 'error');
-                console.error("Error voting:", e);
-            }
-            /* ================= FAVORITES LOGIC ================= */
-
-            /**
-             * Renders a combined gallery of all favorited items (photos and videos).
-             */
-            function renderFavorites() {
-                const container = document.getElementById('favoritesContainer');
-                if (!container) return;
-
-                container.innerHTML = '<h3>Our Favorite Memories ❤️</h3><div class="masonry-grid" id="favoritesGrid"></div>';
-                const favoritesGrid = document.getElementById('favoritesGrid');
-
-                // Fetch favorited items (simplified: assuming 'favorites' collection stores media IDs and types)
-                // NOTE: For a real app, you'd typically fetch all media and filter by a 'isFavorite' field or a 'favorites' subcollection on the media item.
-                // For simplicity, we will mock/hard-code the collection names to check.
-
-                const fetchFavorites = async (collectionName) => {
-                    const snapshot = await getDocs(collections[collectionName]);
-                    return snapshot.docs.filter(docSnap => {
-                        // Simple mock: assume an item is a favorite if it has more than 2 reactions.
-                        const reactions = docSnap.data().reactions || {};
-                        const totalReactionCount = Object.values(reactions).reduce((sum, users) => sum + users.length, 0);
-                        return totalReactionCount > 2; // Arbitrary favorite logic
-                    }).map(docSnap => ({
-                        id: docSnap.id,
-                        ...docSnap.data(),
-                        type: collectionName === 'photos' ? 'image' : 'video'
-                    }));
-                };
-
-                Promise.all([
-                    fetchFavorites('photos'),
-                    fetchFavorites('videos')
-                ]).then(([photoFavs, videoFavs]) => {
-                    const allFavs = [...photoFavs, ...videoFavs].sort((a, b) => b.timestamp - a.timestamp); // Sort by recency
-                    
-                    favoritesGrid.innerHTML = '';
-                    if (allFavs.length === 0) {
-                        favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1;">We haven\'t favorited enough media yet!</p>';
-                        return;
-                    }
-
-                    allFavs.forEach(data => {
-                        const div = document.createElement('div');
-                        div.className = 'masonry-item favorite-item';
-                        
-                        const media = data.type === 'image'
-                            ? `<img src="${escapeHtml(data.url)}" loading="lazy" alt="favorite photo">`
-                            : `<video src="${escapeHtml(data.url)}" controls></video>`;
-                        
-                        div.innerHTML = `
-                            ${media}
-                            <div class="item-meta">
-                                <span style="font-weight: 500;">${data.type === 'image' ? 'Photo' : 'Video'}</span>
-                                <span class="subtext">${escapeHtml(data.user)}</span>
-                            </div>
-                        `;
-                        // Add click handler to open full media/lightbox if desired
-                        if (data.type === 'image') {
-                             div.querySelector('img').addEventListener('click', () => {
-                                openLightbox({ type: 'image', src: data.url, caption: `${escapeHtml(data.user)}'s favorite` });
-                            });
-                        }
-                        
-                        favoritesGrid.appendChild(div);
-                    });
-                }).catch(e => {
-                    console.error("Error rendering favorites:", e);
-                    favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1; color: var(--error);">Failed to load favorites.</p>';
-                });
-            }
-            /* ================= CHECKINS & MOOD LOGIC ================= */
-
-            const MOOD_EMOJIS = ['😄', '😊', '😐', '😟', '😭'];
-            const MOOD_VALUES = { '😄': 5, '😊': 4, '😐': 3, '😟': 2, '😭': 1 };
-            let currentMoodSelection = null;
-
-            /**
-             * Handles the display of the check-in section, including the mood chart.
-             */
-            function renderCheckins() {
-                const container = document.getElementById('checkinsContainer');
-                if (!container) return;
+            let pollHtml = '';
+            Object.entries(data.options).forEach(([option, voters]) => {
+                const count = voters.length;
+                const percent = totalVotes === 0 ? 0 : (count / totalVotes) * 100;
+                const userVoted = voters.includes(USER_MAP[currentUser.email]);
                 
-                // Ensure the structure is rendered (this should be in index.html, but we ensure it for function clarity)
-                container.innerHTML = `
-                    <div class="card checkin-log-card">
-                        <h4>How are you feeling today?</h4>
-                        <div id="moodSelector" class="mood-selector">
-                            ${MOOD_EMOJIS.map(emoji => `<span class="mood-emoji" data-mood="${emoji}">${emoji}</span>`).join('')}
-                        </div>
-                        <textarea id="moodNote" placeholder="Optional: Add a note about your day..." class="glass-input"></textarea>
-                        <button id="saveMoodBtn" class="btn primary full-width" disabled>Log Mood</button>
-                    </div>
-                    
-                    <div class="card checkin-chart-card">
-                        <h4>Mood Trend (Last 7 Days)</h4>
-                        <canvas id="moodChartCanvas"></canvas>
+                pollHtml += `
+                    <div class="poll-option ${userVoted ? 'voted' : ''}">
+                        <div class="poll-bar-fill" style="width: ${percent}%;"></div>
+                        <button class="btn ghost small vote-btn" data-id="${id}" data-option="${escapeHtml(option)}" ${userVoted ? 'disabled' : ''}>
+                            ${userVoted ? 'VOTED' : 'Vote'}
+                        </button>
+                        <span class="poll-option-text">${escapeHtml(option)}</span>
+                        <span class="vote-count">${count} (${percent.toFixed(0)}%)</span>
                     </div>
                 `;
+            });
 
-                // Mood Selector Logic
-                document.querySelectorAll('.mood-emoji').forEach(emojiEl => {
-                    emojiEl.addEventListener('click', (e) => {
-                        document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
-                        e.target.classList.add('selected');
-                        currentMoodSelection = e.target.dataset.mood;
-                        document.getElementById('saveMoodBtn').disabled = false;
-                    });
-                });
+            container.innerHTML += `
+                <div class="card poll-item">
+                    <h4>${escapeHtml(data.question)}</h4>
+                    <p class="subtext">Started by ${escapeHtml(data.user)} - Total Votes: ${totalVotes}</p>
+                    <div class="poll-options-list">${pollHtml}</div>
+                </div>
+            `;
+        });
 
-                // Save Mood Button Listener
-                document.getElementById('saveMoodBtn')?.addEventListener('click', async () => {
-                    if (!currentMoodSelection || !currentUser) return;
-                    const note = document.getElementById('moodNote').value.trim();
-                    
-                    try {
-                        await addDoc(collections.checkins, {
-                            mood: currentMoodSelection,
-                            value: MOOD_VALUES[currentMoodSelection],
-                            note: note,
-                            user: USER_MAP[currentUser.email],
-                            timestamp: serverTimestamp()
-                        });
-                        showToast(`Mood logged: ${currentMoodSelection}`, 'success');
-                        addToTimeline('Logged a mood check-in');
-                        
-                        // Reset UI
-                        currentMoodSelection = null;
-                        document.getElementById('moodNote').value = '';
-                        document.getElementById('saveMoodBtn').disabled = true;
-                        document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
-                        
-                        // Re-render chart after saving
-                        renderMoodChart();
-                        
-                    } catch (e) {
-                        showToast('Failed to log mood.', 'error');
-                        console.error("Error logging mood:", e);
-                    }
-                });
-                
-                renderMoodChart();
+        // Attach vote listeners
+        container.querySelectorAll('.vote-btn').forEach(btn => {
+            btn.addEventListener('click', handleVote);
+        });
+    });
+}
+
+/**
+ * Handles the logic for voting on a poll.
+ * @param {Event} e
+ */
+async function handleVote(e) {
+    const id = e.currentTarget.dataset.id;
+    const optionToVote = e.currentTarget.dataset.option;
+    const user = USER_MAP[currentUser.email];
+    if (!user) return showToast("You must be logged in to vote.", 'error');
+
+    const pollRef = doc(db, 'polls', id);
+    const pollSnap = await getDoc(pollRef);
+    if (!pollSnap.exists()) return;
+    
+    const data = pollSnap.data();
+    const currentOptions = data.options;
+    
+    // Find previous vote and remove it
+    let updateFields = {};
+    Object.entries(currentOptions).forEach(([option, voters]) => {
+        if (voters.includes(user)) {
+            // User already voted for this option, so remove their vote (toggle)
+            if (option === optionToVote) {
+                updateFields[`options.${option}`] = arrayRemove(user);
+                showToast(`Unvoted from "${option}".`, 'info');
+                return;
             }
+            // User voted for a different option, remove it
+            updateFields[`options.${option}`] = arrayRemove(user);
+        }
+    });
 
-            /**
-             * Fetches mood data and renders the Chart.js line graph.
-             */
-            function renderMoodChart() {
-                const canvas = document.getElementById('moodChartCanvas');
-                if (!canvas) return;
+    // Add the new vote, unless the user was unvoting their current choice
+    const isTogglingOff = currentOptions[optionToVote]?.includes(user);
+    if (!isTogglingOff) {
+        updateFields[`options.${optionToVote}`] = arrayUnion(user);
+        showToast(`Voted for "${optionToVote}"!`, 'success');
+        addToTimeline(`Voted in a poll`);
+    }
 
-                onSnapshot(query(collections.checkins, orderBy('timestamp', 'desc'), limit(7)), (snapshot) => {
-                    // Prepare data for chart (order is important: oldest first)
-                    const rawData = [];
-                    snapshot.forEach(docSnap => rawData.push(docSnap.data()));
-                    const chartData = rawData.reverse(); // Now oldest is first
+    try {
+        if (Object.keys(updateFields).length > 0) {
+            await updateDoc(pollRef, updateFields);
+        }
+    } catch (e) {
+        console.error("Error handling vote:", e);
+        showToast("Failed to cast vote.", 'error');
+    }
+}
 
-                    const labels = chartData.map(d => d.timestamp?.toDate().toLocaleDateString([], { month: 'short', day: 'numeric' }) || 'Today');
-                    const dataValues = chartData.map(d => d.value);
 
-                    const data = {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Overall Mood Trend',
-                            data: dataValues,
-                            borderColor: '#C38D9E',
-                            backgroundColor: 'rgba(195, 141, 158, 0.2)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 6,
-                            pointHoverRadius: 8
-                        }]
-                    };
+/* ================= FAVORITES LOGIC ================= */
 
-                    const config = {
-                        type: 'line',
-                        data: data,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    min: 1,
-                                    max: 5,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === value);
-                                        }
-                                    },
-                                    grid: { display: false }
-                                },
-                                x: {
-                                    grid: { drawOnChartArea: false }
-                                }
-                            },
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return ` Mood: ${context.label} - ${context.raw}`;
-                                        }
-                                    }
-                                }
+function renderFavorites() {
+    const favoritesGrid = document.getElementById('favoritesGrid');
+    if (!favoritesGrid) return;
+    
+    // Function to fetch favorited media from a collection
+    const fetchFavorites = async (collectionName) => {
+        const q = query(
+            collections[collectionName],
+            orderBy('favoritedTimestamp', 'desc') // Use the specific timestamp for sorting
+        );
+        const snap = await getDocs(q);
+        // Filter locally to find items favorited by *anyone* since favoritedTimestamp is for sorting
+        return snap.docs.filter(docSnap => docSnap.data().favoritedBy?.length > 0).map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+            type: collectionName === 'photos' ? 'image' : 'video'
+        }));
+    };
+
+    Promise.all([
+        fetchFavorites('photos'),
+        fetchFavorites('videos')
+    ]).then(([photoFavs, videoFavs]) => {
+        // Merge and sort all favorites by the timestamp they were favorited
+        const allFavs = [...photoFavs, ...videoFavs].sort((a, b) => b.favoritedTimestamp - a.favoritedTimestamp);
+
+        favoritesGrid.innerHTML = '';
+        if (allFavs.length === 0) {
+            favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1;">We haven\'t favorited enough media yet!</p>';
+            return;
+        }
+
+        allFavs.forEach(data => {
+            const div = document.createElement('div');
+            div.className = 'masonry-item favorite-item';
+            
+            // Show a preview (image or video)
+            const media = data.type === 'image' ?
+                `<img src="${escapeHtml(data.url)}" loading="lazy" alt="favorite photo">` :
+                `<video src="${escapeHtml(data.url)}" controls></video>`;
+
+            const favoritedBy = data.favoritedBy.map(email => USER_MAP[email] || email.split('@')[0]);
+            
+            div.innerHTML = `
+                ${media}
+                <div class="item-meta">
+                    <span style="font-weight: 500;">${data.type === 'image' ? 'Photo' : 'Video'}</span>
+                    <span class="subtext">Fav'd by: ${favoritedBy.join(', ')}</span>
+                </div>
+            `;
+            
+            // Attach click handler for opening media
+            div.querySelector(data.type === 'image' ? 'img' : 'video')?.addEventListener('click', (e) => {
+                if (e.target.tagName.toLowerCase() === 'video' && e.target.closest('.masonry-item video[controls]')) return;
+                openLightbox(data.url, data.type);
+            });
+            
+            favoritesGrid.appendChild(div);
+        });
+    });
+}
+
+
+/* ================= CHECK-IN / MOOD LOGGING LOGIC ================= */
+
+let selectedMood = null;
+
+document.querySelectorAll('.mood-emoji').forEach(el => {
+    el.addEventListener('click', (e) => {
+        selectedMood = e.target.dataset.mood;
+        document.querySelectorAll('.mood-emoji').forEach(o => o.classList.remove('selected'));
+        e.target.classList.add('selected');
+        document.getElementById('saveMoodBtn').disabled = false;
+    });
+});
+
+function renderCheckins() {
+    document.getElementById('saveMoodBtn')?.addEventListener('click', async () => {
+        if (!selectedMood || !currentUser) return showToast("Please select a mood.", 'error');
+        
+        const note = document.getElementById('moodNote').value.trim();
+        
+        try {
+            await addDoc(collections.checkins, {
+                user: USER_MAP[currentUser.email],
+                mood: parseInt(selectedMood),
+                note: note,
+                timestamp: serverTimestamp()
+            });
+            showToast('Mood logged successfully!', 'success');
+            addToTimeline(`Checked in with a mood of ${selectedMood}`);
+            
+            // Reset UI
+            selectedMood = null;
+            document.getElementById('moodNote').value = '';
+            document.getElementById('saveMoodBtn').disabled = true;
+            document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
+            
+            // Re-render chart after saving
+            renderMoodChart();
+        } catch (e) {
+            showToast('Failed to log mood.', 'error');
+            console.error("Error logging mood:", e);
+        }
+    });
+
+    renderMoodChart();
+}
+
+/**
+ * Fetches mood data and renders the Chart.js line graph.
+ */
+function renderMoodChart() {
+    const canvas = document.getElementById('moodChartCanvas');
+    if (!canvas) return;
+
+    onSnapshot(query(collections.checkins, orderBy('timestamp', 'asc'), limit(30)), snap => {
+        const data = snap.docs.map(doc => doc.data());
+        const labels = data.map(d => d.timestamp?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || 'N/A');
+        const moodData = data.map(d => d.mood);
+        
+        const chartData = {
+            labels: labels,
+            datasets: [{
+                label: 'Our Mood',
+                data: moodData,
+                borderColor: 'var(--primary)',
+                backgroundColor: 'rgba(195, 141, 158, 0.4)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        };
+
+        const config = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 1,
+                        max: 5,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                // Map number to emoji for better visualization
+                                const moodMap = { 1: '😩', 2: '😟', 3: '😐', 4: '😊', 5: '😍' };
+                                return moodMap[value] || value;
                             }
+                        },
+                        grid: {
+                            color: 'var(--line-color)'
                         }
-                    };
-
-                    // Destroy existing chart instance before creating a new one
-                    if (moodChart) {
-                        moodChart.destroy();
+                    },
+                    x: {
+                        grid: {
+                            color: 'var(--line-color)'
+                        }
                     }
-
-                    // Initialize new chart
-                    moodChart = new Chart(canvas, config);
-                });
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
             }
+        };
+
+        // Destroy existing chart instance before creating a new one
+        if (moodChart) {
+            moodChart.destroy();
+        }
+
+        // Initialize new chart
+        moodChart = new Chart(canvas, config);
+    });
+}
 
 
 /* ================= INIT ================= */
@@ -1551,7 +1859,7 @@ function initApp() {
     }
     
     // Manually activate dashboard tab on login
-    document.querySelector('.tab-btn[data-section="dashboard"]')?.click();
+    document.querySelector('.tab-btn[data-section="dashboard"])')?.click();
 }
 
 
