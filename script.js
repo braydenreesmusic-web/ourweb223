@@ -12,15 +12,16 @@ import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.um
 import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "brayden-youna-app.firebaseapp.com",
-  projectId: "brayden-youna-app",
-  storageBucket: "brayden-youna-app.appspot.com",
-  messagingSenderId: "...",
-  appId: "...",
-  databaseURL: "https://brayden-youna-app-default-rtdb.firebaseio.com",
-  measurementId: "..."
+  apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
+  authDomain: "ourwebsite223.firebaseapp.com",
+  databaseURL: "https://ourwebsite223-default-rtdb.firebaseio.com",
+  projectId: "ourwebsite223",
+  storageBucket: "ourwebsite223.firebasestorage.app",
+  messagingSenderId: "978864749848",
+  appId: "1:978864749848:web:dc2a053e7c6647c407f26d",
+  measurementId: "G-0PQL5ZR1R5"
 };
 
 // --- Initialization (REQUIRED) ---
