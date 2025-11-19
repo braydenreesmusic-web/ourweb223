@@ -1,352 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Brayden & Youna</title>
-    <link rel="stylesheet" href="style.css">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <meta name="theme-color" content="#F2F2F7">
-    <style>
-        /* Utility class used by JavaScript to hide containers */
-        .hidden { display: none !important; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Shared Life</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body class="ios-theme">
-    <div id="toastContainer" class="toast-container"></div>
-    
-    <div id="authModal" class="modal">
-        <div class="modal-content blur-bg">
-            <div class="modal-header">
-                <h2>Sign In</h2>
-                <p class="subtitle">Choose your profile</p>
-            </div>
-            <div class="auth-switch">
-                <button id="braydenLogin" class="btn primary active">Brayden</button>
-                <button id="younaLogin" class="btn ghost">Youna</button>
-            </div>
-            <div class="input-group">
-                <input type="email" id="authEmail" placeholder="Email" readonly>
-                <input type="password" id="authPassword" placeholder="Password" required>
-            </div>
-            <button id="signInBtn" class="btn primary full-width">Sign In</button>
-        </div>
+<body>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div>
+      <div class="header-title">Shared Life</div>
+      <div class="header-subtitle">Your dashboard for everything</div>
     </div>
+    <button id="profileBtn" class="btn icon-btn">⋯</button>
+  </header>
 
-    <div class="background-animation"></div>
+  <main class="container">
+    <!-- DASHBOARD -->
+    <section data-section="dashboard">
+      <div class="card">
+        <h2 class="section-title">Time Together</h2>
+        <div id="daysCounter">Calculating...</div>
+        <div class="section-subtitle">Together Since 05/09/2024</div>
+      </div>
 
-    <div id="mainApp" class="hidden">
-        <header class="header">
-            <div class="header-top">
-                <div class="logo-area">
-                    <h1 class="logo">B & Y</h1>
-                </div>
-                
-                <div class="header-controls">
-                    <div class="theme-toggle-wrapper">
-                        <input type="checkbox" id="darkModeToggle">
-                        <label for="darkModeToggle" class="theme-switch">
-                            <span class="icon sun">☀</span>
-                            <span class="icon moon">☾</span>
-                        </label>
-                    </div>
-                    <div class="divider-vertical"></div>
-                    <button id="logoutBtn" class="btn icon-btn logout-btn" aria-label="Logout">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <main class="container">
-            <section id="home" class="section active">
-                <div class="section-header">
-                    <h2>Shared Life</h2>
-                    <p>Your dashboard for everything.</p>
-                </div>
-
-                <div class="dashboard-grid">
-                    <div class="card stat-card">
-                        <div class="stat-icon">❤️</div>
-                        <h3 id="daysCounter" class="stat-value">Calculating...</h3>
-                        <p class="stat-label">Together Since 05/09/2024</p>
-                    </div>
-                    
-                    <div class="card savings-card">
-                        <div class="savings-card-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:1.5em;">💰</span>
-                                <h3 style="margin:0; font-weight:600;">Savings Goal</h3>
-                            </div>
-                            <button id="addSavingsBtn" class="btn secondary small">Log Save</button>
-                        </div>
-                        <h2 id="currentSavings" style="font-size:1.8em; margin:0 0 5px; font-weight:700;">$0.00</h2>
-                        <div class="savings-progress-bar" id="setGoalTrigger">
-                            <div class="savings-progress-fill" id="savingsProgressFill" style="width: 0%;"></div>
-                        </div>
-                        <div class="savings-details">
-                            <span id="savingsGoal">$0 / $10,000</span>
-                            <span id="savingsPercent">0%</span>
-                        </div>
-                    </div>
-                    <div class="card presence-card-combined">
-                        <div class="presence-item">
-                            <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
-                            <span id="braydenPresenceText">Brayden Offline</span>
-                        </div>
-                        <div class="presence-item">
-                            <span id="younaPresence" class="presence-dot" title="Youna"></span>
-                            <span id="younaPresenceText">Youna Offline</span>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="sub-header">Upcoming Events</h3>
-                <div id="homeEventsList" class="list-layout"></div>
-
-                <h3 class="sub-header">Latest Note</h3>
-                <div id="homeLatestNote">
-                     </div>
-            </section>
-
-            <section id="schedule" class="section">
-                <div class="section-header">
-                    <h2>Schedule</h2>
-                    <p>Plan your weeks together.</p>
-                </div>
-                <div class="card calendar-header">
-                    <button id="prevMonth" class="btn icon-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                    </button>
-                    <h3 id="monthYear">November 2025</h3>
-                    <button id="nextMonth" class="btn icon-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </button>
-                </div>
-                <div class="calendar-grid-wrapper card">
-                    <div class="calendar-weekdays">
-                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-                    </div>
-                    <div id="calendarGrid" class="calendar-grid">
-                        </div>
-                </div>
-                <h3 class="sub-header">Event List</h3>
-                <div id="eventsList" class="list-layout">
-                    </div>
-                <div class="card input-block">
-                    <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
-                    <input type="date" id="eventDate" class="glass-input">
-                    <button id="addEventBtn" class="btn primary full-width">Add Event</button>
-                </div>
-            </section>
-
-            <section id="notes" class="section">
-                <div class="section-header">
-                    <h2>Notes</h2>
-                    <p>Share thoughts and updates.</p>
-                </div>
-                <div class="card input-block note-composer">
-                    <textarea id="noteInput" placeholder="Write a note..." rows="3"></textarea>
-                    <div class="composer-footer">
-                        <button id="voiceNoteBtn" class="btn icon-btn" aria-label="Record Voice Note">🎤</button>
-                        <button id="saveNoteBtn" class="btn primary small">Send</button>
-                    </div>
-                    <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
-                </div>
-                <div id="notesList" class="list-layout">
-                    </div>
-            </section>
-
-            <section id="photos" class="section">
-                <div class="section-header">
-                    <h2>Photos</h2>
-                    <p>Your uploaded pictures.</p>
-                </div>
-                <div class="upload-card" data-type="photos">
-                    <div class="upload-icon">📷</div>
-                    <span>Add Photo</span>
-                    <input type="file" id="photoInput" accept="image/*" multiple hidden>
-                    <div class="progress-bar"><div class="fill" id="photoProgress"></div></div>
-                </div>
-                <div class="masonry-grid" id="photoGallery">
-                    </div>
-            </section>
-
-            <section id="videos" class="section">
-                <div class="section-header">
-                    <h2>Videos</h2>
-                    <p>Your uploaded videos.</p>
-                </div>
-                <div class="upload-card" data-type="videos">
-                    <div class="upload-icon">🎥</div>
-                    <span>Add Video</span>
-                    <input type="file" id="videoInput" accept="video/*" multiple hidden>
-                    <div class="progress-bar"><div class="fill" id="videoProgress"></div></div>
-                </div>
-                <div class="masonry-grid" id="videoGallery">
-                    </div>
-            </section>
-            
-            <section id="music" class="section">
-                <div class="section-header">
-                    <h2>Music</h2>
-                    <p>Songs you've added.</p>
-                </div>
-                
-                <div class="music-controls-wrapper card input-block">
-                    <div class="search-row">
-                        <input type="text" id="musicInput" class="glass-input" placeholder="Search a song title or artist">
-                        <button id="musicSearchBtn" class="btn primary icon-btn" aria-label="Search">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        </button>
-                    </div>
-                    <div id="musicSearchResults" class="list-layout hidden">
-                        </div>
-                </div>
-
-                <h3 class="sub-header">Your Playlist</h3>
-                <div id="savedMusic" class="list-layout">
-                    </div>
-            </section>
-
-            <section id="mapSection" class="section">
-                <div class="section-header">
-                    <h2>Map</h2>
-                    <p>Where we've been and where we're going.</p>
-                </div>
-                <div id="mapContainer" class="card map-container">
-                    </div>
-                
-                <h3 class="sub-header">Pinned Memories</h3>
-                <button id="addMemoryBtn" class="btn secondary full-width" style="margin-bottom: 15px;">Pin a New Memory</button>
-                <div id="memoriesList" class="list-layout">
-                    </div>
-            </section>
-
-            <section id="timelineSection" class="section">
-                <div class="section-header">
-                    <h2>Timeline</h2>
-                    <p>A history of our shared actions.</p>
-                </div>
-                <div id="timelineContainer" class="timeline-container card">
-                    </div>
-            </section>
-
-            <section id="favoritesSection" class="section">
-                <div class="section-header">
-                    <h2>Favorites</h2>
-                    <p>Our favorite things, saved.</p>
-                </div>
-                <div class="card input-block">
-                    <input type="text" id="favTitle" placeholder="Title (e.g., Restaurant name)" class="glass-input">
-                    <input type="text" id="favLink" placeholder="Link (Optional)" class="glass-input">
-                    <textarea id="favNotes" placeholder="Notes (e.g., What we liked)" rows="2"></textarea>
-                    <button id="saveFavoriteBtn" class="btn primary full-width">Add Favorite</button>
-                </div>
-                <div id="favoritesList" class="list-layout">
-                    </div>
-            </section>
-
-        </main>
-        
-        <nav class="tab-bar">
-            <button class="tab-btn active" data-section="home">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                <span class="tab-label">Home</span>
-            </button>
-            <button class="tab-btn" data-section="schedule">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                <span class="tab-label">Events</span>
-            </button>
-            <button class="tab-btn" data-section="notes">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                <span class="tab-label">Notes</span>
-            </button>
-            <button class="tab-btn" data-section="photos">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                <span class="tab-label">Media</span>
-            </button>
-            <button class="tab-btn" data-section="mapSection">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                <span class="tab-label">Map</span>
-            </button>
-        </nav>
-        
-        <div id="lightbox" class="lightbox">
-            <button class="close-lightbox" aria-label="Close">&times;</button>
-            <div id="lightboxMediaContainer" class="lightbox-media-container">
-                </div>
-            <div id="lightboxCaption" class="lightbox-caption"></div>
+      <div class="card savings-card">
+        <h2 class="section-title">Savings Goal</h2>
+        <div class="savings-amount" id="savingsAmount">$0.00</div>
+        <div id="savingsProgressLabel">$0 / $10,000 • 0%</div>
+        <div class="savings-progress-bar" id="savingsProgressBar">
+          <div class="savings-progress-fill" id="savingsProgressFill"></div>
         </div>
+      </div>
 
-        <div id="memoryModal" class="modal">
-            <div class="modal-content card">
-                <h3>Pin a Memory</h3>
-                <input type="text" id="memoryTitle" placeholder="Memory Title" class="glass-input" required>
-                <textarea id="memoryDesc" placeholder="Description (Optional)" class="glass-input" rows="2"></textarea>
-                <div class="input-group-inline">
-                    <input type="number" id="latInput" placeholder="Latitude" class="glass-input" step="0.000001">
-                    <input type="number" id="lngInput" placeholder="Longitude" class="glass-input" step="0.000001">
-                </div>
-                <button id="getCurrentLocation" class="btn ghost full-width">Use Current Location</button>
-                <div class="modal-footer">
-                    <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
-                    <button id="saveMemoryBtn" class="btn primary">Pin</button>
-                </div>
-            </div>
+      <div class="card presence-card-combined">
+        <div class="presence-chip">
+          <span class="presence-dot" id="braydenPresenceDot"></span>
+          <span class="presence-name">Brayden</span>
+          <span class="presence-status" id="braydenPresenceStatus">Offline</span>
         </div>
-        
-        <div id="savingsModal" class="modal">
-            <div class="modal-content card">
-                <h3>Log Savings</h3>
-                <input type="number" id="savingsAmountInput" placeholder="Amount saved ($)" class="glass-input" step="0.01">
-                <input type="text" id="savingsNoteInput" placeholder="Note (e.g., Paycheck, Bonus)" class="glass-input">
-                <div class="modal-footer">
-                    <button id="cancelSavingsBtn" class="btn ghost">Cancel</button>
-                    <button id="saveSavingsBtn" class="btn primary">Log</button>
-                </div>
-            </div>
+        <div class="presence-chip">
+          <span class="presence-dot" id="younaPresenceDot"></span>
+          <span class="presence-name">Youna</span>
+          <span class="presence-status" id="younaPresenceStatus">Offline</span>
         </div>
-        <div id="goalModal" class="modal">
-            <div class="modal-content card">
-                <h3>Set Savings Goal</h3>
-                <input type="number" id="goalAmountInput" placeholder="Goal Amount ($10,000)" class="glass-input" step="0.01">
-                <div class="modal-footer">
-                    <button id="cancelGoalBtn" class="btn ghost">Cancel</button>
-                    <button id="setGoalBtn" class="btn primary">Set Goal</button>
-                </div>
-            </div>
-        </div>
+      </div>
 
-        <div id="replyModal" class="modal action-sheet">
-            <div class="modal-content action-sheet-content">
-                <div class="sheet-header">
-                    <h4>Reply to Note</h4>
-                    <button class="btn icon-btn close-sheet">&times;</button>
-                </div>
-                <div id="originalNoteContent" class="original-note-preview card">
-                    </div>
-                <div class="input-block reply-input-block">
-                    <input type="text" id="replyInput" placeholder="Your reply or emoji..." class="glass-input">
-                    <button id="sendReplyBtn" class="btn primary small">Send</button>
-                </div>
-            </div>
-        </div>
-    </div>
+      <div class="card">
+        <h2 class="section-title">Upcoming Events</h2>
+        <div id="eventsList" class="events-list"></div>
+      </div>
 
-    <script type="module" src="script.js"></script>
+      <div class="card">
+        <h2 class="section-title">Latest Note</h2>
+        <div id="latestNote"></div>
+      </div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section data-section="schedule" class="hidden">
+      <div class="card">
+        <h2 class="section-title">Schedule</h2>
+        <p class="section-subtitle">Plan your weeks together.</p>
+        <div class="calendar-header">
+          <button id="prevMonth" class="btn ghost">&lt;</button>
+          <div id="monthYear">Month 2025</div>
+          <button id="nextMonth" class="btn ghost">&gt;</button>
+        </div>
+        <div class="calendar-grid-header">
+          <span>Sun</span><span>Mon</span><span>Tue</span>
+          <span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="schedule-header">
+          <h3 class="section-title">Event List</h3>
+          <button id="addEventToggleBtn" class="btn secondary">Add</button>
+        </div>
+        <div id="eventForm" class="hidden">
+          <input id="eventTitle" class="glass-input" placeholder="Event title" />
+          <input id="eventDate" type="date" class="glass-input" />
+          <div class="event-form-actions">
+            <button id="cancelEventBtn" class="btn ghost">Cancel</button>
+            <button id="saveEventBtn" class="btn primary">Save</button>
+          </div>
+        </div>
+        <div id="eventsListFull"></div>
+      </div>
+    </section>
+
+    <!-- MEDIA (Photos / Videos / Music) -->
+    <section data-section="media" class="hidden">
+      <div class="card">
+        <h2 class="section-title">Notes</h2>
+        <p class="section-subtitle">Share thoughts and updates.</p>
+        <div id="notesList"></div>
+        <textarea id="noteContent" rows="3" class="glass-input" placeholder="Write a note..."></textarea>
+        <button id="addNoteBtn" class="btn primary">Add Note</button>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Photos</h2>
+        <p class="section-subtitle">Your uploaded pictures.</p>
+        <input type="text" id="photoUrl" class="glass-input" placeholder="Paste photo URL" />
+        <button id="addPhotoBtn" class="btn primary">Add Photo</button>
+        <div id="photosGrid" class="media-grid"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Videos</h2>
+        <p class="section-subtitle">Your uploaded videos.</p>
+        <input type="text" id="videoUrl" class="glass-input" placeholder="Paste video URL" />
+        <button id="addVideoBtn" class="btn primary">Add Video</button>
+        <div id="videosGrid" class="media-grid"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Music</h2>
+        <p class="section-subtitle">Songs you've added.</p>
+        <input type="text" id="musicUrl" class="glass-input" placeholder="Paste song URL" />
+        <button id="addMusicBtn" class="btn primary">Add Song</button>
+        <div id="musicList"></div>
+      </div>
+    </section>
+
+    <!-- MAP / MEMORIES -->
+    <section data-section="map" class="hidden">
+      <div class="card">
+        <h2 class="section-title">Map</h2>
+        <p class="section-subtitle">Where we've been and where we're going.</p>
+        <div id="mapContainer">
+          <div id="map" style="height: 260px; border-radius: 14px; overflow: hidden;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Pinned Memories</h2>
+        <div id="memoriesList"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Timeline</h2>
+        <p class="section-subtitle">A history of our shared actions.</p>
+        <div id="timelineList"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Favorites</h2>
+        <p class="section-subtitle">Our favorite things, saved.</p>
+        <div id="favoritesList"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- iOS-style Action Sheet container generated in JS -->
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="dashboard">
+      <span class="icon">🏠</span>
+      <span>Home</span>
+    </button>
+    <button class="tab-btn" data-tab="schedule">
+      <span class="icon">📅</span>
+      <span>Schedule</span>
+    </button>
+    <button class="tab-btn" data-tab="media">
+      <span class="icon">🖼️</span>
+      <span>Media</span>
+    </button>
+    <button class="tab-btn" data-tab="map">
+      <span class="icon">🗺️</span>
+      <span>Map</span>
+    </button>
+  </nav>
+
+  <script type="module" src="script.js"></script>
 </body>
 </html>
