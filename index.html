@@ -21,7 +21,7 @@
 </head>
 <body>
     
-    <div id="toast" class="toast"></div>
+    <div id="toastContainer"></div>
 
     <div id="mainAppContainer">
         
@@ -49,25 +49,47 @@
             
             <section id="dashboard" class="content-section active">
                 <div class="card-grid">
-                    <div id="moodCard" class="card dash-card blur-bg">
+                    <div id="weatherCard" class="card dash-card blur-bg" style="grid-column: span 2;">
+                        <h3>Weather</h3>
+                        <div style="display: flex; justify-content: space-around;">
+                            <div id="weatherCardBrayden" class="weather-col">Loading...</div>
+                            <div id="weatherCardYouna" class="weather-col">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="moodCard" class="card dash-card blur-bg" style="grid-column: span 2;">
                         <h3>Our Mood</h3>
                         <canvas id="moodChartCanvas"></canvas>
                         <p class="card-footer subtext">Last updated: <span id="lastMoodUpdate"></span></p>
                     </div>
                     
+                    <div id="statsCard" class="card dash-card blur-bg">
+                        <h3>Our Stats</h3>
+                        <div id="statsContent" class="stat-grid">Loading stats...</div>
+                    </div>
+
+                    <div id="milestonesCard" class="card dash-card blur-bg">
+                        <h3>Milestones</h3>
+                        <div id="milestonesContent" class="list-container">Loading milestones...</div>
+                    </div>
+
                     <div id="musicCard" class="card dash-card blur-bg">
                         <h3>Currently Listening</h3>
                         <div id="currentMusic" class="music-info">
                             <i class="fas fa-music"></i>
                             <p>Loading...</p>
                         </div>
-                        <button id="addMusicBtn" class="btn primary small full-width" style="margin-top: 10px;">Add Song</button>
+                        <div class="music-search-area" style="margin-top: 15px;">
+                            <input type="text" id="musicInput" placeholder="Search song/artist" class="glass-input full-width">
+                            <button id="addMusicBtn" class="btn primary small full-width" style="margin-top: 10px;">Search & Add Song</button>
+                            <div id="musicSearchResults" class="list-container hidden" style="margin-top: 10px;"></div>
+                        </div>
+                        <div id="musicList" class="list-container" style="margin-top: 15px;"></div>
                     </div>
-                    
-                    <div id="favoritesCard" class="card dash-card blur-bg">
+
+                    <div id="favoritesCard" class="card dash-card blur-bg" style="grid-column: span 2;">
                         <h3>Our Favorites</h3>
-                        <ul id="favoritesList" class="list-container">
-                            </ul>
+                        <div id="favoritesGrid" class="masonry-grid list-container"></div>
                         <button id="addFavoriteBtn" class="btn secondary small full-width">Add New</button>
                     </div>
                     
@@ -77,6 +99,11 @@
                             <p class="subtext">No notes yet.</p>
                         </div>
                         <button class="btn secondary small full-width" onclick="document.querySelector('.tab-btn[data-section=\"notes\"]').click()">Go to Notes</button>
+                    </div>
+
+                    <div id="recentCard" class="card dash-card blur-bg">
+                        <h3>Recent Activity</h3>
+                        <div id="recentContent" class="list-container">Loading recent activity...</div>
                     </div>
                 </div>
             </section>
@@ -109,10 +136,21 @@
 
             <section id="notes" class="content-section">
                 <h2>Notes & Letters</h2>
+                
+                <div class="card blur-bg note-controls" style="margin-bottom: 20px;">
+                    <textarea id="noteInput" placeholder="Write a new note or reply..." class="glass-input" rows="3"></textarea>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button id="saveNoteBtn" class="btn primary small flex-grow"><i class="fas fa-paper-plane"></i> Send</button>
+                        <button id="pinNoteBtn" class="btn secondary small"><i class="fas fa-thumbtack"></i> Pin</button>
+                        <button id="startVoiceNote" class="btn secondary small"><i class="fas fa-microphone"></i> Start Voice</button>
+                        <button id="stopVoiceNote" class="btn error small hidden"><i class="fas fa-stop-circle"></i> Stop</button>
+                    </div>
+                    <div id="voiceNoteStatus" class="subtext" style="margin-top: 5px;"></div>
+                </div>
+                
                 <div id="notesContainer">
                     </div>
-                <button id="addNoteBtn" class="btn primary full-width"><i class="fas fa-feather-alt"></i> Write a Note</button>
-            </section>
+                </section>
             
             <section id="settings" class="content-section">
                 <h2>Settings</h2>
