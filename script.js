@@ -1,5 +1,6 @@
-// script.js - Optimized, Functional, and Amazing (updated fixes)
+// script.js - iOS-style Shared Life (fixed)
 
+/* Firebase imports */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
   getFirestore,
@@ -27,7 +28,7 @@ import {
   onValue
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// --- Configuration ---
+/* --- Firebase config --- */
 const firebaseConfig = {
   apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
   authDomain: "ourwebsite223.firebaseapp.com",
@@ -38,13 +39,13 @@ const firebaseConfig = {
   measurementId: "G-823MYFCCMG"
 };
 
-// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const rtdb = getDatabase(app);
 
-const collections = {
+/* --- Collections --- */
+const collectionsMap = {
   photos: collection(db, "photos"),
   videos: collection(db, "videos"),
   music: collection(db, "music"),
@@ -55,6 +56,7 @@ const collections = {
   memories: collection(db, "memories")
 };
 
+/* --- Users --- */
 const USER_MAP = {
   "brayden@love.com": "Brayden",
   "youna@love.com": "Youna"
@@ -69,11 +71,8 @@ const START_DATE = new Date("2024-05-09T00:00:00");
 
 let currentUser = null;
 let mapInstance = null;
-let memoryMarkers = [];
 let mediaMarkers = [];
 let currentCalDate = new Date();
-let mediaRecorder = null;
-let audioChunks = [];
 
 /* ================= UI HELPERS ================= */
 
@@ -131,9 +130,8 @@ function updateTimeTogether() {
 }
 setInterval(updateTimeTogether, 1000);
 
-/* --- Action Sheet Helper (fixed) --- */
+/* --- Action Sheet --- */
 function createActionSheet(title, actionBlocks) {
-  // Remove any previous action sheets
   document
     .querySelectorAll(".action-sheet-backdrop")
     .forEach(m => m.remove());
@@ -169,34 +167,35 @@ function createActionSheet(title, actionBlocks) {
   backdrop.appendChild(sheet);
 
   backdrop.addEventListener("click", e => {
-    if (e.target === backdrop) {
-      document.body.removeChild(backdrop);
-    }
+    if (e.target === backdrop) document.body.removeChild(backdrop);
   });
 
   document.body.appendChild(backdrop);
 }
 
-/* Long‑press helper */
-function attachLongPressListener(element, id, collectionName, previewText, onAfterDelete) {
+/* Long press for destructive actions */
+function attachLongPressListener(
+  element,
+  id,
+  collectionName,
+  previewText,
+  onAfterDelete
+) {
   if (!element) return;
   let pressTimer = null;
 
-  element.addEventListener("touchstart", e => {
+  element.addEventListener("touchstart", () => {
     pressTimer = setTimeout(() => {
       createActionSheet(previewText, [
         {
           label: "Delete",
           type: "destructive",
           onClick: async () => {
-            await deleteDoc(doc(collections[collectionName], id));
+            await deleteDoc(doc(collectionsMap[collectionName], id));
             if (onAfterDelete) onAfterDelete();
           }
         },
-        {
-          label: "Cancel",
-          type: "cancel"
-        }
+        { label: "Cancel", type: "cancel" }
       ]);
     }, 600);
   });
@@ -206,9 +205,77 @@ function attachLongPressListener(element, id, collectionName, previewText, onAft
   );
 }
 
-/* ================= AUTH & PRESENCE (same API logic as before) ================= */
-// Auth UI wiring omitted for brevity; reuse your existing auth logic,
-// just keep using USER_MAP and USERS as above and call showToast where needed.
+/* ================= AUTH & PRESENCE ================= */
+
+function setPresence(userId, isOnline) {
+  const statusRef = ref(rtdb, `presence/${userId}`);
+  set(statusRef, { online: isOnline, lastChanged: Date.now() });
+}
+
+function watchPresence(userId, dotId, statusId) {
+  const statusRef = ref(rtdb, `presence/${userId}`);
+  const dot = document.getElementById(dotId);
+  const statusEl = document.getElementById(statusId);
+  onValue(statusRef, snap => {
+    const val = snap.val();
+    const online = val && val.online;
+    if (dot) {
+      dot.classList.toggle("online", !!online);
+    }
+    if (statusEl) {
+      statusEl.textContent = online ? "Online" : "Offline";
+    }
+  });
+}
+
+async function login() {
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  if (!email || !password) {
+    showToast("Enter email and password", "error");
+    return;
+  }
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    currentUser = cred.user;
+    showToast("Welcome back", "success");
+  } catch (e) {
+    showToast("Login failed", "error");
+  }
+}
+
+function logout() {
+  signOut(auth);
+}
+
+/* auth UI wiring */
+document.getElementById("loginBtn")?.addEventListener("click", login);
+document
+  .getElementById("passwordInput")
+  ?.addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+document.getElementById("logoutBtn")?.addEventListener("click", logout);
+
+/* auth state */
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  const authScreen = document.getElementById("authScreen");
+  if (user) {
+    authScreen.style.display = "none";
+    const name = USER_MAP[user.email] || "User";
+    setPresence(name, true);
+    onDisconnect(ref(rtdb, `presence/${name}`)).set({
+      online: false,
+      lastChanged: Date.now()
+    });
+
+    watchPresence("Brayden", "braydenPresenceDot", "braydenPresenceStatus");
+    watchPresence("Youna", "younaPresenceDot", "younaPresenceStatus");
+  } else {
+    authScreen.style.display = "flex";
+  }
+});
 
 /* ================= NOTES ================= */
 
@@ -217,7 +284,7 @@ function renderNotes() {
   if (!list) return;
 
   onSnapshot(
-    query(collections.notes, orderBy("timestamp", "desc"), limit(20)),
+    query(collectionsMap.notes, orderBy("timestamp", "desc"), limit(30)),
     snap => {
       list.innerHTML = "";
       snap.forEach(docSnap => {
@@ -237,9 +304,7 @@ function renderNotes() {
                 <button class="delete-note-trigger">Delete</button>
               </div>
             </div>
-            <div class="note-body">${escapeHtml(
-              data.content || ""
-            )}</div>
+            <div class="note-body">${escapeHtml(data.content || "")}</div>
           </div>
         `;
 
@@ -264,7 +329,7 @@ function renderNotes() {
                 label: "Delete",
                 type: "destructive",
                 onClick: async () => {
-                  await deleteDoc(doc(collections.notes, id));
+                  await deleteDoc(doc(collectionsMap.notes, id));
                   showToast("Note deleted", "success");
                 }
               },
@@ -277,29 +342,75 @@ function renderNotes() {
       });
     }
   );
+
+  /* latest note on dashboard */
+  const latestEl = document.getElementById("latestNote");
+  if (latestEl) {
+    onSnapshot(
+      query(collectionsMap.notes, orderBy("timestamp", "desc"), limit(1)),
+      snap => {
+        latestEl.innerHTML = "";
+        snap.forEach(docSnap => {
+          const data = docSnap.data();
+          latestEl.textContent =
+            (data.content || "").substring(0, 80) || "No notes yet.";
+        });
+      }
+    );
+  }
 }
 
 document.getElementById("addNoteBtn")?.addEventListener("click", async () => {
   const contentEl = document.getElementById("noteContent");
   const content = contentEl.value.trim();
   if (!content || !currentUser) return;
-  await addDoc(collections.notes, {
+  await addDoc(collectionsMap.notes, {
     content,
-    user: USER_MAP[currentUser.email],
+    user: USER_MAP[currentUser.email] || "User",
     timestamp: serverTimestamp()
   });
   contentEl.value = "";
   showToast("Note added", "success");
 });
 
-/* ================= CALENDAR ================= */
+/* ================= SAVINGS (simple demo) ================= */
+
+let currentSavings = 0;
+const savingsGoal = 10000;
+
+function updateSavingsUI() {
+  const amountEl = document.getElementById("savingsAmount");
+  const labelEl = document.getElementById("savingsProgressLabel");
+  const fillEl = document.getElementById("savingsProgressFill");
+  const pct = Math.min(100, (currentSavings / savingsGoal) * 100);
+
+  if (amountEl) amountEl.textContent = `$${currentSavings.toFixed(2)}`;
+  if (labelEl)
+    labelEl.textContent = `$${currentSavings.toFixed(
+      0
+    )} / $${savingsGoal.toLocaleString()} • ${pct.toFixed(0)}%`;
+  if (fillEl) fillEl.style.width = `${pct}%`;
+}
+
+document
+  .getElementById("savingsProgressBar")
+  ?.addEventListener("click", () => {
+    const inc = prompt("Add amount to savings (number):", "100");
+    const num = Number(inc);
+    if (!isNaN(num) && num > 0) {
+      currentSavings += num;
+      updateSavingsUI();
+    }
+  });
+
+/* ================= CALENDAR & EVENTS ================= */
 
 function renderCalendar(date) {
   const grid = document.getElementById("calendarGrid");
   const monthYear = document.getElementById("monthYear");
   if (!grid) return;
-
   grid.innerHTML = "";
+
   const year = date.getFullYear();
   const month = date.getMonth();
   monthYear.textContent = date.toLocaleDateString("en-US", {
@@ -343,19 +454,15 @@ function renderCalendar(date) {
   loadEventsForMonth(date);
 }
 
-document
-  .getElementById("prevMonth")
-  ?.addEventListener("click", () => {
-    currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-    renderCalendar(currentCalDate);
-  });
+document.getElementById("prevMonth")?.addEventListener("click", () => {
+  currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+  renderCalendar(currentCalDate);
+});
 
-document
-  .getElementById("nextMonth")
-  ?.addEventListener("click", () => {
-    currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-    renderCalendar(currentCalDate);
-  });
+document.getElementById("nextMonth")?.addEventListener("click", () => {
+  currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+  renderCalendar(currentCalDate);
+});
 
 document
   .getElementById("addEventToggleBtn")
@@ -372,25 +479,24 @@ document
 document
   .getElementById("saveEventBtn")
   ?.addEventListener("click", async () => {
-    const title = document.getElementById("eventTitle").value;
+    const title = document.getElementById("eventTitle").value.trim();
     const date = document.getElementById("eventDate").value;
-    if (title && date && currentUser) {
-      await addDoc(collections.events, {
-        title,
-        date,
-        user: USER_MAP[currentUser.email],
-        timestamp: serverTimestamp()
-      });
-      document.getElementById("eventForm").classList.add("hidden");
-      document.getElementById("eventTitle").value = "";
-      renderCalendar(currentCalDate);
-      showToast("Event saved", "success");
-      addToTimeline(`New Plan: ${title}`);
-    }
+    if (!title || !date || !currentUser) return;
+    await addDoc(collectionsMap.events, {
+      title,
+      date,
+      user: USER_MAP[currentUser.email] || "User",
+      timestamp: serverTimestamp()
+    });
+    document.getElementById("eventForm").classList.add("hidden");
+    document.getElementById("eventTitle").value = "";
+    renderCalendar(currentCalDate);
+    showToast("Event saved", "success");
+    addToTimeline(`New Plan: ${title}`);
   });
 
 function loadEventsForMonth(date) {
-  onSnapshot(collections.events, snap => {
+  onSnapshot(collectionsMap.events, snap => {
     const days = document.querySelectorAll(".calendar-day");
     days.forEach(d => d.classList.remove("has-event"));
     snap.forEach(docSnap => {
@@ -415,7 +521,7 @@ function renderEventsList() {
   const list = document.getElementById("eventsList");
   if (!list) return;
   onSnapshot(
-    query(collections.events, orderBy("date", "asc"), limit(5)),
+    query(collectionsMap.events, orderBy("date", "asc"), limit(5)),
     snap => {
       list.innerHTML = "";
       snap.forEach(docSnap => {
@@ -429,6 +535,97 @@ function renderEventsList() {
   );
 }
 
+/* ================= MEDIA (Photos, Videos, Music) ================= */
+
+function addSimpleMediaListener(inputId, btnId, colName, renderFn) {
+  const inputEl = document.getElementById(inputId);
+  const btnEl = document.getElementById(btnId);
+  if (!inputEl || !btnEl) return;
+
+  btnEl.addEventListener("click", async () => {
+    const url = inputEl.value.trim();
+    if (!url || !currentUser) return;
+    await addDoc(collectionsMap[colName], {
+      url,
+      user: USER_MAP[currentUser.email] || "User",
+      type: colName,
+      timestamp: serverTimestamp()
+    });
+    inputEl.value = "";
+    if (renderFn) renderFn();
+    showToast("Saved", "success");
+  });
+}
+
+function renderPhotos() {
+  const grid = document.getElementById("photosGrid");
+  if (!grid) return;
+  onSnapshot(
+    query(collectionsMap.photos, orderBy("timestamp", "desc"), limit(30)),
+    snap => {
+      grid.innerHTML = "";
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const img = document.createElement("img");
+        img.src = data.url;
+        img.alt = "Photo";
+        grid.appendChild(img);
+      });
+    }
+  );
+}
+
+function renderVideos() {
+  const grid = document.getElementById("videosGrid");
+  if (!grid) return;
+  onSnapshot(
+    query(collectionsMap.videos, orderBy("timestamp", "desc"), limit(30)),
+    snap => {
+      grid.innerHTML = "";
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const vid = document.createElement("video");
+        vid.src = data.url;
+        vid.controls = true;
+        grid.appendChild(vid);
+      });
+    }
+  );
+}
+
+function renderMusic() {
+  const list = document.getElementById("musicList");
+  if (!list) return;
+  onSnapshot(
+    query(collectionsMap.music, orderBy("timestamp", "desc"), limit(30)),
+    snap => {
+      list.innerHTML = "";
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const div = document.createElement("div");
+        div.textContent = data.url;
+        list.appendChild(div);
+      });
+    }
+  );
+}
+
+/* wiring for media inputs */
+addSimpleMediaListener("photoUrl", "addPhotoBtn", "photos", renderPhotos);
+addSimpleMediaListener("videoUrl", "addVideoBtn", "videos", renderVideos);
+addSimpleMediaListener("musicUrl", "addMusicBtn", "music", renderMusic);
+
+/* ================= TIMELINE ================= */
+
+function addToTimeline(action) {
+  if (!currentUser) return;
+  addDoc(collectionsMap.timeline, {
+    action,
+    user: USER_MAP[currentUser.email] || "User",
+    timestamp: serverTimestamp()
+  });
+}
+
 /* ================= MAP & MEDIA LOCATIONS ================= */
 
 function getMediaWithLocation(snap) {
@@ -439,14 +636,9 @@ function getMediaWithLocation(snap) {
       typeof data.url === "string" &&
       data.url.toLowerCase().includes("cloudinary");
     if (hasLocation) {
-      let lat =
-        data.user === "Brayden"
-          ? 34.0 + Math.random() * 0.1
-          : 33.95 + Math.random() * 0.1;
-      let lng =
-        data.user === "Brayden"
-          ? -118.2 + Math.random() * 0.1
-          : -118.3 + Math.random() * 0.1;
+      const isBrayden = data.user === "Brayden";
+      const lat = (isBrayden ? 34.0 : 33.95) + Math.random() * 0.1;
+      const lng = (isBrayden ? -118.2 : -118.3) + Math.random() * 0.1;
       locations.push({
         title: `${(data.type || "media").replace(/s$/, "")} by ${
           data.user
@@ -462,10 +654,10 @@ function getMediaWithLocation(snap) {
 }
 
 function renderMediaLocations() {
-  if (!mapInstance) return; // guard
+  if (!mapInstance) return;
 
-  onSnapshot(collections.photos, snapPhotos => {
-    onSnapshot(collections.videos, snapVideos => {
+  onSnapshot(collectionsMap.photos, snapPhotos => {
+    onSnapshot(collectionsMap.videos, snapVideos => {
       mediaMarkers.forEach(m => mapInstance.removeLayer(m));
       mediaMarkers = [];
 
@@ -474,8 +666,7 @@ function renderMediaLocations() {
       const allMediaLocations = [...photoLocations, ...videoLocations];
 
       allMediaLocations.forEach(loc => {
-        const iconHtml =
-          loc.type === "photos" ? "📸" : "📹";
+        const iconHtml = loc.type === "photos" ? "📸" : "📹";
         const icon = L.divIcon({
           className: "media-marker-icon",
           html: iconHtml,
@@ -485,29 +676,30 @@ function renderMediaLocations() {
         const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(
           mapInstance
         );
-        marker.bindPopup(`<strong>${escapeHtml(
-          loc.title
-        )}</strong><br><a href="${escapeHtml(
-          loc.url
-        )}" target="_blank">Open</a>`);
+        marker.bindPopup(
+          `<strong>${escapeHtml(
+            loc.title
+          )}</strong><br><a href="${escapeHtml(
+            loc.url
+          )}" target="_blank">Open</a>`
+        );
         mediaMarkers.push(marker);
       });
     });
   });
 }
 
-/* ================= TIMELINE (simple) ================= */
-
-function addToTimeline(action) {
-  if (!currentUser) return;
-  addDoc(collections.timeline, {
-    action,
-    user: USER_MAP[currentUser.email],
-    timestamp: serverTimestamp()
-  });
+function initMapIfNeeded() {
+  const mapEl = document.getElementById("map");
+  if (!mapEl || mapInstance) return;
+  mapInstance = L.map(mapEl).setView([34.0, -118.25], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(mapInstance);
+  renderMediaLocations();
 }
 
-/* ================= TAB NAVIGATION ================= */
+/* ================= TABS ================= */
 
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -522,24 +714,19 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
       .forEach(s => {
         s.classList.toggle("hidden", s.dataset.section !== target);
       });
+
+    if (target === "map") initMapIfNeeded();
   });
 });
 
-/* ================= INITIALIZE ================= */
-
-function initMapIfNeeded() {
-  const mapEl = document.getElementById("map");
-  if (!mapEl || mapInstance) return;
-  mapInstance = L.map(mapEl).setView([34.0, -118.25], 11);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19
-  }).addTo(mapInstance);
-  renderMediaLocations();
-}
+/* ================= INIT ================= */
 
 window.addEventListener("load", () => {
   updateTimeTogether();
+  updateSavingsUI();
   renderNotes();
   renderCalendar(currentCalDate);
-  initMapIfNeeded();
+  renderPhotos();
+  renderVideos();
+  renderMusic();
 });

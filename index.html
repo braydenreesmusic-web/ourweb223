@@ -9,13 +9,27 @@
 <body>
   <div id="toastContainer" class="toast-container"></div>
 
-  <!-- Header -->
+  <!-- AUTH SCREEN -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card card">
+      <h1 class="auth-title">Shared Life</h1>
+      <p class="auth-subtitle">Sign in to continue</p>
+
+      <input id="emailInput" class="glass-input" type="email" placeholder="Email" />
+      <input id="passwordInput" class="glass-input" type="password" placeholder="Password" />
+
+      <button id="loginBtn" class="btn primary auth-btn">Log In</button>
+      <p class="auth-hint">Use your saved Shared Life account.</p>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
   <header class="header">
     <div>
       <div class="header-title">Shared Life</div>
       <div class="header-subtitle">Your dashboard for everything</div>
     </div>
-    <button id="profileBtn" class="btn icon-btn">⋯</button>
+    <button id="logoutBtn" class="btn icon-btn" title="Log out">⎋</button>
   </header>
 
   <main class="container">
@@ -23,14 +37,14 @@
     <section data-section="dashboard">
       <div class="card">
         <h2 class="section-title">Time Together</h2>
-        <div id="daysCounter">Calculating...</div>
+        <div id="daysCounter" class="counter-text">Calculating...</div>
         <div class="section-subtitle">Together Since 05/09/2024</div>
       </div>
 
       <div class="card savings-card">
         <h2 class="section-title">Savings Goal</h2>
         <div class="savings-amount" id="savingsAmount">$0.00</div>
-        <div id="savingsProgressLabel">$0 / $10,000 • 0%</div>
+        <div id="savingsProgressLabel" class="section-subtitle">$0 / $10,000 • 0%</div>
         <div class="savings-progress-bar" id="savingsProgressBar">
           <div class="savings-progress-fill" id="savingsProgressFill"></div>
         </div>
@@ -94,21 +108,21 @@
       </div>
     </section>
 
-    <!-- MEDIA (Photos / Videos / Music) -->
+    <!-- MEDIA (Notes / Photos / Videos / Music) -->
     <section data-section="media" class="hidden">
       <div class="card">
         <h2 class="section-title">Notes</h2>
         <p class="section-subtitle">Share thoughts and updates.</p>
         <div id="notesList"></div>
         <textarea id="noteContent" rows="3" class="glass-input" placeholder="Write a note..."></textarea>
-        <button id="addNoteBtn" class="btn primary">Add Note</button>
+        <button id="addNoteBtn" class="btn primary full-width">Add Note</button>
       </div>
 
       <div class="card">
         <h2 class="section-title">Photos</h2>
         <p class="section-subtitle">Your uploaded pictures.</p>
         <input type="text" id="photoUrl" class="glass-input" placeholder="Paste photo URL" />
-        <button id="addPhotoBtn" class="btn primary">Add Photo</button>
+        <button id="addPhotoBtn" class="btn primary full-width">Add Photo</button>
         <div id="photosGrid" class="media-grid"></div>
       </div>
 
@@ -116,7 +130,7 @@
         <h2 class="section-title">Videos</h2>
         <p class="section-subtitle">Your uploaded videos.</p>
         <input type="text" id="videoUrl" class="glass-input" placeholder="Paste video URL" />
-        <button id="addVideoBtn" class="btn primary">Add Video</button>
+        <button id="addVideoBtn" class="btn primary full-width">Add Video</button>
         <div id="videosGrid" class="media-grid"></div>
       </div>
 
@@ -124,18 +138,18 @@
         <h2 class="section-title">Music</h2>
         <p class="section-subtitle">Songs you've added.</p>
         <input type="text" id="musicUrl" class="glass-input" placeholder="Paste song URL" />
-        <button id="addMusicBtn" class="btn primary">Add Song</button>
+        <button id="addMusicBtn" class="btn primary full-width">Add Song</button>
         <div id="musicList"></div>
       </div>
     </section>
 
-    <!-- MAP / MEMORIES -->
+    <!-- MAP / MEMORIES / TIMELINE / FAVORITES -->
     <section data-section="map" class="hidden">
       <div class="card">
         <h2 class="section-title">Map</h2>
         <p class="section-subtitle">Where we've been and where we're going.</p>
         <div id="mapContainer">
-          <div id="map" style="height: 260px; border-radius: 14px; overflow: hidden;"></div>
+          <div id="map"></div>
         </div>
       </div>
 
@@ -157,8 +171,6 @@
       </div>
     </section>
   </main>
-
-  <!-- iOS-style Action Sheet container generated in JS -->
 
   <!-- Tab Bar -->
   <nav class="tab-bar">
