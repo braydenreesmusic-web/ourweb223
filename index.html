@@ -15,12 +15,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <meta name="theme-color" content="#F8F4F0">
+    <meta name="theme-color" content="#F2F2F7">
 </head>
 <body class="ios-theme">
     <div id="toastContainer" class="toast-container"></div>
-
-    <div id="authModal" class="modal active">
+    <div id="actionSheetBackdrop" class="action-sheet-backdrop"></div> <div id="authModal" class="modal active">
         <div class="modal-content blur-bg">
             <div class="modal-header">
                 <h2>Sign In</h2>
@@ -74,12 +73,29 @@
             </div>
 
             <div class="dashboard-grid">
-                <div class="card stat-card full-width">
+                <div class="card stat-card">
                     <div class="stat-icon">❤️</div>
                     <h3 id="daysCounter" class="stat-value">Calculating...</h3>
                     <p class="stat-label">Together Since 05/09/2024</p>
                 </div>
-
+                
+                <div class="card savings-card">
+                    <div class="savings-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.5em;">💰</span>
+                            <h3 style="margin:0; font-weight:600;">Savings Goal</h3>
+                        </div>
+                        <button id="addSavingsBtn" class="btn secondary small">Log Save</button>
+                    </div>
+                    <h2 id="currentSavings" style="font-size:1.8em; margin:0 0 5px; font-weight:700;">$0.00</h2>
+                    <div class="savings-progress-bar">
+                        <div class="savings-progress-fill" id="savingsProgressFill" style="width: 0%;"></div>
+                    </div>
+                    <div class="savings-details">
+                        <span id="savingsGoal">$0 / $10,000</span>
+                        <span id="savingsPercent">0%</span>
+                    </div>
+                </div>
                 <div class="card status-card">
                     <div class="status-icon">👤</div>
                     <div class="presence-bar-home">
@@ -95,10 +111,6 @@
                     </div>
                 </div>
 
-                <div class="card weather-card">
-                    <div class="weather-icon">☁️</div>
-                    <p class="weather-info">Weather of each person’s location (Simulated)</p>
-                </div>
             </div>
 
             <h3 class="sub-header">Upcoming Events</h3>
@@ -207,6 +219,7 @@
                     <button id="saveEventBtn" class="btn primary small">Save</button>
                 </div>
             </div>
+            <h3 class="sub-header">Upcoming Events List</h3>
             <div id="eventsList" class="list-layout"></div>
         </section>
 
@@ -219,6 +232,7 @@
                 <div id="mapContainer"></div>
                 <button id="addMemoryBtn" class="btn primary floating-action">Add Location</button>
             </div>
+            <h3 class="sub-header">Saved Locations</h3>
             <div id="memoriesList" class="list-layout"></div>
         </section>
 
@@ -235,7 +249,7 @@
                 <h2>Favorites</h2>
                 <p>Saved items.</p>
             </div>
-            <div id="favoritesGrid" class="masonry-grid"></div>
+            <div class="masonry-grid" id="favoritesGrid"></div>
         </section>
     </main>
 
@@ -248,13 +262,13 @@
     </nav>
 
     <div id="lightbox" class="lightbox">
-        <div class="lightbox-backdrop"></div>
         <button class="close-lightbox">&times;</button>
         <div class="lightbox-media-container"></div>
         <div class="lightbox-meta">
             <p class="lightbox-caption"></p>
         </div>
     </div>
+    
     <div id="memoryModal" class="modal">
         <div class="modal-content card">
             <h3>Add Location</h3>
@@ -283,6 +297,28 @@
             <div class="reply-composer input-block">
                 <input type="text" id="replyInput" placeholder="Your reply or emoji..." class="glass-input">
                 <button id="sendReplyBtn" class="btn primary small">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="savingsModal" class="modal">
+        <div class="modal-content card">
+            <h3>Log Savings</h3>
+            <input type="number" id="savingsAmountInput" placeholder="Amount saved ($)" class="glass-input" step="0.01">
+            <input type="text" id="savingsNoteInput" placeholder="Note (e.g., Paycheck, Bonus)" class="glass-input">
+            <div class="modal-footer">
+                <button id="cancelSavingsBtn" class="btn ghost">Cancel</button>
+                <button id="saveSavingsBtn" class="btn primary">Log</button>
+            </div>
+        </div>
+    </div>
+    <div id="goalModal" class="modal">
+        <div class="modal-content card">
+            <h3>Set Savings Goal</h3>
+            <input type="number" id="goalAmountInput" placeholder="Goal Amount ($)" class="glass-input" step="0.01">
+            <div class="modal-footer">
+                <button id="cancelGoalBtn" class="btn ghost">Cancel</button>
+                <button id="setGoalBtn" class="btn primary">Set Goal</button>
             </div>
         </div>
     </div>

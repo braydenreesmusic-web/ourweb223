@@ -1,16 +1,18 @@
-/* style.css - iOS-Inspired Theme */
+/* style.css - iOS-Inspired Theme - OVERHAUL */
 
 /* --- Variables (For Theme/Dark Mode) --- */
 :root {
-    --primary-color: #FF2D55; /* iOS Red/Pink */
-    --secondary-color: #007AFF; /* iOS Blue */
+    --primary-color: #FF3B30; /* iOS System Red */
+    --secondary-color: #007AFF; /* iOS System Blue */
+    --success-color: #34C759; /* iOS System Green */
+    --error-color: #FF3B30; /* Use primary color for error too, common iOS style */
     --background: #F2F2F7; /* Light Gray Background */
     --surface: #FFFFFF; /* White Cards/Surfaces */
     --text: #000000;
-    --text-secondary: #8E8E93;
-    --border: #E5E5EA;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --blur-bg: rgba(255, 255, 255, 0.75);
+    --text-secondary: #8E8E93; /* Darker secondary text */
+    --border: #E5E5EA; /* Light, subtle border */
+    --shadow: 0 1px 4px rgba(0, 0, 0, 0.05); /* Very light shadow */
+    --blur-bg: rgba(255, 255, 255, 0.9); /* More opaque blur */
     --font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --radius-default: 12px;
 }
@@ -18,13 +20,15 @@
 body.dark {
     --primary-color: #FF453A; /* Dark Mode Red */
     --secondary-color: #0A84FF; /* Dark Mode Blue */
-    --background: #1C1C1E; /* Dark Background */
-    --surface: #2C2C2E; /* Darker Cards/Surfaces */
+    --success-color: #30D158;
+    --error-color: #FF453A;
+    --background: #000000; /* True black background for OLED feel */
+    --surface: #1C1C1E; /* Darker Cards/Surfaces */
     --text: #FFFFFF;
-    --text-secondary: #98989A;
+    --text-secondary: #8E8E93;
     --border: #3A3A3C;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    --blur-bg: rgba(44, 44, 46, 0.75);
+    --shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    --blur-bg: rgba(28, 28, 30, 0.7); /* Darker blur */
 }
 
 /* --- Base Styles --- */
@@ -61,11 +65,12 @@ body {
     background-color: var(--blur-bg);
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
-    border: 1px solid var(--border);
+    /* Border is optional for blur elements on iOS, let's keep it simple */
 }
 
-.glass-input, textarea {
-    background-color: var(--blur-bg);
+/* Custom Input Style for iOS Glass look */
+.glass-input, textarea, .glass-input[type="date"], .glass-input[type="number"], .glass-input[type="email"], .glass-input[type="password"] {
+    background-color: var(--surface); /* Use surface on light mode, but slightly transparent on dark */
     border: 1px solid var(--border);
     padding: 12px;
     border-radius: 10px;
@@ -75,62 +80,29 @@ body {
     width: 100%;
     margin-bottom: 10px;
     transition: all 0.2s;
+    -webkit-appearance: none; /* Remove default styling */
+    appearance: none;
 }
 .glass-input:focus, textarea:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.2);
+    box-shadow: 0 0 0 1px var(--primary-color); /* Subtle focus ring */
     outline: none;
 }
-
-/* --- Header & Authentication --- */
-.header {
-    background: transparent;
-    color: var(--text);
-    padding: 15px 15px 0;
-    box-shadow: none;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    background-color: var(--blur-bg);
-    border-bottom: 1px solid var(--border);
+body.dark .glass-input, body.dark textarea {
+    background-color: var(--surface);
+    border-color: var(--border);
 }
 
-.header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 768px;
-    margin: 0 auto;
-}
 
-.logo {
-    font-weight: 700;
-    font-size: 1.8em;
-    color: var(--primary-color);
-    margin: 0;
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.divider-vertical {
-    width: 1px;
-    height: 20px;
-    background-color: var(--border);
-}
-
+/* --- Buttons (Refined iOS Look) --- */
 .btn {
     border: none;
     padding: 10px 15px;
     border-radius: 10px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.15s, opacity 0.15s;
+    user-select: none; /* Prevent text selection */
 }
 
 .btn.primary {
@@ -141,301 +113,414 @@ body {
     opacity: 0.8;
 }
 
+.btn.secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+.btn.secondary:active {
+    opacity: 0.8;
+}
+
 .btn.ghost {
     background-color: transparent;
-    color: var(--text-secondary);
+    color: var(--secondary-color); /* Use blue for ghost button text */
     border: 1px solid var(--border);
+}
+.btn.ghost:active {
+    background-color: rgba(var(--secondary-color), 0.1);
 }
 
 .btn.icon-btn {
     padding: 8px;
     width: 38px;
     height: 38px;
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* --- Auth Modal (Unchanged for login/logout) --- */
-.modal { display: none; }
-.modal.active {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s;
-}
-
-.modal-content {
-    min-width: 300px;
-    padding: 25px;
-}
-
-.auth-switch button {
-    flex: 1;
-}
-
-/* --- Tab Bar (iOS Bottom Bar) --- */
-.tab-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background-color: var(--blur-bg);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border-top: 1px solid var(--border);
-    z-index: 500;
-    padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-.tab-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 0.7em;
-    font-weight: 500;
-    cursor: pointer;
-    padding: 5px;
-    transition: color 0.2s;
-}
-
-.tab-btn .icon {
-    font-size: 1.5em;
-    margin-bottom: 2px;
-}
-
-.tab-btn.active {
-    color: var(--primary-color);
-}
-
-/* --- Section & Content Styles --- */
-.section {
-    display: none;
-    padding: 20px 0; /* Remove internal padding, let cards handle it */
-    animation: fadeIn 0.4s ease-out;
-}
-.section.active { display: block; }
-
-.section-header {
-    text-align: left;
-    margin-bottom: 20px;
-    padding: 0 5px;
-}
-
-.section-header h2 {
-    font-size: 2.2em;
-    font-weight: 700;
-    color: var(--text);
-    margin: 0;
-}
-
-.section-header p {
-    color: var(--text-secondary);
-    margin: 5px 0 0;
-}
-
-.sub-header {
-    font-size: 1.2em;
-    font-weight: 600;
-    color: var(--text);
-    margin: 25px 0 10px;
-    padding: 0 5px;
-}
-
-/* --- Home Dashboard Styles --- */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.stat-card {
-    grid-column: span 2;
-    text-align: center;
-    padding: 25px;
-    background: linear-gradient(135deg, #FF9500, #FF3B30); /* Warm gradient */
-    color: white;
-}
-.stat-card .stat-icon { font-size: 2.5em; margin-bottom: 5px; }
-.stat-card .stat-value { font-size: 2.5em; margin: 0; font-weight: 700; }
-.stat-card .stat-label { opacity: 0.9; margin: 0; font-size: 0.9em; }
-
-.status-card, .weather-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 15px;
-}
-.presence-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--text-secondary);
-    display: inline-block;
-    margin-right: 5px;
-}
-.presence-dot.online {
-    background-color: #34C759; /* iOS Green */
-}
-
-.masonry-grid-compact {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-}
-.masonry-grid-compact img, .masonry-grid-compact video {
-    width: 100%;
-    height: 100px;
-    object-fit: cover;
-    border-radius: 8px;
-}
-
-/* --- Notes / Threaded Messages --- */
-.search-pin-bar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-#noteSearchInput {
-    flex-grow: 1;
-}
-
-.note-item {
-    padding: 15px;
-    margin-bottom: 10px;
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-default);
-    position: relative;
-    transition: all 0.2s;
-}
-
-.note-item.pinned {
-    border-left: 5px solid var(--primary-color);
-}
-
-.note-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.note-item-header .user {
-    font-weight: 600;
-    color: var(--primary-color);
-}
-.note-item-header .meta {
-    font-size: 0.8em;
     color: var(--text-secondary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: none;
+}
+.btn.icon-btn:active {
+    background-color: var(--border);
 }
 
-/* Reply Sheet */
-.action-sheet {
+/* --- Action Sheet (Music Options, Reply Sheet) & Context Menu --- */
+.action-sheet-backdrop {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    justify-content: center;
     align-items: flex-end; /* Drop from bottom */
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
 }
+.action-sheet-backdrop.active {
+    display: flex;
+    opacity: 1;
+}
+
 .action-sheet-content {
+    background: var(--surface);
     width: 100%;
     max-width: 768px;
     border-radius: 20px 20px 0 0;
-    padding: 20px;
+    padding: 10px; /* Reduced padding here, buttons have internal padding */
     max-height: 80vh;
     overflow-y: auto;
     transform: translateY(100%);
     transition: transform 0.3s ease-out;
+    box-shadow: var(--shadow);
 }
-.modal.active .action-sheet-content {
+.action-sheet-backdrop.active .action-sheet-content {
     transform: translateY(0);
 }
 
-.sheet-header {
+.action-sheet-block {
+    margin-bottom: 8px;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.action-sheet-btn {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 12px 15px;
+    border: none;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.1em;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+.action-sheet-btn:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+}
+.action-sheet-btn:active {
+    background-color: var(--border);
+}
+.action-sheet-btn.destructive {
+    color: var(--error-color);
+}
+.action-sheet-btn.cancel {
+    font-weight: 600;
+}
+.action-sheet-btn .icon {
+    margin-right: 10px;
+}
+
+/* Context Menu - Simple popup for long-press on notes/media */
+.context-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    z-index: 100;
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.15s ease-out;
+}
+.context-menu button {
+    width: 100%;
+    border-radius: 0;
+    padding: 10px 15px;
+    background: var(--surface);
+    font-size: 0.9em;
+    color: var(--text);
+    text-align: left;
+    transition: background-color 0.1s;
+}
+.context-menu button:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+}
+.context-menu button:hover {
+    background-color: var(--border);
+}
+.context-menu button.error {
+    color: var(--error-color);
+}
+
+
+/* --- Header & Tab Bar --- */
+.header {
+    background: var(--blur-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.tab-bar {
+    background-color: var(--blur-bg);
+}
+.tab-btn.active {
+    color: var(--secondary-color); /* Use secondary color for active tab */
+}
+
+/* --- Home Dashboard Styles (Refined) --- */
+.dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* Stat Card (Days Counter) - More iOS widget-like */
+.stat-card {
+    grid-column: span 2;
+    text-align: left;
+    padding: 25px;
+    background: linear-gradient(135deg, var(--secondary-color), #00A9FF); /* Cool blue gradient */
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3); /* Blue shadow */
+    margin-bottom: 15px;
+}
+.stat-card .stat-icon { font-size: 2.5em; margin-bottom: 5px; }
+.stat-card .stat-value {
+    font-size: 2.2em; /* Slightly smaller to fit better */
+    margin: 0;
+    font-weight: 700;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.stat-card .stat-label { opacity: 0.8; margin: 0; font-size: 0.8em; }
+
+/* Status Card - Tighter layout */
+.status-card {
+    padding: 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+.presence-dot {
+    margin-right: 0px; /* Remove margin, let text handle spacing */
+}
+.presence-bar-home {
+    display: flex;
+    align-items: center;
+    font-size: 1em;
+}
+
+/* --- NEW: Savings Tracker Card --- */
+.savings-card {
+    grid-column: span 2;
+    padding: 20px;
+    text-align: left;
+    background: var(--surface);
+}
+
+.savings-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
 }
-.original-note-preview {
-    padding: 10px;
-    border-left: 4px solid var(--secondary-color);
-    margin-bottom: 15px;
-    background-color: var(--background);
+
+.savings-progress-bar {
+    height: 8px;
+    background-color: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
 }
 
-.note-replies-list {
-    max-height: 200px;
-    overflow-y: auto;
-    padding-bottom: 10px;
+.savings-progress-fill {
+    height: 100%;
+    background-color: var(--success-color);
+    transition: width 0.3s ease-out;
 }
 
-.reply-composer {
+.savings-details {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.savings-log-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+}
+.savings-log-item:last-child {
+    border-bottom: none;
+}
+
+/* --- Calendar Styles Fix --- */
+.calendar-wrapper {
+    padding: 15px;
+}
+.cal-nav {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 15px;
 }
-.reply-composer input {
-    margin: 0;
+.cal-nav button {
+    font-size: 1.5em;
+    width: 40px;
+    height: 40px;
 }
-
-/* --- Rest of Styles (Adjusted for iOS look) --- */
-.masonry-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
-}
-.masonry-item img, .masonry-item video {
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
-    object-fit: cover;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Calendar & Events */
-.cal-grid-header, .cal-grid-body {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-    gap: 5px;
+.cal-grid-header {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    font-weight: 500;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
 }
 .calendar-day {
-    padding: 10px 5px;
-    border-radius: 50%;
-    aspect-ratio: 1 / 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: 500;
+    padding: 8px 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+.calendar-day:hover {
+    background-color: var(--border);
 }
 .calendar-day.today {
     background-color: var(--secondary-color);
     color: white;
 }
 .calendar-day.has-event {
-    border: 2px solid var(--primary-color);
+    position: relative;
+    /* Use a small dot instead of border for event indicator */
+}
+.calendar-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+}
+.calendar-day.today.has-event::after {
+    background-color: white; /* Dot is white on the blue background */
 }
 
-/* Map */
-#mapContainer {
-    height: 300px;
-    border-radius: var(--radius-default);
-    margin-bottom: 15px;
+/* Event List */
+.event-item, .list-item, .music-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.15s;
 }
 
-/* Animation */
+/* Notes */
+.note-item {
+    position: relative;
+}
+.note-item-header {
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+.note-item .note-date {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+/* Media Gallery (Photos/Videos) */
+.masonry-item {
+    position: relative;
+}
+.masonry-item img, .masonry-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.item-meta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+    color: white;
+    padding: 8px;
+    font-size: 0.8em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 0 0 10px 10px;
+}
+
+.item-meta .fav-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 4px 8px;
+    font-size: 0.75em;
+}
+
+/* Lightbox refinement */
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 3000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+.lightbox.active {
+    display: flex;
+}
+.lightbox-media-container {
+    position: relative;
+    max-width: 90vw;
+    max-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.close-lightbox {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 30px;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 3010;
+}
+.lightbox-caption {
+    position: absolute;
+    bottom: 30px;
+    color: white;
+    font-size: 1em;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
