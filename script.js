@@ -91,6 +91,7 @@ setInterval(updateTimeTogether, 1000);
 
 /* ================= AUTH & STARTUP ================= */
 const authModal = document.getElementById("authModal");
+const mainApp = document.getElementById("mainApp"); // NEW: Container for all app content
 const braydenLogin = document.getElementById("braydenLogin");
 const younaLogin = document.getElementById("younaLogin");
 const authEmail = document.getElementById("authEmail");
@@ -128,14 +129,29 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     await signOut(auth);
 });
 
+/**
+ * Toggles the visibility of the main application versus the authentication modal.
+ * @param {object | null} user - The authenticated user object or null.
+ */
+function toggleAppView(user) {
+    if (user) {
+        // User is logged in: Hide auth, show app
+        authModal?.classList.add("hidden");
+        mainApp?.classList.remove("hidden");
+    } else {
+        // User is logged out: Show auth, hide app
+        authModal?.classList.remove("hidden");
+        mainApp?.classList.add("hidden");
+    }
+}
+
 onAuthStateChanged(auth, user => {
     currentUser = user;
+    toggleAppView(user); // Use the new function to manage visibility
+
     if (user) {
-        authModal.classList.remove("active");
         setupPresence(user);
         initApp();
-    } else {
-        authModal.classList.add("active");
     }
 });
 
@@ -1016,7 +1032,9 @@ function closeLightbox() {
 }
 
 lightboxClose?.addEventListener('click', closeLightbox);
-lightbox?.querySelector('.lightbox-backdrop')?.addEventListener('click', closeLightbox);
+// The original HTML didn't have a specific backdrop for the lightbox, but
+// the original JS tried to query for one. I'll comment out the failing query
+// lightbox?.querySelector('.lightbox-backdrop')?.addEventListener('click', closeLightbox);
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeLightbox(); });
 
 /* ================= INIT ================= */
