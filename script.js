@@ -74,8 +74,8 @@ const signInBtn = document.getElementById('signInBtn');
 
 // --- User Mock Data (REQUIRED) ---
 const USER_CREDENTIALS = {
-    'brayden': { email: USERS.brayden, displayName: USER_MAP[USERS.brayden], password: 'password123' },
-    'youna': { email: USERS.youna, displayName: USER_MAP[USERS.youna], password: 'password123' }
+    'brayden': { email: brayden@love.com, displayName: USER_MAP[USERS.brayden], password: 'loveee' },
+    'youna': { email: youna@love.com, displayName: USER_MAP[USERS.youna], password: 'loveee' }
 };
 let selectedUser = null;
 let currentUserProfile = null;
