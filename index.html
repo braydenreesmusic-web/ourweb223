@@ -16,294 +16,150 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
-    <meta name="theme-color" content="#F8F4F0">
+    <meta name="theme-color" content="#F8..."/>
 
-    </head>
+</head>
 <body>
-    <div id="toastContainer" class="toast-container"></div>
+    
+    <div id="toast" class="toast"></div>
+
+    <div id="mainAppContainer" style="display: none;">
+        
+        <header class="header">
+            <div class="user-info">
+                <h1 id="currentUserDisplay"></h1>
+                <p id="partnerStatus" class="subtext"></p>
+            </div>
+            <div class="status-indicators">
+                <div id="countdown" class="subtext"></div>
+                <button id="addMediaBtn" class="btn primary small icon"><i class="fas fa-plus"></i></button>
+            </div>
+        </header>
+
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-section="dashboard"><i class="fas fa-home"></i>Dashboard</button>
+            <button class="tab-btn" data-section="timeline"><i class="fas fa-heart"></i>Timeline</button>
+            <button class="tab-btn" data-section="map"><i class="fas fa-map-marker-alt"></i>Map</button>
+            <button class="tab-btn" data-section="gallery"><i class="fas fa-images"></i>Gallery</button>
+            <button class="tab-btn" data-section="notes"><i class="fas fa-pen"></i>Notes</button>
+            <button class="tab-btn" data-section="settings"><i class="fas fa-cog"></i>Settings</button>
+        </nav>
+
+        <main id="appContent">
+            
+            <section id="dashboard" class="content-section active">
+                <div class="card-grid">
+                    <div id="moodCard" class="card dash-card blur-bg">
+                        <h3>Our Mood</h3>
+                        <canvas id="moodChartCanvas"></canvas>
+                        <p class="card-footer subtext">Last updated: <span id="lastMoodUpdate"></span></p>
+                    </div>
+                    
+                    <div id="musicCard" class="card dash-card blur-bg">
+                        <h3>Currently Listening</h3>
+                        <div id="currentMusic" class="music-info">
+                            <i class="fas fa-music"></i>
+                            <p>Loading...</p>
+                        </div>
+                        <button id="addMusicBtn" class="btn primary small full-width" style="margin-top: 10px;">Add Song</button>
+                    </div>
+                    
+                    <div id="favoritesCard" class="card dash-card blur-bg">
+                        <h3>Our Favorites</h3>
+                        <ul id="favoritesList" class="list-container">
+                            </ul>
+                        <button id="addFavoriteBtn" class="btn secondary small full-width">Add New</button>
+                    </div>
+                    
+                    <div id="notesSnippetCard" class="card dash-card blur-bg">
+                        <h3>Latest Note</h3>
+                        <div id="latestNoteSnippet" class="snippet-content">
+                            <p class="subtext">No notes yet.</p>
+                        </div>
+                        <button class="btn secondary small full-width" onclick="document.querySelector('.tab-btn[data-section=\"notes\"]').click()">Go to Notes</button>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="timeline" class="content-section">
+                <h2>Our Journey</h2>
+                <div id="timeline-list" class="timeline-container">
+                    </div>
+            </section>
+            
+            <section id="map" class="content-section full-height">
+                <div class="map-layer-toggles">
+                    <button class="btn primary small active" data-layer="memories">Memories</button>
+                    <button class="btn ghost small" data-layer="visits">Visits</button>
+                </div>
+                <div id="leafletMap" class="full-map"></div>
+                <button id="addMemoryBtn" class="btn primary fab"><i class="fas fa-map-pin"></i></button>
+            </section>
+
+            <section id="gallery" class="content-section">
+                <div class="gallery-tabs">
+                    <button class="btn secondary small active" data-type="photos">Photos</button>
+                    <button class="btn ghost small" data-type="videos">Videos</button>
+                </div>
+                <div id="photoGallery" class="gallery-grid active">
+                    </div>
+                <div id="videoGallery" class="gallery-grid" style="display: none;">
+                    </div>
+            </section>
+
+            <section id="notes" class="content-section">
+                <h2>Notes & Letters</h2>
+                <div id="notesContainer">
+                    </div>
+                <button id="addNoteBtn" class="btn primary full-width"><i class="fas fa-feather-alt"></i> Write a Note</button>
+            </section>
+            
+            <section id="settings" class="content-section">
+                <h2>Settings</h2>
+                <div class="settings-group card blur-bg">
+                    <h4>Theme</h4>
+                    <div class="setting-item">
+                        <span>Dark Mode</span>
+                        <input type="checkbox" id="darkModeToggle" class="ios-switch">
+                    </div>
+                </div>
+                
+                <div class="settings-group card blur-bg">
+                    <h4>Account</h4>
+                    <div class="setting-item">
+                        <span>Signed in as: <strong id="settingsUserEmail"></strong></span>
+                    </div>
+                    <button id="logoutBtn" class="btn error full-width">Sign Out</button>
+                </div>
+            </section>
+
+        </main>
+    </div>
 
     <div id="authModal" class="modal active">
         <div class="modal-content blur-bg">
             <div class="modal-header">
-                <h2>Sign In</h2>
-                <p class="subtitle">Choose your profile</p>
+                <h2 id="authTitle">Sign In</h2>
+                <p id="authSubtitle" class="subtitle">Choose your profile (or enter credentials)</p>
             </div>
-            <div class="auth-switch"> <button id="braydenLogin" class="btn primary active">Brayden</button>
+            <div class="auth-switch">
+                <button id="braydenLogin" class="btn primary active">Brayden</button>
                 <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
             <div class="input-group">
                 <input type="email" id="authEmail" placeholder="Email" required>
                 <input type="password" id="authPassword" placeholder="Password" required>
+                <input type="text" id="authDisplayName" placeholder="Display Name (e.g. Maya)" style="display: none;">
             </div>
-            <button id="signInBtn" class="btn primary full-width">Sign In</button>
+            <button id="authPrimaryBtn" class="btn primary full-width">Sign In</button>
+            <p class="switch-link-container">
+                <a href="#" id="authSwitchLink" class="subtext-center">Need an account? <strong>Create One</strong></a>
+            </p>
         </div>
     </div>
-
-    <div class="background-animation"></div>
-
-    <div id="mainAppContainer" style="display: none;">
     
-        <header class="header">
-            <div class="header-top">
-                <div class="logo-area">
-                    <h1 class="logo">B & Y</h1>
-                    <div id="daysCounter" class="days-counter">Calculating...</div>
-                </div>
-                
-                <div class="header-controls">
-                    <div class="theme-toggle-wrapper">
-                        <input type="checkbox" id="darkModeToggle">
-                        <label for="darkModeToggle" class="theme-switch">
-                            <span class="icon sun">☀</span>
-                            <span class="icon moon">☾</span>
-                        </label>
-                    </div>
-                    <div class="divider-vertical"></div>
-                    <button id="logoutBtn" class="btn icon-btn logout-btn" aria-label="Logout">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="header-bottom">
-                <div class="presence-bar">
-                    <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
-                    <span id="braydenPresenceText">Offline</span>
-                    <div class="divider-vertical"></div>
-                    <span id="younaPresence" class="presence-dot" title="Youna"></span>
-                    <span id="younaPresenceText">Offline</span>
-                </div>
-            </div>
-        </header>
-
-        <main class="container">
-            <section id="dashboard" class="section active">
-                <div class="section-header">
-                    <h2>Our Dashboard</h2>
-                    <p>A look at our life together, instantly.</p>
-                </div>
-
-                <div class="grid-2">
-                    <div id="weatherCardBrayden" class="card weather-card"></div>
-                    <div id="weatherCardYouna" class="card weather-card"></div>
-                </div>
-                
-                <div class="card stat-card">
-                    <h3 class="card-header">Activity Stats</h3>
-                    <div id="statsContent" class="stat-content">
-                        </div>
-                </div>
-                
-                <div class="grid-2">
-                    <div id="todoCard" class="card">
-                        <h3 class="card-header">To-Do List</h3>
-                        <div id="todoListContainer" class="list-container">
-                            <p class="subtext-center">Loading to-dos...</p>
-                        </div>
-                        <button id="addTodoBtn" class="btn ghost full-width small">Add New Task</button>
-                    </div>
-                    <div id="milestonesCard" class="card">
-                        <h3 class="card-header">Milestones</h3>
-                        <div id="milestoneListContainer" class="list-container">
-                            <p class="subtext-center">Loading milestones...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="sub-header">Recent Activity</h3>
-                <div id="recentContent" class="card list-container">
-                    <p class="subtext-center">Loading activity...</p>
-                </div>
-            </section>
-            
-            <section id="photos" class="section">
-                <div class="section-header">
-                    <h2>Photo Memories</h2>
-                    <p>A feed of our shared moments.</p>
-                </div>
-                <div id="photoUploadCard" class="upload-card" onclick="document.getElementById('photoInput').click()">
-                    <div class="upload-icon">📸</div>
-                    <p style="margin: 0;">Upload Photo</p>
-                    <div class="progress-bar"><div id="photoUploadFill" class="fill"></div></div>
-                    <input type="file" id="photoInput" accept="image/*" style="display: none;">
-                </div>
-                <div id="photoGallery" class="masonry-grid"></div>
-            </section>
-            
-            <section id="videos" class="section">
-                <div class="section-header">
-                    <h2>Video Moments</h2>
-                    <p>Short clips and longer memories.</p>
-                </div>
-                <div id="videoUploadCard" class="upload-card" onclick="document.getElementById('videoInput').click()">
-                    <div class="upload-icon">🎬</div>
-                    <p style="margin: 0;">Upload Video</p>
-                    <div class="progress-bar"><div id="videoUploadFill" class="fill"></div></div>
-                    <input type="file" id="videoInput" accept="video/*" style="display: none;">
-                </div>
-                <div id="videoGallery" class="masonry-grid"></div>
-            </section>
-
-            <section id="mapSection" class="section">
-                <div class="section-header">
-                    <h2>Our Map</h2>
-                    <p>Places we've been and want to go.</p>
-                </div>
-                <div class="map-layer-toggles">
-                    <button id="toggleMemories" class="btn ghost active small">Memories</button>
-                    <button id="toggleMedia" class="btn ghost small">Media</button>
-                </div>
-                <div class="card map-card">
-                    <div id="mapContainer" style="height: 100%;"></div>
-                </div>
-                <button id="addMemoryBtn" class="btn primary floating-action" aria-label="Add Memory">📍</button>
-            </section>
-            
-            <section id="notes" class="section">
-                <div class="section-header">
-                    <h2>Shared Notes</h2>
-                    <p>Thoughts, ideas, and little reminders.</p>
-                </div>
-                <div class="card">
-                    <textarea id="newNoteContent" placeholder="Write a new note..."></textarea>
-                    <div class="modal-footer" style="margin-top: 10px;">
-                        <button id="pinNoteBtn" class="btn ghost small">📌 Pin</button>
-                        <button id="addNoteBtn" class="btn primary small">Share Note</button>
-                    </div>
-                </div>
-                <h3 class="sub-header">All Notes</h3>
-                <div id="notesContainer">
-                    <p class="subtext-center">Loading notes...</p>
-                </div>
-            </section>
-
-            <section id="music" class="section">
-                <div class="section-header">
-                    <h2>Shared Music & Voice</h2>
-                    <p>What we're listening to and voice notes to each other.</p>
-                </div>
-                
-                <h3 class="sub-header">Voice Notes</h3>
-                <div class="card">
-                    <div class="voice-controls">
-                        <button id="voiceNoteRecordBtn" class="btn primary icon-btn">🎤</button>
-                        <p id="voiceStatus" class="voice-status hidden">Ready to record.</p>
-                        <div class="modal-footer" style="margin-top: 0; padding-top: 10px; justify-content: space-around;">
-                            <button id="cancelRecordingBtn" class="btn ghost small" style="display: none;">Cancel</button>
-                            <button id="uploadRecordingBtn" class="btn secondary small" style="display: none;">Upload</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="savedMusic" class="list-container" style="margin-top: 20px;">
-                    </div>
-                
-                <h3 class="sub-header" style="margin-top: 40px;">Music Links</h3>
-                <div class="card">
-                    <input type="url" id="musicUrlInput" placeholder="Spotify/Apple Music Embed URL">
-                    <input type="text" id="musicCaptionInput" placeholder="A little message (optional)">
-                    <button id="addMusicBtn" class="btn primary full-width">Share Music</button>
-                </div>
-                <div id="musicListContainer" class="list-container" style="margin-top: 20px;">
-                    <p class="subtext-center">Loading shared music...</p>
-                </div>
-            </section>
-
-            <section id="schedule" class="section">
-                <div class="section-header">
-                    <h2>Our Schedule</h2>
-                    <p>Dates, plans, and events.</p>
-                </div>
-                
-                <div class="calendar-container card">
-                    <div class="calendar-header">
-                        <button id="prevMonth" class="btn icon-btn ghost small">←</button>
-                        <h3 id="currentMonthYear"></h3>
-                        <button id="nextMonth" class="btn icon-btn ghost small">→</button>
-                    </div>
-                    <div class="calendar-grid-days">
-                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-                    </div>
-                    <div id="calendarGrid" class="calendar-grid">
-                        </div>
-                </div>
-
-                <div id="eventListContainer" class="list-container">
-                    </div>
-
-                <button id="addEventBtn" class="btn primary floating-action" aria-label="Add Event">➕</button>
-            </section>
-
-            <section id="lists" class="section">
-                <div class="section-header">
-                    <h2>Lists & Polls</h2>
-                    <p>Collaboration and decision-making.</p>
-                </div>
-                
-                <h3 class="sub-header">Polls</h3>
-                <div id="pollsContainer" class="card list-container">
-                    <p class="subtext-center">Loading polls...</p>
-                </div>
-                <button id="addPollBtn" class="btn ghost full-width small" style="margin-top: 10px;">Create New Poll</button>
-            </section>
-
-            <section id="favorites" class="section">
-                <div class="section-header">
-                    <h2>Favorites</h2>
-                    <p>Our cherished photos and videos.</p>
-                </div>
-                <div id="favoritesGrid" class="masonry-grid"></div>
-            </section>
-            
-            <section id="checkins" class="section">
-                <div class="section-header">
-                    <h2>Mood Check-in</h2>
-                    <p>How we're feeling.</p>
-                </div>
-                <div class="card mood-card">
-                    <h3 class="sub-header">How are you feeling right now, <span id="currentUserMoodName"></span>?</h3>
-                    <div class="mood-selector">
-                        <span class="mood-emoji" data-mood="Happy">😊</span>
-                        <span class="mood-emoji" data-mood="Content">😌</span>
-                        <span class="mood-emoji" data-mood="Neutral">😐</span>
-                        <span class="mood-emoji" data-mood="Tired">😴</span>
-                        <span class="mood-emoji" data-mood="Stressed">😫</span>
-                        <span class="mood-emoji" data-mood="Anxious">😟</span>
-                        <span class="mood-emoji" data-mood="Sad">😞</span>
-                    </div>
-                    <button id="saveMoodBtn" class="btn primary full-width" disabled>Log Mood</button>
-                </div>
-                <h3 class="sub-header">Mood History</h3>
-                <div class="card">
-                    <canvas id="moodChartCanvas"></canvas>
-                </div>
-            </section>
-        </main>
-
-        <nav class="tab-bar">
-            <button class="tab-btn active" data-section="dashboard"><span class="icon">🏠</span><span>Home</span></button>
-            <button class="tab-btn" data-section="photos"><span class="icon">📸</span><span>Photos</span></button>
-            <button class="tab-btn" data-section="videos"><span class="icon">🎬</span><span>Videos</span></button>
-            <button class="tab-btn" data-section="mapSection"><span class="icon">🗺️</span><span>Map</span></button>
-            <button class="tab-btn" data-section="notes"><span class="icon">📝</span><span>Notes</span></button>
-            <button class="tab-btn" data-section="music"><span class="icon">🎧</span><span>Music</span></button>
-            <button class="tab-btn" data-section="schedule"><span class="icon">🗓️</span><span>Schedule</span></button>
-            <button class="tab-btn" data-section="lists"><span class="icon">📋</span><span>Lists</span></button>
-            <button class="tab-btn" data-section="favorites"><span class="icon">⭐</span><span>Favs</span></button>
-            <button class="tab-btn" data-section="checkins"><span class="icon">🧠</span><span>Mood</span></button>
-        </nav>
-    </div>
-
-    <div id="lightbox" class="lightbox-backdrop">
-        <button class="btn icon-btn close-lightbox" aria-label="Close Media Viewer">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        </button>
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-close close-lightbox"><i class="fas fa-times"></i></div>
         <div class="lightbox-media-container"></div>
         <div class="lightbox-meta">
             <p class="lightbox-caption"></p>
