@@ -107,7 +107,7 @@ html, body {
 .divider-vertical { width: 1px; height: 24px; background: var(--border); }
 .logout-btn { color: var(--error); background: rgba(255, 59, 48, 0.06); }
 
-/* NEW: Presence Bar Styling */
+/* Presence Bar Styling */
 .header-bottom {
     display: flex; justify-content: flex-end; align-items: center; width: 100%;
     padding-top: 8px; /* Separator from top controls */
@@ -126,7 +126,7 @@ html, body {
     box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.4);
 }
 
-/* UPDATED: Nav - BIGGER, SCROLLABLE TABS */
+/* Nav - BIGGER, SCROLLABLE TABS */
 .tab-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--surface);
@@ -233,7 +233,7 @@ html, body {
 .map-card { height: 400px; padding: 0; position: relative; }
 #mapContainer { width: 100%; height: 100%; z-index: 1; }
 .floating-action { position: absolute; bottom: 20px; right: 20px; z-index: 400; }
-/* NEW: Map media markers */
+/* Map media markers */
 .media-marker-icon {
     background: none !important;
     border: none !important;
@@ -319,7 +319,7 @@ body.dark .theme-switch .moon { display: inline; }
 /* Small utility */
 .btn.ghost.small { padding: 6px 10px; font-size: 0.85rem; }
 
-/* NEW: Context Menu Base Style */
+/* Context Menu Base Style */
 .context-menu {
     position: absolute;
     top: 50%;
@@ -335,3 +335,76 @@ body.dark .theme-switch .moon { display: inline; }
     z-index: 100;
 }
 .context-menu .btn { margin: 0; }
+
+
+/* NEW: iOS Style Action Sheet */
+.action-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    align-items: flex-end;
+    pointer-events: none;
+}
+.action-sheet-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.action-sheet-content {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 10px;
+    padding-bottom: max(10px, var(--safe-bottom));
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Springy effect */
+}
+.action-sheet-backdrop.active .action-sheet-content {
+    transform: translateY(0);
+}
+
+.action-sheet-block {
+    background: var(--surface);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+}
+
+.action-sheet-btn {
+    width: 100%;
+    padding: 14px 16px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    transition: background-color 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+.action-sheet-btn:active {
+    background: rgba(128, 128, 128, 0.15);
+}
+.action-sheet-block button + button {
+    border-top: 1px solid var(--border);
+}
+
+/* Button variants */
+.action-sheet-btn.destructive {
+    color: var(--error);
+}
+.action-sheet-btn.cancel {
+    font-weight: 700;
+}

@@ -42,7 +42,7 @@ const START_DATE = new Date("2024-05-09T00:00:00");
 let currentUser = null;
 let mapInstance = null;
 let memoryMarkers = [];
-let mediaMarkers = []; // NEW: Array for media location markers
+let mediaMarkers = [];
 let currentCalDate = new Date();
 let mediaRecorder = null;
 let audioChunks = [];
@@ -257,14 +257,157 @@ function attachLongPressListener(element, docId, collectionName, title, renderFu
     
     const endPress = () => clearTimeout(pressTimer);
 
-    // Desktop listeners
-    element.addEventListener('mousedown', startPress);
-    element.addEventListener('mouseup', endPress);
-    element.addEventListener('mouseleave', endPress);
+    // Attach listeners to the options button (or its container)
+    const trigger = element.querySelector('.delete-note-trigger, .fav-options-trigger');
+    if (trigger) {
+        // Desktop listeners
+        trigger.addEventListener('mousedown', startPress);
+        trigger.addEventListener('mouseup', endPress);
+        trigger.addEventListener('mouseleave', endPress);
+        
+        // Mobile listeners
+        trigger.addEventListener('touchstart', startPress);
+        trigger.addEventListener('touchend', endPress);
+    }
+}
+
+
+/* ================= MUSIC OPTIONS - NEW ACTION SHEET LOGIC ================= */
+
+function openSongLink(title, artist, service) {
+    const q = `${title} ${artist}`;
+    let url = '';
+    if(service === 'spotify') {
+        // Placeholder URL construction
+        url = `http://googleusercontent.com/spotify.com/search?q=${encodeURIComponent(q)}`;
+    } else if(service === 'deezer') {
+        url = `https://www.deezer.com/search/${encodeURIComponent(q)}`;
+    }
+    if (url) {
+        window.open(url, '_blank');
+        showToast(`Opening on ${service.charAt(0).toUpperCase() + service.slice(1)}`);
+    }
+}
+
+function attachMusicOptionsListener(element, docId, data) {
+    let pressTimer = null;
+    const CONTEXT_MENU_DURATION = 700;
+
+    // Prevent default right-click context menu
+    element.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    const showMenu = () => {
+        // Remove any previous action sheets
+        document.querySelectorAll('.action-sheet-backdrop').forEach(m => m.remove());
+        
+        // Create Action Sheet Backdrop (Modal)
+        const backdrop = document.createElement('div');
+        backdrop.className = 'action-sheet-backdrop active';
+        
+        const actionSheet = document.createElement('div');
+        actionSheet.className = 'action-sheet-content';
+
+        // Helper to create buttons
+        const createActionButton = (text, type, action, icon) => {
+            const btn = document.createElement('button');
+            btn.className = `action-sheet-btn ${type}`;
+            btn.innerHTML = `${icon ? `<span class="icon">${icon}</span>` : ''}<span>${text}</span>`;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                action();
+                backdrop.classList.remove('active');
+                setTimeout(() => backdrop.remove(), 300);
+            };
+            return btn;
+        };
+
+        const deleteAction = async () => {
+            const ok = confirm(`Delete "${data.title}"?`);
+            if(!ok) return;
+            try {
+                await deleteDoc(doc(db, 'music', docId));
+                showToast(`"${data.title}" removed`, "success");
+                addToTimeline(`Removed song: ${data.title}`);
+                renderMusic();
+            } catch(e) {
+                console.error(e);
+                showToast("Delete failed", "error");
+            }
+        };
+        
+        const playlistAction = () => {
+             showToast(`Added "${data.title}" to Playlist (Simulated)`);
+             addToTimeline(`Added song "${data.title}" to a playlist`);
+        };
+
+        const spotifyAction = () => openSongLink(data.title, data.artist, 'spotify');
+        const deezerAction = () => openSongLink(data.title, data.artist, 'deezer');
+        
+        // Menu structure
+        const menuBlock = document.createElement('div');
+        menuBlock.className = 'action-sheet-block';
+        menuBlock.appendChild(createActionButton('Open in Spotify', 'default', spotifyAction, '🎧'));
+        menuBlock.appendChild(createActionButton('Open in Deezer', 'default', deezerAction, '🎧'));
+        
+        const playlistBlock = document.createElement('div');
+        playlistBlock.className = 'action-sheet-block';
+        playlistBlock.appendChild(createActionButton('Add to Playlist', 'default', playlistAction, '➕'));
+        
+        const deleteBlock = document.createElement('div');
+        deleteBlock.className = 'action-sheet-block';
+        deleteBlock.appendChild(createActionButton('Delete Song', 'destructive', deleteAction, '🗑️'));
+        
+        const cancelBlock = document.createElement('div');
+        cancelBlock.className = 'action-sheet-block';
+        cancelBlock.appendChild(createActionButton('Cancel', 'cancel', () => backdrop.classList.remove('active'), ''));
+
+        actionSheet.appendChild(menuBlock);
+        actionSheet.appendChild(playlistBlock);
+        actionSheet.appendChild(deleteBlock);
+        actionSheet.appendChild(cancelBlock);
+
+        backdrop.appendChild(actionSheet);
+        document.body.appendChild(backdrop);
+        
+        // Click backdrop to close
+        backdrop.onclick = (e) => {
+            if (e.target === backdrop) {
+                backdrop.classList.remove('active');
+                setTimeout(() => backdrop.remove(), 300);
+            }
+        };
+    };
+
+    const startPress = (e) => {
+        // Only trigger on the options button itself
+        if(!e.target.closest('.music-options-trigger')) return;
+
+        e.preventDefault();
+        // Clear any previous timer
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(showMenu, CONTEXT_MENU_DURATION);
+    };
     
-    // Mobile listeners
-    element.addEventListener('touchstart', startPress);
-    element.addEventListener('touchend', endPress);
+    const endPress = () => clearTimeout(pressTimer);
+
+    // Attach listeners to the options button (or its container)
+    const trigger = element.querySelector('.music-options-trigger');
+    if (trigger) {
+        // Desktop listeners
+        trigger.addEventListener('mousedown', startPress);
+        trigger.addEventListener('mouseup', endPress);
+        trigger.addEventListener('mouseleave', endPress);
+        
+        // Mobile listeners
+        trigger.addEventListener('touchstart', startPress);
+        trigger.addEventListener('touchend', endPress);
+        // Also allow simple click for immediate menu open on non-touch devices or for accessibility
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Only show if no long press timer is running or if we're certain it's a simple click
+            if (!pressTimer) showMenu();
+        });
+    }
 }
 
 /* ================= MUSIC LOGIC (ITUNES API) ================= */
@@ -334,45 +477,20 @@ function renderMusic() {
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <audio controls src="${data.preview}" style="height:30px; max-width:140px;"></audio>
-                    <button class="btn small primary" data-id="${id}" data-action="spotify-open">Spotify</button>
-                    <button class="btn small secondary" data-id="${id}" data-action="deezer-open">Deezer</button>
-                    <div style="width:30px; height:30px; text-align:center; display:flex; justify-content:center; align-items:center;">
-                        <button class="btn icon-btn small delete-music-trigger" data-id="${id}" aria-label="Options">... </button>
+                    <div style="width:40px; height:40px; text-align:center; display:flex; justify-content:center; align-items:center;">
+                        <button class="btn icon-btn small music-options-trigger" data-id="${id}" aria-label="Options">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        </button>
                     </div>
                 </div>
             `;
-            // Open (Spotify/Deezer) - NOW WITH BUTTONS
-            div.querySelector('button[data-action="spotify-open"]').addEventListener('click', () => {
-                openSongLink(data.title, data.artist, 'spotify');
-            });
-            div.querySelector('button[data-action="deezer-open"]').addEventListener('click', () => {
-                openSongLink(data.title, data.artist, 'deezer');
-            });
-
-            // NEW: Long-press trigger for Delete/Edit
-            attachLongPressListener(
-                div.querySelector('.delete-music-trigger'),
-                id, 'music', data.title, renderMusic
-            );
+            
+            // NEW: Attach long-press/click listener for the action sheet
+            attachMusicOptionsListener(div, id, data);
 
             container.appendChild(div);
         });
     });
-}
-
-function openSongLink(title, artist, service) {
-    const q = `${title} ${artist}`;
-    let url = '';
-    if(service === 'spotify') {
-        // Placeholder URL construction
-        url = `http://googleusercontent.com/spotify.com/search?q=${encodeURIComponent(q)}`;
-    } else if(service === 'deezer') {
-        url = `https://www.deezer.com/search/${encodeURIComponent(q)}`;
-    }
-    if (url) {
-        window.open(url, '_blank');
-        showToast(`Opening on ${service.charAt(0).toUpperCase() + service.slice(1)}`);
-    }
 }
 
 /* ================= NOTES & VOICE ================= */
@@ -446,9 +564,9 @@ function renderNotes() {
                 <p>${escapeHtml(data.content)}</p>
             `;
             
-            // NEW: Long-press trigger for Delete/Edit
+            // Long-press trigger for Delete/Edit
             attachLongPressListener(
-                div.querySelector('.delete-note-trigger'),
+                div.querySelector('.delete-note-trigger').parentElement, // Attach to the container div
                 id, 'notes', data.content.substring(0, 30) + '...', renderNotes
             );
 
@@ -610,13 +728,12 @@ function renderMapPoints() {
     });
 }
 
-// NEW: Simulate fetching media with geo-metadata
+// Simulate fetching media with geo-metadata
 function getMediaWithLocation(snap) {
     const locations = [];
     snap.forEach(docSnap => {
         const data = docSnap.data();
-        // Simulate Geo-metadata check: use a predefined list or simple random for demo
-        // In a real app, this data would be stored in Firestore after upload (e.g., data.geolocation)
+        // Simulate Geo-metadata check
         const hasLocation = data.url.includes('cloudinary'); // Simple placeholder
         
         if (hasLocation) {
@@ -772,9 +889,9 @@ function renderFavorites() {
                 </div>
             `;
             
-            // NEW: Long-press trigger for Delete/Edit
+            // Long-press trigger for Delete/Edit
             attachLongPressListener(
-                div.querySelector('.fav-options-trigger'),
+                div.querySelector('.fav-options-trigger').parentElement,
                 id, 'favorites', `${title} from ${escapeHtml(data.user)}`, renderFavorites
             );
             
@@ -910,7 +1027,7 @@ function initApp() {
     renderNotes();
     renderMusic();
     renderTimeline();
-    renderFavorites(); // <--- fixed: ensure favorites are rendered
+    renderFavorites();
     // Theme
     if(localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark');
