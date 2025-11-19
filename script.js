@@ -74,12 +74,59 @@ const signInBtn = document.getElementById('signInBtn');
 
 // --- User Mock Data (REQUIRED) ---
 const USER_CREDENTIALS = {
-    'brayden': { email: 'brayden@love.com', displayName: USER_MAP[USERS.brayden], password: 'loveee' },
-    'youna': { email: 'youna@love.com', displayName: USER_MAP[USERS.youna], password: 'loveee' }
+    'brayden': { email: 'brayden@love.com', displayName: USER_MAP[USERS.brayden], password: 'loveee' },
+    'youna': { email: 'youna@love.com', displayName: USER_MAP[USERS.youna], password: 'loveee' }
 };
-};
+// REMOVE THE EXTRA '};' HERE
 let selectedUser = null;
 let currentUserProfile = null;
+
+// script.js (updateUserDisplay function)
+function updateUserDisplay(user) {
+    const loginBtn = document.getElementById('loginButton');
+    const profileBtn = document.getElementById('profileButton');
+    const switchUserBtn = document.getElementById('switchUserButton');
+    const profileName = document.getElementById('profileName');
+    const profileEmail = document.getElementById('profileEmail');
+
+    if (user) { // <--- CRITICAL: Check if a user is actually logged in
+        // User is signed in
+        currentUser = user;
+        
+        // Find the user details from the local map based on email
+        const userKey = Object.keys(USER_CREDENTIALS).find(key => USER_CREDENTIALS[key].email === user.email);
+        
+        // Set display name and email
+        const displayName = userKey ? USER_MAP[userKey] : 'Unknown User';
+        profileName.textContent = displayName;
+        profileEmail.textContent = user.email;
+
+        // Show profile/logout elements, hide login button
+        loginBtn.style.display = 'none';
+        profileBtn.style.display = 'flex';
+        switchUserBtn.style.display = 'block'; // Make sure this is block if you want to see it
+        
+        // Also call the function that loads the app's content after successful login
+        initApp();
+
+    } else {
+        // User is signed out (user is null)
+        currentUser = null;
+        profileName.textContent = 'Guest';
+        profileEmail.textContent = ''; // Clear email for logged-out state
+
+        // Hide profile/logout elements, show login button
+        loginBtn.style.display = 'block';
+        profileBtn.style.display = 'none';
+        switchUserBtn.style.display = 'none';
+        
+        // Reset the app view (e.g., show login screen or splash)
+        // You might need a function to reset the UI here, or simply hide main content
+        document.getElementById('mainAppContainer').style.display = 'none';
+        // Or if you have a dedicated login screen:
+        // document.getElementById('loginScreen').style.display = 'flex';
+    }
+}
 
 /* ================= UI HELPERS ================= */
 
