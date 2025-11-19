@@ -155,7 +155,13 @@ function getProfileFromEmail(email) {
 
 
 function selectProfile(user) {
-    if (isSignUpState) return; // Prevent selection in sign-up state
+    // If we're in sign up state, we should switch to sign in mode first
+    if (isSignUpState) {
+        toggleAuthState(false);
+        // We will call selectProfile('brayden') at the end of toggleAuthState(false)
+        // So we only need to ensure the user is 'brayden' if we get here
+        if (user === 'brayden') return;
+    }
     
     console.log(`Profile selected: ${user}`);
     selectedUser = user;
@@ -170,6 +176,7 @@ function selectProfile(user) {
     selectedBtn?.classList.add('active', 'primary');
     otherBtn?.classList.add('ghost');
     
+    // CRITICAL: Always clear password input on profile switch
     if (authPasswordInput) authPasswordInput.value = '';
     if (authPasswordInput) authPasswordInput.disabled = false;
     authPasswordInput?.focus();
@@ -177,12 +184,12 @@ function selectProfile(user) {
     checkFormValidity();
 }
 
-// ADDED DEBUG LOGIC HERE
+// IMPROVED DEBUG LOGIC HERE
 function checkFormValidity() {
     // Firebase min password length is 6
     const minPasswordLength = 6;
     const passwordValid = authPasswordInput?.value?.length >= minPasswordLength;
-    const emailValid = authEmailInput?.value?.length > 0;
+    const emailValid = authEmailInput?.value?.length > 0 && authEmailInput?.value?.includes('@');
     // Require display name only in sign-up mode
     const displayNameValid = isSignUpState ? authDisplayNameInput?.value?.length > 0 : true;
 
@@ -195,15 +202,16 @@ function checkFormValidity() {
         authPrimaryBtn?.classList.add('ghost');
         if(authPrimaryBtn) authPrimaryBtn.disabled = true;
 
-        // --- NEW DEBUG/FEEDBACK BLOCK ---
-        if (isSignUpState && authPrimaryBtn?.disabled) {
-            let reason = "Creation blocked. Please ensure: ";
-            if (!emailValid) reason += "1. Email is entered. ";
+        // --- IMPROVED DEBUG/FEEDBACK BLOCK ---
+        if (authPrimaryBtn?.disabled) {
+            let reason = `Creation/Login blocked. Please ensure: `;
+            if (!emailValid) reason += "1. Valid Email is entered. ";
             if (!passwordValid) reason += `2. Password is at least ${minPasswordLength} characters long. `;
-            if (!displayNameValid) reason += "3. Display Name is entered. ";
-            console.warn("Sign Up Button Disabled:", reason);
+            if (isSignUpState && !displayNameValid) reason += "3. Display Name is entered. ";
+            
+            console.warn(`Auth Button Disabled (Mode: ${isSignUpState ? 'Sign Up' : 'Sign In'}):`, reason);
         }
-        // --- END OF NEW DEBUG/FEEDBACK BLOCK ---
+        // --- END OF IMPROVED DEBUG/FEEDBACK BLOCK ---
     }
 }
 
@@ -251,9 +259,11 @@ async function handleSignUp(email, password, displayName) {
 async function handleAuthAction() {
     if (authPrimaryBtn?.disabled) {
         // Provide immediate feedback if the button is blocked by validation
-        if (isSignUpState) {
-            alert("Please check your input: Email, a password of 6+ characters, and a Display Name are required.");
-        }
+        let reason = isSignUpState
+            ? "Email, 6+ character password, and Display Name are required."
+            : "Email and a 6+ character password are required.";
+            
+        alert(`Validation Error: ${reason}`);
         return;
     }
     
@@ -291,7 +301,7 @@ async function handleAuthAction() {
         } else if (error.code === 'auth/too-many-requests') {
             displayError = 'Too many failed attempts. Try again later.';
         } else {
-            displayError = `Authentication failed. Please try again.`;
+            displayError = `Authentication failed. Please try again. (Code: ${error.code})`;
         }
         
         showToast(displayError, 'error');
@@ -307,6 +317,11 @@ async function handleAuthAction() {
 function toggleAuthState(signUp = !isSignUpState) {
     isSignUpState = signUp;
     
+    // CRITICAL: Clear all inputs on state switch to ensure clean validation
+    if(authEmailInput) authEmailInput.value = '';
+    if(authPasswordInput) authPasswordInput.value = '';
+    if(authDisplayNameInput) authDisplayNameInput.value = '';
+    
     if (isSignUpState) {
         if(authTitle) authTitle.textContent = 'Create Account';
         if(authSubtitle) authSubtitle.textContent = 'Register a new account';
@@ -316,10 +331,6 @@ function toggleAuthState(signUp = !isSignUpState) {
         // Hide profile buttons for new accounts
         if(braydenLoginBtn) braydenLoginBtn.style.display = 'none';
         if(younaLoginBtn) younaLoginBtn.style.display = 'none';
-        // Clear inputs when switching to create account
-        if(authEmailInput) authEmailInput.value = '';
-        if(authPasswordInput) authPasswordInput.value = '';
-        if(authDisplayNameInput) authDisplayNameInput.value = '';
     } else {
         if(authTitle) authTitle.textContent = 'Sign In';
         if(authSubtitle) authSubtitle.textContent = 'Choose your profile (or enter credentials)';
@@ -329,9 +340,10 @@ function toggleAuthState(signUp = !isSignUpState) {
         // Restore profile buttons
         if(braydenLoginBtn) braydenLoginBtn.style.display = 'inline-block';
         if(younaLoginBtn) younaLoginBtn.style.display = 'inline-block';
-        // Reset to default selected profile
+        
+        // Reset to default selected profile *after* buttons are visible
+        // This is where the account switching starts in sign-in mode
         selectProfile('brayden');
-        if(authDisplayNameInput) authDisplayNameInput.value = '';
     }
     checkFormValidity();
 }
@@ -362,7 +374,7 @@ authPrimaryBtn?.addEventListener('click', handleAuthAction); // Use new dispatch
 // New listener for the sign-up/sign-in toggle link
 authSwitchLink?.addEventListener('click', (e) => {
     e.preventDefault();
-    toggleAuthState();
+    toggleAuthState(); // Toggle function now handles the opposite state change
 });
 
 authPasswordInput?.addEventListener('keypress', (e) => {
@@ -402,10 +414,6 @@ onAuthStateChanged(auth, (user) => {
         currentUserProfile = null;
         currentUser = null;
         
-        if(authEmailInput) authEmailInput.value = '';
-        if(authPasswordInput) authPasswordInput.value = '';
-        if(authDisplayNameInput) authDisplayNameInput.value = '';
-
         // Reset to sign-in state and pre-select profile for convenience
         toggleAuthState(false);
         
@@ -510,7 +518,7 @@ function renderNotes() {
         snapshot.forEach((doc) => {
             const note = { id: doc.id, ...doc.data() };
             notes.push(note);
-            if (!latestNote || note.createdAt.toDate() > latestNote.createdAt.toDate()) {
+            if (!latestNote || (note.createdAt && note.createdAt.toDate() > latestNote.createdAt.toDate())) {
                 latestNote = note;
             }
         });
