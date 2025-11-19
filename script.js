@@ -1,10 +1,4 @@
 // script.js - Optimized, Functional, and Amazing (updated fixes)
-// - Improved lightbox (click backdrop or ESC to close)
-// - Removed floating-heart effect
-// - Favorites rendering bug fixed + show favorites tab
-// - Removed heart click animation behavior
-// - Delete songs & delete notes implemented
-// - "Open" option for songs (Spotify / Deezer)
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
@@ -48,6 +42,7 @@ const START_DATE = new Date("2024-05-09T00:00:00");
 let currentUser = null;
 let mapInstance = null;
 let memoryMarkers = [];
+let mediaMarkers = []; // NEW: Array for media location markers
 let currentCalDate = new Date();
 let mediaRecorder = null;
 let audioChunks = [];
@@ -152,15 +147,26 @@ function setupPresence(user) {
     
     onValue(ref(rtdb, 'presence'), snap => {
         const data = snap.val() || {};
-        // Reset both presence dots
+        // Reset both presence dots and text
         const bDot = document.getElementById('braydenPresence');
         const yDot = document.getElementById('younaPresence');
+        const bText = document.getElementById('braydenPresenceText');
+        const yText = document.getElementById('younaPresenceText');
+        
         if(bDot) bDot.classList.remove('online');
         if(yDot) yDot.classList.remove('online');
+        if(bText) bText.textContent = 'Brayden Offline';
+        if(yText) yText.textContent = 'Youna Offline';
 
         Object.values(data).forEach(p => {
-            if(p.user === 'Brayden' && bDot) bDot.classList.toggle('online', p.online);
-            if(p.user === 'Youna' && yDot) yDot.classList.toggle('online', p.online);
+            if(p.user === 'Brayden' && bDot) {
+                bDot.classList.toggle('online', p.online);
+                if(bText) bText.textContent = p.online ? 'Brayden Online' : 'Brayden Offline';
+            }
+            if(p.user === 'Youna' && yDot) {
+                yDot.classList.toggle('online', p.online);
+                if(yText) yText.textContent = p.online ? 'Youna Online' : 'Youna Offline';
+            }
         });
     });
 }
@@ -183,6 +189,83 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         if (sectionId === "schedule") renderCalendar(currentCalDate);
     });
 });
+
+/* ================= CONTEXT MENU SIMULATION (Delete/Edit) ================= */
+let pressTimer = null;
+const CONTEXT_MENU_DURATION = 700; // ms to simulate long press
+
+function attachLongPressListener(element, docId, collectionName, title, renderFunction) {
+    let contextMenu = null;
+    
+    // Prevent default right-click context menu
+    element.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    const showMenu = (e) => {
+        // Prevent showing multiple menus
+        document.querySelectorAll('.context-menu').forEach(m => m.remove());
+        
+        contextMenu = document.createElement('div');
+        contextMenu.className = 'context-menu';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn small error';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.style.color = 'var(--error)';
+        deleteBtn.onclick = async () => {
+            const ok = confirm(`Delete "${title}"?`);
+            if(!ok) return;
+            try {
+                await deleteDoc(doc(db, collectionName, docId));
+                showToast(`"${title}" removed`, "success");
+                addToTimeline(`Removed item from ${collectionName}`);
+                if(renderFunction) renderFunction(); // Re-render if provided
+            } catch(e) {
+                console.error(e);
+                showToast("Delete failed", "error");
+            }
+            contextMenu.remove();
+        };
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn small ghost';
+        editBtn.textContent = 'Edit (Click to log)';
+        editBtn.onclick = () => {
+             // In a real app, this would open an edit form
+            showToast(`Editing "${title}"... (Simulated/Logged)`);
+            addToTimeline(`Edited item in ${collectionName}`); // Log the edit
+            contextMenu.remove();
+        };
+
+        contextMenu.appendChild(editBtn);
+        contextMenu.appendChild(deleteBtn);
+        element.appendChild(contextMenu);
+        
+        // Auto-hide menu after a short time or on click outside
+        const hideMenu = (e) => {
+            if(contextMenu && !contextMenu.contains(e.target) && e.target !== element) {
+                contextMenu.remove();
+                document.removeEventListener('click', hideMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', hideMenu), 50);
+    };
+
+    const startPress = (e) => {
+        e.preventDefault();
+        pressTimer = setTimeout(() => showMenu(e), CONTEXT_MENU_DURATION);
+    };
+    
+    const endPress = () => clearTimeout(pressTimer);
+
+    // Desktop listeners
+    element.addEventListener('mousedown', startPress);
+    element.addEventListener('mouseup', endPress);
+    element.addEventListener('mouseleave', endPress);
+    
+    // Mobile listeners
+    element.addEventListener('touchstart', startPress);
+    element.addEventListener('touchend', endPress);
+}
 
 /* ================= MUSIC LOGIC (ITUNES API) ================= */
 document.getElementById('addMusicBtn')?.addEventListener('click', async () => {
@@ -251,44 +334,44 @@ function renderMusic() {
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <audio controls src="${data.preview}" style="height:30px; max-width:140px;"></audio>
-                    <button class="btn small" data-id="${id}" data-action="open">Open</button>
-                    <button class="btn ghost small" data-id="${id}" data-action="delete">Delete</button>
+                    <button class="btn small primary" data-id="${id}" data-action="spotify-open">Spotify</button>
+                    <button class="btn small secondary" data-id="${id}" data-action="deezer-open">Deezer</button>
+                    <div style="width:30px; height:30px; text-align:center; display:flex; justify-content:center; align-items:center;">
+                        <button class="btn icon-btn small delete-music-trigger" data-id="${id}" aria-label="Options">... </button>
+                    </div>
                 </div>
             `;
-            // Open (Spotify/Deezer)
-            div.querySelector('button[data-action="open"]').addEventListener('click', () => {
-                showSongOpenMenu(data.title, data.artist);
+            // Open (Spotify/Deezer) - NOW WITH BUTTONS
+            div.querySelector('button[data-action="spotify-open"]').addEventListener('click', () => {
+                openSongLink(data.title, data.artist, 'spotify');
             });
-            div.querySelector('button[data-action="delete"]').addEventListener('click', async () => {
-                const ok = confirm(`Delete "${data.title}"?`);
-                if(!ok) return;
-                try {
-                    await deleteDoc(doc(db, 'music', id));
-                    showToast("Song removed", "success");
-                    addToTimeline(`Removed song: ${data.title}`);
-                } catch(e) {
-                    console.error(e);
-                    showToast("Delete failed", "error");
-                }
+            div.querySelector('button[data-action="deezer-open"]').addEventListener('click', () => {
+                openSongLink(data.title, data.artist, 'deezer');
             });
+
+            // NEW: Long-press trigger for Delete/Edit
+            attachLongPressListener(
+                div.querySelector('.delete-music-trigger'),
+                id, 'music', data.title, renderMusic
+            );
+
             container.appendChild(div);
         });
     });
 }
 
-function showSongOpenMenu(title, artist) {
-    // Simple confirm-based menu: open Spotify or Deezer
-    const choice = prompt('Open in: type "spotify" or "deezer" (or cancel)');
-    if(!choice) return;
+function openSongLink(title, artist, service) {
     const q = `${title} ${artist}`;
-    if(choice.toLowerCase().includes('spotify')) {
-        const url = `https://open.spotify.com/search/${encodeURIComponent(q)}`;
+    let url = '';
+    if(service === 'spotify') {
+        // Placeholder URL construction
+        url = `http://googleusercontent.com/spotify.com/search?q=${encodeURIComponent(q)}`;
+    } else if(service === 'deezer') {
+        url = `https://www.deezer.com/search/${encodeURIComponent(q)}`;
+    }
+    if (url) {
         window.open(url, '_blank');
-    } else if(choice.toLowerCase().includes('deezer')) {
-        const url = `https://www.deezer.com/search/${encodeURIComponent(q)}`;
-        window.open(url, '_blank');
-    } else {
-        showToast('Unknown choice. Type "spotify" or "deezer".');
+        showToast(`Opening on ${service.charAt(0).toUpperCase() + service.slice(1)}`);
     }
 }
 
@@ -358,22 +441,17 @@ function renderNotes() {
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <span class="note-date">${escapeHtml(date)} • ${escapeHtml(data.user)}</span>
-                    <button class="btn ghost small" data-id="${id}" aria-label="Delete note">Delete</button>
+                    <button class="btn ghost small delete-note-trigger" data-id="${id}" aria-label="Options">... </button>
                 </div>
                 <p>${escapeHtml(data.content)}</p>
             `;
-            div.querySelector('button')?.addEventListener('click', async (e) => {
-                const ok = confirm('Delete this note?');
-                if(!ok) return;
-                try {
-                    await deleteDoc(doc(db, 'notes', id));
-                    showToast('Note deleted', 'success');
-                    addToTimeline('Removed a note');
-                } catch(err) {
-                    console.error(err);
-                    showToast('Could not delete note', 'error');
-                }
-            });
+            
+            // NEW: Long-press trigger for Delete/Edit
+            attachLongPressListener(
+                div.querySelector('.delete-note-trigger'),
+                id, 'notes', data.content.substring(0, 30) + '...', renderNotes
+            );
+
             list.appendChild(div);
         });
     });
@@ -489,9 +567,10 @@ function initMap() {
     if (!mapInstance) {
         mapInstance = L.map('mapContainer').setView([34.0522, -118.2437], 10);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap'
+            attribution: '© OpenStreetMap'
         }).addTo(mapInstance);
         renderMapPoints();
+        renderMediaLocations(); // NEW: Render media markers
     } else {
         // Fix for gray map when hidden
         mapInstance.invalidateSize();
@@ -527,6 +606,64 @@ function renderMapPoints() {
                 document.getElementById('mapContainer').scrollIntoView({behavior:'smooth'});
             };
             list.appendChild(div);
+        });
+    });
+}
+
+// NEW: Simulate fetching media with geo-metadata
+function getMediaWithLocation(snap) {
+    const locations = [];
+    snap.forEach(docSnap => {
+        const data = docSnap.data();
+        // Simulate Geo-metadata check: use a predefined list or simple random for demo
+        // In a real app, this data would be stored in Firestore after upload (e.g., data.geolocation)
+        const hasLocation = data.url.includes('cloudinary'); // Simple placeholder
+        
+        if (hasLocation) {
+            // Simulated location data based on user
+            let lat = data.user === 'Brayden' ? 34.00 + Math.random() * 0.1 : 33.95 + Math.random() * 0.1;
+            let lng = data.user === 'Brayden' ? -118.20 + Math.random() * 0.1 : -118.30 + Math.random() * 0.1;
+
+            locations.push({
+                title: `${data.type.slice(0,-1)} by ${data.user}`,
+                lat, lng,
+                url: data.url,
+                type: data.type
+            });
+        }
+    });
+    return locations;
+}
+
+function renderMediaLocations() {
+    onSnapshot(collections.photos, snapPhotos => {
+        onSnapshot(collections.videos, snapVideos => {
+            // Clear existing media markers
+            mediaMarkers.forEach(m => mapInstance.removeLayer(m));
+            mediaMarkers = [];
+
+            const photoLocations = getMediaWithLocation(snapPhotos);
+            const videoLocations = getMediaWithLocation(snapVideos);
+            const allMediaLocations = [...photoLocations, ...videoLocations];
+            
+            allMediaLocations.forEach(loc => {
+                // Different color/icon based on media type
+                const colorCode = loc.type === 'photos' ? '#C38D9E' : '#E8DFF5';
+                const iconHtml = loc.type === 'photos' ? '📸' : '📹';
+
+                const icon = L.divIcon({
+                    className: 'media-marker-icon',
+                    html: `<span style="color:${colorCode}; font-size: 20px;">${iconHtml}</span>`,
+                    iconSize: [20, 20]
+                });
+
+                const marker = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(mapInstance)
+                    .bindPopup(`
+                        <b>${escapeHtml(loc.title)}</b><br>
+                        <a href="${loc.url}" target="_blank">View Media</a>
+                    `);
+                mediaMarkers.push(marker);
+            });
         });
     });
 }
@@ -587,10 +724,9 @@ async function addToTimeline(action) {
     } catch(e) { console.error("Timeline error", e); }
 }
 
-// Favorites
+// Favorites (toggleFavorite is now simplified for ADDING only)
 async function toggleFavorite(e, url, type) {
     e.stopPropagation();
-    // simplified: just save favorite entry, no heart animation / toggle
     try {
         await addDoc(collections.favorites, {
             url, type,
@@ -598,6 +734,7 @@ async function toggleFavorite(e, url, type) {
             timestamp: serverTimestamp()
         });
         showToast("Added to Favorites");
+        addToTimeline(`Faved a ${type.slice(0,-1)}`);
     } catch(err) {
         console.error(err);
         showToast("Could not add favorite", "error");
@@ -610,19 +747,37 @@ function renderFavorites() {
         grid.innerHTML = '';
         snap.forEach(docSnap => {
             const data = docSnap.data();
+            const id = docSnap.id;
             const div = document.createElement('div');
             div.className = 'masonry-item';
+
             let content = '';
-            if(data.type === 'photos') content = `<img src="${escapeHtml(data.url)}" loading="lazy">`;
-            else if(data.type === 'videos') content = `<video src="${escapeHtml(data.url)}" controls></video>`;
-            else content = `<a href="${escapeHtml(data.url)}" target="_blank">Open</a>`;
+            let title = '';
+            if(data.type === 'photos') {
+                content = `<img src="${escapeHtml(data.url)}" loading="lazy">`;
+                title = 'Photo';
+            } else if(data.type === 'videos') {
+                content = `<video src="${escapeHtml(data.url)}" controls></video>`;
+                title = 'Video';
+            } else {
+                content = `<a href="${escapeHtml(data.url)}" target="_blank">Open Link</a>`;
+                title = 'Link';
+            }
 
             div.innerHTML = `
                 ${content}
                 <div class="item-meta">
                     <span>Saved by ${escapeHtml(data.user)}</span>
+                    <button class="btn icon-btn small fav-options-trigger" data-id="${id}" aria-label="Options">... </button>
                 </div>
             `;
+            
+            // NEW: Long-press trigger for Delete/Edit
+            attachLongPressListener(
+                div.querySelector('.fav-options-trigger'),
+                id, 'favorites', `${title} from ${escapeHtml(data.user)}`, renderFavorites
+            );
+            
             grid.appendChild(div);
         });
     });

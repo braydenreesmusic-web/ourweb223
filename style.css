@@ -93,7 +93,7 @@ html, body {
     padding: calc(var(--safe-top) + 12px) 20px 12px;
     border-bottom: 1px solid var(--border);
     box-shadow: 0 4px 30px rgba(0,0,0,0.02);
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: column; /* Ensure header can stack top/bottom bars */
 }
 .header-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .logo {
@@ -107,25 +107,52 @@ html, body {
 .divider-vertical { width: 1px; height: 24px; background: var(--border); }
 .logout-btn { color: var(--error); background: rgba(255, 59, 48, 0.06); }
 
-/* Nav */
+/* NEW: Presence Bar Styling */
+.header-bottom {
+    display: flex; justify-content: flex-end; align-items: center; width: 100%;
+    padding-top: 8px; /* Separator from top controls */
+}
+.presence-bar {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.8rem; color: var(--subtext);
+}
+.presence-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--subtext);
+    transition: background 0.3s;
+    margin-left: 2px;
+}
+.presence-dot.online {
+    background: var(--success);
+    box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.4);
+}
+
+/* UPDATED: Nav - BIGGER, SCROLLABLE TABS */
 .tab-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--surface);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     border-top: 1px solid var(--border);
-    padding: 10px 6px max(10px, var(--safe-bottom));
-    display: flex; justify-content: space-between;
+    padding: 10px 0 max(10px, var(--safe-bottom)); /* Changed padding-left/right to 0 */
+    display: flex; justify-content: flex-start; /* Aligned left for scroll */
     z-index: 500;
+    overflow-x: scroll; /* Scrollable */
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap; /* Prevent wrapping */
 }
+.tab-bar::-webkit-scrollbar { display: none; } /* Hide scrollbar on webkit */
+
 .tab-btn {
     background: none; border: none;
     display: flex; flex-direction: column; align-items: center; gap: 4px;
-    color: var(--subtext); font-size: 0.7rem; padding: 6px;
-    border-radius: 12px; transition: all 0.3s;
-    flex: 1;
+    color: var(--subtext); font-size: 0.8rem; /* Slightly larger text */
+    padding: 8px 14px; /* Bigger padding */
+    border-radius: 14px; transition: all 0.3s;
+    flex: 0 0 auto; /* Stop flex-grow */
+    min-width: 70px; /* Minimum size */
 }
 .tab-btn.active { color: var(--primary); transform: translateY(-2px); }
-.tab-btn .icon { font-size: 1.4rem; margin-bottom: 2px; }
+.tab-btn .icon { font-size: 1.6rem; margin-bottom: 2px; } /* Bigger icon */
+
 
 /* Layout */
 .container { padding: 140px 20px 120px; max-width: 900px; margin: 0 auto; min-height: 100vh; }
@@ -206,6 +233,13 @@ html, body {
 .map-card { height: 400px; padding: 0; position: relative; }
 #mapContainer { width: 100%; height: 100%; z-index: 1; }
 .floating-action { position: absolute; bottom: 20px; right: 20px; z-index: 400; }
+/* NEW: Map media markers */
+.media-marker-icon {
+    background: none !important;
+    border: none !important;
+    text-align: center;
+    line-height: 1;
+}
 
 /* Timeline */
 .timeline-container { position: relative; padding-left: 30px; }
@@ -284,3 +318,20 @@ body.dark .theme-switch .moon { display: inline; }
 
 /* Small utility */
 .btn.ghost.small { padding: 6px 10px; font-size: 0.85rem; }
+
+/* NEW: Context Menu Base Style */
+.context-menu {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 100;
+}
+.context-menu .btn { margin: 0; }
