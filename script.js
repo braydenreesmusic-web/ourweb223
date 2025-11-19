@@ -11,17 +11,18 @@ import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } f
 import { Chart } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js";
 import L from "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
-// --- Configuration ---
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI", // <<< REPLACE WITH YOUR FIREBASE API KEY
+  apiKey: "AIzaSyCg4ff72caOr1rk9y7kZAkUbcyjqfPuMLI",
   authDomain: "ourwebsite223.firebaseapp.com",
+  databaseURL: "https://ourwebsite223-default-rtdb.firebaseio.com",
   projectId: "ourwebsite223",
-  storageBucket: "ourwebsite223.appspot.com",
+  storageBucket: "ourwebsite223.firebasestorage.app",
   messagingSenderId: "978864749848",
-  appId: "1:978864749848:web:f1e635f87e2ddcc007f26d",
-  measurementId: "G-823MYFCCMG"
+  appId: "1:978864749848:web:dc2a053e7c6647c407f26d",
+  measurementId: "G-0PQL5ZR1R5"
 };
-
 // Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -79,7 +80,6 @@ const signInBtn = document.getElementById('signInBtn');
 // --- User Mock Data (REQUIRED) ---
 const USER_CREDENTIALS = {
   // NOTE: USERS.brayden is 'brayden@love.com'. USER_MAP['brayden@love.com'] is 'Brayden'.
-  // This mapping was incorrect in the original file, it should be:
   'brayden': { email: 'brayden@love.com', displayName: USER_MAP[USERS.brayden], password: 'loveee' },
   'youna': { email: 'youna@love.com', displayName: USER_MAP[USERS.youna], password: 'loveee' }
 };
@@ -90,37 +90,31 @@ let currentUserProfile = null;
 function updateUserDisplay(user) {
     const loginBtn = document.getElementById('loginButton');
     const profileBtn = document.getElementById('profileButton');
-    const switchUserBtn = document.getElementById('switchUserButton'); // Assuming this button is for Sign Out
+    const switchUserBtn = document.getElementById('switchUserButton');
     const profileName = document.getElementById('profileName');
     const profileEmail = document.getElementById('profileEmail');
+    const mainContainer = document.getElementById('mainAppContainer'); // Added
 
     if (user) {
         // User is signed in
         currentUser = user;
         
-        // Find the user details from the local map based on email
-        const userKey = user.email === USERS.brayden ? 'brayden' : 'youna';
-        
         // Set display name and email
         const displayName = USER_MAP[user.email] || 'Unknown User';
-        profileName.textContent = displayName;
-        profileEmail.textContent = user.email;
+        if(profileName) profileName.textContent = displayName;
+        if(profileEmail) profileEmail.textContent = user.email;
 
         // Show profile/logout elements, hide login button
         if(loginBtn) loginBtn.style.display = 'none';
         if(profileBtn) profileBtn.style.display = 'flex';
-        // Note: 'switchUserButton' likely isn't defined, but 'profileButton' acts as the user button.
-        // The actual sign out button is 'logoutBtn' found in the profile area.
-        if(switchUserBtn) switchUserBtn.style.display = 'none'; // Keep hidden unless explicitly used for sign-out/switch flow
-        
-        // Also call the function that loads the app's content after successful login
-        initApp();
+        if(switchUserBtn) switchUserBtn.style.display = 'none';
+        if(mainContainer) mainContainer.style.display = 'block'; // Show app content
 
     } else {
         // User is signed out (user is null)
         currentUser = null;
         if(profileName) profileName.textContent = 'Guest';
-        if(profileEmail) profileEmail.textContent = ''; // Clear email for logged-out state
+        if(profileEmail) profileEmail.textContent = '';
 
         // Hide profile/logout elements, show login button
         if(loginBtn) loginBtn.style.display = 'block';
@@ -128,9 +122,7 @@ function updateUserDisplay(user) {
         if(switchUserBtn) switchUserBtn.style.display = 'none';
         
         // Reset the app view
-        const mainContainer = document.getElementById('mainAppContainer');
         if(mainContainer) mainContainer.style.display = 'none';
-        // The onAuthStateChanged listener at the bottom handles showing the login modal
     }
 }
 
@@ -230,11 +222,13 @@ async function handleSignIn() {
         showToast(`Welcome back, ${currentUserProfile.displayName}!`, 'success');
 
         hideLogin();
-        // initApp() is called by onAuthStateChanged after a successful login
+        // onAuthStateChanged will handle initApp()
+
+        // Re-enable button on success state (though it will be hidden by hideLogin)
+        if (signInBtn) signInBtn.textContent = 'Sign In';
         
     } catch (error) {
         console.error('Sign In Error:', error.message);
-        // This is where you get the login failed message
         showToast('Login failed. Please check your password.', 'error');
         if (signInBtn) signInBtn.textContent = 'Sign In';
         if (signInBtn) signInBtn.disabled = false;
@@ -267,7 +261,6 @@ authPasswordInput?.addEventListener('keypress', (e) => {
 
 
 // Logout Functionality
-// This button is critical for your "I can't switch accounts" issue, as it is the only way to trigger the sign-out and return to the login modal.
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     try {
         if (currentUser) {
@@ -290,10 +283,11 @@ onAuthStateChanged(auth, (user) => {
         const userKey = user.email === USERS.brayden ? 'brayden' : 'youna';
         currentUserProfile = USER_CREDENTIALS[userKey];
         currentUser = user;
+        // Ensure the correct profile is visually selected in case the user reloads while logged in
         selectProfile(userKey);
         hideLogin();
         setupPresence(user);
-        updateUserDisplay(user); // Use the fixed display function
+        updateUserDisplay(user);
         initApp(); // Call initApp once authenticated
     } else {
         // Force initial state setup for login
@@ -308,7 +302,7 @@ onAuthStateChanged(auth, (user) => {
         if (braydenLoginBtn && !braydenLoginBtn.classList.contains('active') && !younaLoginBtn.classList.contains('active')) {
              selectProfile('brayden');
         }
-        updateUserDisplay(null); // Use the fixed display function
+        updateUserDisplay(null); // Reset user display
         showLogin();
     }
 });
@@ -815,7 +809,7 @@ function renderNotes() {
     });
 }
 
-// --- Voice Recording Logic (Stubbed out functions were missing) ---
+// --- Voice Recording Logic ---
 document.getElementById('recordAudioBtn')?.addEventListener('click', toggleRecording);
 document.getElementById('cancelRecordingBtn')?.addEventListener('click', stopRecording);
 document.getElementById('uploadRecordingBtn')?.addEventListener('click', uploadRecording);
@@ -824,9 +818,13 @@ function toggleRecording() {
     // Simplified stub
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
-        document.getElementById('recordAudioBtn').textContent = '🎤 Re-record';
-        document.getElementById('uploadRecordingBtn').style.display = 'inline-block';
-        document.getElementById('cancelRecordingBtn').style.display = 'inline-block';
+        const recordBtn = document.getElementById('recordAudioBtn');
+        const uploadBtn = document.getElementById('uploadRecordingBtn');
+        const cancelBtn = document.getElementById('cancelRecordingBtn');
+
+        if(recordBtn) recordBtn.textContent = '🎤 Re-record';
+        if(uploadBtn) uploadBtn.style.display = 'inline-block';
+        if(cancelBtn) cancelBtn.style.display = 'inline-block';
         showToast('Recording stopped. Ready to upload.');
     } else {
         startRecording();
@@ -845,9 +843,13 @@ function startRecording() {
                 stream.getTracks().forEach(track => track.stop());
             };
             mediaRecorder.start();
-            document.getElementById('recordAudioBtn').textContent = '🛑 Stop Recording';
-            document.getElementById('uploadRecordingBtn').style.display = 'none';
-            document.getElementById('cancelRecordingBtn').style.display = 'none';
+            const recordBtn = document.getElementById('recordAudioBtn');
+            const uploadBtn = document.getElementById('uploadRecordingBtn');
+            const cancelBtn = document.getElementById('cancelRecordingBtn');
+
+            if(recordBtn) recordBtn.textContent = '🛑 Stop Recording';
+            if(uploadBtn) uploadBtn.style.display = 'none';
+            if(cancelBtn) cancelBtn.style.display = 'none';
             showToast('Recording started...');
         })
         .catch(err => {
@@ -861,9 +863,13 @@ function stopRecording() {
         mediaRecorder.stop();
     }
     // Reset UI state after stop (manual cancel or recording end)
-    document.getElementById('recordAudioBtn').textContent = '🎙️ Record Voice Note';
-    document.getElementById('uploadRecordingBtn').style.display = 'none';
-    document.getElementById('cancelRecordingBtn').style.display = 'none';
+    const recordBtn = document.getElementById('recordAudioBtn');
+    const uploadBtn = document.getElementById('uploadRecordingBtn');
+    const cancelBtn = document.getElementById('cancelRecordingBtn');
+    
+    if(recordBtn) recordBtn.textContent = '🎙️ Record Voice Note';
+    if(uploadBtn) uploadBtn.style.display = 'none';
+    if(cancelBtn) cancelBtn.style.display = 'none';
     audioChunks = []; // Discard chunks
     showToast('Recording cancelled.', 'info');
 }
@@ -876,8 +882,14 @@ async function uploadRecording() {
     const storageRefInstance = storageRef(storage, storagePath);
     const uploadTask = uploadBytesResumable(storageRefInstance, audioBlob);
 
-    document.getElementById('uploadRecordingBtn').textContent = 'Uploading...';
-    document.getElementById('uploadRecordingBtn').disabled = true;
+    const uploadBtn = document.getElementById('uploadRecordingBtn');
+    const recordBtn = document.getElementById('recordAudioBtn');
+    const cancelBtn = document.getElementById('cancelRecordingBtn');
+
+    if(uploadBtn) {
+        uploadBtn.textContent = 'Uploading...';
+        uploadBtn.disabled = true;
+    }
 
     uploadTask.on('state_changed',
         (snapshot) => {
@@ -886,8 +898,10 @@ async function uploadRecording() {
         (error) => {
             console.error("Upload error:", error);
             showToast('Voice note upload failed.', 'error');
-            document.getElementById('uploadRecordingBtn').textContent = 'Upload Failed';
-            document.getElementById('uploadRecordingBtn').disabled = false;
+            if(uploadBtn) {
+                uploadBtn.textContent = 'Upload Failed';
+                uploadBtn.disabled = false;
+            }
         },
         async () => {
             // Handle successful uploads on complete
@@ -902,10 +916,10 @@ async function uploadRecording() {
             
             showToast('Voice note uploaded successfully!', 'success');
             addToTimeline('Uploaded a voice note');
-            document.getElementById('recordAudioBtn').textContent = '🎙️ Record Voice Note';
-            document.getElementById('uploadRecordingBtn').style.display = 'none';
-            document.getElementById('cancelRecordingBtn').style.display = 'none';
-            document.getElementById('uploadRecordingBtn').disabled = false;
+            if(recordBtn) recordBtn.textContent = '🎙️ Record Voice Note';
+            if(uploadBtn) uploadBtn.style.display = 'none';
+            if(cancelBtn) cancelBtn.style.display = 'none';
+            if(uploadBtn) uploadBtn.disabled = false;
         }
     );
 }
@@ -941,19 +955,585 @@ function renderMusic() {
     });
 }
 
-// --- Missing functions (initMap, renderMediaLocations, openLightbox, renderCalendar, renderTodos, renderPolls, renderFavorites, renderCheckins) are assumed to be present elsewhere or stubbed out for core functionality
-// Stubs to prevent crash:
-function initMap() { /* Map logic here */ }
-function renderMediaLocations() { /* Media logic here */ }
-function openLightbox() { /* Lightbox logic here */ }
-function renderCalendar() { /* Calendar logic here */ }
-function renderTodos() { /* Todo logic here */ }
-function renderPolls() { /* Polls logic here */ }
-function renderFavorites() { /* Favorites logic here */ }
-function renderCheckins() { /* Checkins logic here */ }
-function renderDashboard() { /* Dashboard logic here */ } // Already present above
+
+/* ================= MAP LOGIC (STUBS) ================= */
+
+// Fix: These functions were called but not defined, causing the app to crash on login.
+function initMap() {
+    // Check if map is already initialized
+    if (mapInstance) {
+        mapInstance.invalidateSize();
+        return;
+    }
+    
+    const mapElement = document.getElementById('map');
+    if (!mapElement) return;
+
+    // Initialize Leaflet Map
+    mapInstance = L.map('map').setView([39.8283, -98.5795], 4); // Centered on the US
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(mapInstance);
+
+    // Call render functions after map is ready
+    renderMemoryLocations();
+    // renderMediaLocations is called by the tab switch logic if needed
+}
+
+function renderMemoryLocations() {
+    // Simplified function to plot memories
+    // (You would fetch these from your 'memories' collection)
+    if (!mapInstance) return;
+
+    memoryMarkers.forEach(marker => mapInstance.removeLayer(marker));
+    memoryMarkers = [];
+
+    const mockMemories = [
+        { title: "First Date", lat: 40.7128, lng: -74.0060, desc: "Dinner in NYC!" },
+        { title: "West Coast Trip", lat: 34.0522, lng: -118.2437, desc: "Hiking in LA." },
+    ];
+
+    mockMemories.forEach(memory => {
+        const marker = L.marker([memory.lat, memory.lng]).addTo(mapInstance)
+            .bindPopup(`<b>${escapeHtml(memory.title)}</b><br>${escapeHtml(memory.desc)}`);
+        memoryMarkers.push(marker);
+    });
+}
+
+function renderMediaLocations() {
+    // Stub for showing media on map - depends on the mediaVisible flag
+}
+
+/* ================= UTILITY LOGIC (STUBS) ================= */
+
+function openLightbox(media) {
+    const lightbox = document.getElementById('lightbox');
+    const container = document.querySelector('.lightbox-media-container');
+    const caption = document.querySelector('.lightbox-caption');
+    
+    if(!lightbox || !container || !caption) return;
+    
+    container.innerHTML = '';
+    
+    if (media.type === 'image') {
+        container.innerHTML = `<img src="${media.src}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">`;
+    } else if (media.type === 'video') {
+        container.innerHTML = `<video src="${media.src}" controls style="max-width: 100%; max-height: 80vh;"></video>`;
+    }
+    
+    caption.textContent = media.caption;
+    lightbox.classList.add('active');
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox')?.classList.remove('active');
+    document.querySelector('.lightbox-media-container').innerHTML = '';
+}
+
+// Ensure the close button is wired up (check if it's already done in the provided HTML)
+document.querySelector('#lightbox .close-lightbox')?.addEventListener('click', closeLightbox);
+
+
+/* ================= OTHER SECTION LOGIC (STUBS) ================= */
+
+// Fix: These functions were called but not defined, causing the app to crash on navigation.
+/* ================= CALENDAR & EVENTS LOGIC ================= */
+
+/**
+ * Renders a list of upcoming events and handles the add event modal.
+ */
+function renderCalendar() {
+    const container = document.getElementById('calendarContainer');
+    if (!container) return;
+
+    // Listen for events in real-time
+    onSnapshot(query(collections.events, orderBy('timestamp', 'asc')), (snapshot) => {
+        container.innerHTML = '<h3>Upcoming Events</h3>';
+        
+        if (snapshot.empty) {
+            container.innerHTML += '<p class="subtext-center">No events planned yet. Tap the button to add one! 🎉</p>';
+            return;
+        }
+
+        let currentMonth = '';
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const date = data.timestamp ? data.timestamp.toDate() : new Date();
+            const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            if (month !== currentMonth) {
+                container.innerHTML += `<h4 class="month-header">${month}</h4>`;
+                currentMonth = month;
+            }
+
+            const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            container.innerHTML += `
+                <div class="event-item" data-id="${docSnap.id}">
+                    <div class="event-date">${date.getDate()}</div>
+                    <div class="event-details">
+                        <strong>${escapeHtml(data.title)}</strong>
+                        <span class="subtext">${time} • ${escapeHtml(data.location)}</span>
+                    </div>
+                    <button class="btn ghost small delete-event-btn" data-id="${docSnap.id}">❌</button>
+                </div>
+            `;
+        });
+
+        // Attach delete listeners
+        container.querySelectorAll('.delete-event-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                if (confirm('Are you sure you want to delete this event?')) {
+                    await deleteDoc(doc(db, 'events', id));
+                    showToast('Event deleted!', 'success');
+                    addToTimeline('Deleted an event');
+                }
+            });
+        });
+    });
+}
+
+// Event Listeners for adding an event (assumes a modal exists in index.html)
+document.getElementById('addEventBtn')?.addEventListener('click', () => {
+    document.getElementById('addEventModal')?.classList.add('active');
+});
+
+document.getElementById('cancelEventBtn')?.addEventListener('click', () => {
+    document.getElementById('addEventModal')?.classList.remove('active');
+});
+
+document.getElementById('saveEventBtn')?.addEventListener('click', async () => {
+    const title = document.getElementById('eventTitleInput').value.trim();
+    const location = document.getElementById('eventLocationInput').value.trim();
+    const dateStr = document.getElementById('eventDateInput').value;
+    
+    if (!title || !dateStr || !currentUser) return showToast('Please fill in event title and date.', 'error');
+
+    try {
+        await addDoc(collections.events, {
+            title: title,
+            location: location,
+            timestamp: new Date(dateStr),
+            user: USER_MAP[currentUser.email]
+        });
+        showToast('Event saved successfully!', 'success');
+        addToTimeline(`Added new event: ${title}`);
+        document.getElementById('addEventModal')?.classList.remove('active');
+        document.getElementById('eventTitleInput').value = '';
+        document.getElementById('eventLocationInput').value = '';
+        document.getElementById('eventDateInput').value = '';
+    } catch (e) {
+        showToast('Failed to save event.', 'error');
+        console.error("Error saving event:", e);
+    }
+    /* ================= TO-DOS LOGIC ================= */
+
+    /**
+     * Renders the interactive to-do list.
+     */
+    function renderTodos() {
+        const container = document.getElementById('todosContainer');
+        const input = document.getElementById('todoInput');
+        const addButton = document.getElementById('addTodoBtn');
+
+        if (!container) return;
+
+        // Listener for real-time updates
+        onSnapshot(query(collections.todos, orderBy('timestamp', 'desc')), (snapshot) => {
+            container.innerHTML = '';
+
+            if (snapshot.empty) {
+                container.innerHTML = '<p class="subtext-center">The list is clear! What should we add? 📝</p>';
+                return;
+            }
+
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+                const item = document.createElement('div');
+                item.className = `todo-item ${data.completed ? 'completed' : ''}`;
+                item.innerHTML = `
+                    <input type="checkbox" id="todo-${id}" ${data.completed ? 'checked' : ''} data-id="${id}">
+                    <label for="todo-${id}">
+                        <span class="todo-title">${escapeHtml(data.task)}</span>
+                        <span class="todo-user subtext">Added by: ${escapeHtml(data.user)}</span>
+                    </label>
+                    <button class="btn ghost small delete-todo-btn" data-id="${id}">🗑️</button>
+                `;
+                container.appendChild(item);
+            });
+
+            // Attach listeners for completion toggle
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', async (e) => {
+                    const id = e.target.dataset.id;
+                    const completed = e.target.checked;
+                    await updateDoc(doc(db, 'todos', id), { completed: completed });
+                    showToast(completed ? 'Task completed!' : 'Task reopened.', 'info');
+                    addToTimeline(completed ? 'Completed a todo item' : 'Reopened a todo item');
+                });
+            });
+
+            // Attach listeners for deletion
+            container.querySelectorAll('.delete-todo-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    await deleteDoc(doc(db, 'todos', id));
+                    showToast('To-do item deleted.', 'success');
+                    addToTimeline('Deleted a todo item');
+                });
+            });
+        });
+
+        // Add To-Do item button listener
+        addButton?.addEventListener('click', async () => {
+            const task = input.value.trim();
+            if (!task || !currentUser) return;
+
+            await addDoc(collections.todos, {
+                task: task,
+                completed: false,
+                user: USER_MAP[currentUser.email],
+                timestamp: serverTimestamp()
+            });
+            input.value = '';
+            showToast('To-do item added!', 'success');
+            addToTimeline(`Added new todo: ${task}`);
+        });
+        /* ================= POLLS LOGIC ================= */
+
+        /**
+         * Renders active polls, showing results and allowing the current user to vote.
+         */
+        function renderPolls() {
+            const container = document.getElementById('pollsContainer');
+            if (!container) return;
+
+            onSnapshot(query(collections.polls, orderBy('timestamp', 'desc')), (snapshot) => {
+                container.innerHTML = '<h3>Shared Decisions (Polls)</h3>';
+
+                if (snapshot.empty) {
+                    container.innerHTML += '<p class="subtext-center">No active polls. Start one!</p>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const id = docSnap.id;
+                    const options = data.options || {};
+                    const pollUser = USER_MAP[currentUser?.email];
+
+                    let totalVotes = 0;
+                    Object.values(options).forEach(voters => totalVotes += (voters.length || 0));
+
+                    const pollHtml = Object.entries(options).map(([option, voters]) => {
+                        const count = voters.length;
+                        const percent = totalVotes === 0 ? 0 : (count / totalVotes) * 100;
+                        const hasVoted = voters.includes(pollUser);
+                        const buttonClass = hasVoted ? 'primary' : 'secondary ghost';
+
+                        return `
+                            <div class="poll-option" data-option="${escapeHtml(option)}" data-id="${id}">
+                                <button class="btn small vote-btn ${buttonClass}" data-option="${escapeHtml(option)}" data-id="${id}" ${!pollUser ? 'disabled' : ''}>
+                                    ${hasVoted ? 'Voted' : 'Vote'}
+                                </button>
+                                <div class="poll-bar-container">
+                                    <div class="poll-bar" style="width: ${percent.toFixed(0)}%;"></div>
+                                    <span class="poll-option-text">${escapeHtml(option)}</span>
+                                </div>
+                                <span class="vote-count">${count} (${percent.toFixed(0)}%)</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    container.innerHTML += `
+                        <div class="card poll-item">
+                            <h4>${escapeHtml(data.question)}</h4>
+                            <p class="subtext">Started by ${escapeHtml(data.user)}</p>
+                            <div class="poll-options-list">${pollHtml}</div>
+                        </div>
+                    `;
+                });
+                
+                // Attach vote listeners
+                container.querySelectorAll('.vote-btn').forEach(btn => {
+                    btn.addEventListener('click', handleVote);
+                });
+            });
+        }
+
+        /**
+         * Handles the logic for voting on a poll.
+         * @param {Event} e
+         */
+        async function handleVote(e) {
+            const id = e.currentTarget.dataset.id;
+            const optionToVote = e.currentTarget.dataset.option;
+            const user = USER_MAP[currentUser.email];
+            
+            if (!user) return showToast("You must be logged in to vote.", 'error');
+
+            const pollRef = doc(db, 'polls', id);
+            const pollSnap = await getDoc(pollRef);
+            if (!pollSnap.exists()) return;
+            const data = pollSnap.data();
+            const currentOptions = data.options;
+            
+            // Find previous vote and remove it
+            let updateFields = {};
+            Object.entries(currentOptions).forEach(([option, voters]) => {
+                if (voters.includes(user)) {
+                    // User already voted for this option, so remove their vote (toggle)
+                    if (option === optionToVote) {
+                        updateFields[`options.${option}`] = arrayRemove(user);
+                    } else {
+                        // User voted for a different option, remove old vote
+                        updateFields[`options.${option}`] = arrayRemove(user);
+                    }
+                }
+            });
+
+            // Add new vote if it wasn't a toggle off the same option
+            if (!currentOptions[optionToVote]?.includes(user)) {
+                updateFields[`options.${optionToVote}`] = arrayUnion(user);
+                showToast(`Voted for: ${optionToVote}`, 'success');
+            } else if (updateFields[`options.${optionToVote}`] === arrayRemove(user)) {
+                showToast('Vote removed.', 'info');
+            }
+
+            try {
+                await updateDoc(pollRef, updateFields);
+                addToTimeline(`Voted in a poll`);
+            } catch (e) {
+                showToast('Failed to save vote.', 'error');
+                console.error("Error voting:", e);
+            }
+            /* ================= FAVORITES LOGIC ================= */
+
+            /**
+             * Renders a combined gallery of all favorited items (photos and videos).
+             */
+            function renderFavorites() {
+                const container = document.getElementById('favoritesContainer');
+                if (!container) return;
+
+                container.innerHTML = '<h3>Our Favorite Memories ❤️</h3><div class="masonry-grid" id="favoritesGrid"></div>';
+                const favoritesGrid = document.getElementById('favoritesGrid');
+
+                // Fetch favorited items (simplified: assuming 'favorites' collection stores media IDs and types)
+                // NOTE: For a real app, you'd typically fetch all media and filter by a 'isFavorite' field or a 'favorites' subcollection on the media item.
+                // For simplicity, we will mock/hard-code the collection names to check.
+
+                const fetchFavorites = async (collectionName) => {
+                    const snapshot = await getDocs(collections[collectionName]);
+                    return snapshot.docs.filter(docSnap => {
+                        // Simple mock: assume an item is a favorite if it has more than 2 reactions.
+                        const reactions = docSnap.data().reactions || {};
+                        const totalReactionCount = Object.values(reactions).reduce((sum, users) => sum + users.length, 0);
+                        return totalReactionCount > 2; // Arbitrary favorite logic
+                    }).map(docSnap => ({
+                        id: docSnap.id,
+                        ...docSnap.data(),
+                        type: collectionName === 'photos' ? 'image' : 'video'
+                    }));
+                };
+
+                Promise.all([
+                    fetchFavorites('photos'),
+                    fetchFavorites('videos')
+                ]).then(([photoFavs, videoFavs]) => {
+                    const allFavs = [...photoFavs, ...videoFavs].sort((a, b) => b.timestamp - a.timestamp); // Sort by recency
+                    
+                    favoritesGrid.innerHTML = '';
+                    if (allFavs.length === 0) {
+                        favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1;">We haven\'t favorited enough media yet!</p>';
+                        return;
+                    }
+
+                    allFavs.forEach(data => {
+                        const div = document.createElement('div');
+                        div.className = 'masonry-item favorite-item';
+                        
+                        const media = data.type === 'image'
+                            ? `<img src="${escapeHtml(data.url)}" loading="lazy" alt="favorite photo">`
+                            : `<video src="${escapeHtml(data.url)}" controls></video>`;
+                        
+                        div.innerHTML = `
+                            ${media}
+                            <div class="item-meta">
+                                <span style="font-weight: 500;">${data.type === 'image' ? 'Photo' : 'Video'}</span>
+                                <span class="subtext">${escapeHtml(data.user)}</span>
+                            </div>
+                        `;
+                        // Add click handler to open full media/lightbox if desired
+                        if (data.type === 'image') {
+                             div.querySelector('img').addEventListener('click', () => {
+                                openLightbox({ type: 'image', src: data.url, caption: `${escapeHtml(data.user)}'s favorite` });
+                            });
+                        }
+                        
+                        favoritesGrid.appendChild(div);
+                    });
+                }).catch(e => {
+                    console.error("Error rendering favorites:", e);
+                    favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1; color: var(--error);">Failed to load favorites.</p>';
+                });
+            }
+            /* ================= CHECKINS & MOOD LOGIC ================= */
+
+            const MOOD_EMOJIS = ['😄', '😊', '😐', '😟', '😭'];
+            const MOOD_VALUES = { '😄': 5, '😊': 4, '😐': 3, '😟': 2, '😭': 1 };
+            let currentMoodSelection = null;
+
+            /**
+             * Handles the display of the check-in section, including the mood chart.
+             */
+            function renderCheckins() {
+                const container = document.getElementById('checkinsContainer');
+                if (!container) return;
+                
+                // Ensure the structure is rendered (this should be in index.html, but we ensure it for function clarity)
+                container.innerHTML = `
+                    <div class="card checkin-log-card">
+                        <h4>How are you feeling today?</h4>
+                        <div id="moodSelector" class="mood-selector">
+                            ${MOOD_EMOJIS.map(emoji => `<span class="mood-emoji" data-mood="${emoji}">${emoji}</span>`).join('')}
+                        </div>
+                        <textarea id="moodNote" placeholder="Optional: Add a note about your day..." class="glass-input"></textarea>
+                        <button id="saveMoodBtn" class="btn primary full-width" disabled>Log Mood</button>
+                    </div>
+                    
+                    <div class="card checkin-chart-card">
+                        <h4>Mood Trend (Last 7 Days)</h4>
+                        <canvas id="moodChartCanvas"></canvas>
+                    </div>
+                `;
+
+                // Mood Selector Logic
+                document.querySelectorAll('.mood-emoji').forEach(emojiEl => {
+                    emojiEl.addEventListener('click', (e) => {
+                        document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                        currentMoodSelection = e.target.dataset.mood;
+                        document.getElementById('saveMoodBtn').disabled = false;
+                    });
+                });
+
+                // Save Mood Button Listener
+                document.getElementById('saveMoodBtn')?.addEventListener('click', async () => {
+                    if (!currentMoodSelection || !currentUser) return;
+                    const note = document.getElementById('moodNote').value.trim();
+                    
+                    try {
+                        await addDoc(collections.checkins, {
+                            mood: currentMoodSelection,
+                            value: MOOD_VALUES[currentMoodSelection],
+                            note: note,
+                            user: USER_MAP[currentUser.email],
+                            timestamp: serverTimestamp()
+                        });
+                        showToast(`Mood logged: ${currentMoodSelection}`, 'success');
+                        addToTimeline('Logged a mood check-in');
+                        
+                        // Reset UI
+                        currentMoodSelection = null;
+                        document.getElementById('moodNote').value = '';
+                        document.getElementById('saveMoodBtn').disabled = true;
+                        document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
+                        
+                        // Re-render chart after saving
+                        renderMoodChart();
+                        
+                    } catch (e) {
+                        showToast('Failed to log mood.', 'error');
+                        console.error("Error logging mood:", e);
+                    }
+                });
+                
+                renderMoodChart();
+            }
+
+            /**
+             * Fetches mood data and renders the Chart.js line graph.
+             */
+            function renderMoodChart() {
+                const canvas = document.getElementById('moodChartCanvas');
+                if (!canvas) return;
+
+                onSnapshot(query(collections.checkins, orderBy('timestamp', 'desc'), limit(7)), (snapshot) => {
+                    // Prepare data for chart (order is important: oldest first)
+                    const rawData = [];
+                    snapshot.forEach(docSnap => rawData.push(docSnap.data()));
+                    const chartData = rawData.reverse(); // Now oldest is first
+
+                    const labels = chartData.map(d => d.timestamp?.toDate().toLocaleDateString([], { month: 'short', day: 'numeric' }) || 'Today');
+                    const dataValues = chartData.map(d => d.value);
+
+                    const data = {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Overall Mood Trend',
+                            data: dataValues,
+                            borderColor: '#C38D9E',
+                            backgroundColor: 'rgba(195, 141, 158, 0.2)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 6,
+                            pointHoverRadius: 8
+                        }]
+                    };
+
+                    const config = {
+                        type: 'line',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    min: 1,
+                                    max: 5,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === value);
+                                        }
+                                    },
+                                    grid: { display: false }
+                                },
+                                x: {
+                                    grid: { drawOnChartArea: false }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ` Mood: ${context.label} - ${context.raw}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Destroy existing chart instance before creating a new one
+                    if (moodChart) {
+                        moodChart.destroy();
+                    }
+
+                    // Initialize new chart
+                    moodChart = new Chart(canvas, config);
+                });
+            }
+
+
+/* ================= INIT ================= */
 function initApp() {
-    document.getElementById('mainAppContainer').style.display = 'flex';
+    // Show the main container once the user is authenticated and data is ready to load
+    document.getElementById('mainAppContainer').style.display = 'block';
     updateTimeTogether();
     renderGallery('photos');
     renderGallery('videos');
@@ -962,6 +1542,7 @@ function initApp() {
     renderTimeline();
     renderFavorites();
     renderDashboard(); // Initialize dashboard view
+
     // Theme
     if(localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark');
@@ -980,5 +1561,5 @@ document.getElementById('darkModeToggle')?.addEventListener('change', e => {
     localStorage.setItem('theme', e.target.checked ? 'dark' : 'light');
 });
 
-// Close lightbox shortcut shortcut (already set above) - double bind guard
+// Close lightbox shortcut shortcut
 document.querySelectorAll('.close-lightbox').forEach(el => el.addEventListener('click', closeLightbox));
