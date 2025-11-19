@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Brayden & Youna – Timeless Bond</title>
+    <title>Brayden & Youna</title>
     <link rel="stylesheet" href="style.css">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,22 +19,22 @@
 </head>
 <body>
     <div id="toastContainer" class="toast-container"></div>
-    <div id="clickEffects"></div>
 
     <div id="authModal" class="modal active">
         <div class="modal-content blur-bg">
             <div class="modal-header">
-                <h2>Enter Our Realm</h2>
-                <p class="subtitle">Weave our shared tapestry</p>
+                <h2>Sign In</h2>
+                <p class="subtitle">Choose your profile</p>
             </div>
             <div class="auth-switch">
                 <button id="braydenLogin" class="btn primary active">Brayden</button>
                 <button id="younaLogin" class="btn ghost">Youna</button>
             </div>
             <div class="input-group">
-                <input type="email" id="authEmail" placeholder="email@love.com" readonly> <input type="password" id="authPassword" placeholder="Our sacred vow..." required>
+                <input type="email" id="authEmail" placeholder="Email" readonly>
+                <input type="password" id="authPassword" placeholder="Password" required>
             </div>
-            <button id="signInBtn" class="btn primary full-width">Awaken</button>
+            <button id="signInBtn" class="btn primary full-width">Sign In</button>
         </div>
     </div>
 
@@ -44,11 +44,11 @@
         <div class="header-top">
             <div class="logo-area">
                 <h1 class="logo">B & Y</h1>
-                <div id="daysCounter" class="days-counter">Calculating time...</div>
+                <div id="daysCounter" class="days-counter">Calculating...</div>
             </div>
             
             <div class="header-controls">
-                 <div class="theme-toggle-wrapper">
+                <div class="theme-toggle-wrapper">
                     <input type="checkbox" id="darkModeToggle">
                     <label for="darkModeToggle" class="theme-switch">
                         <span class="icon sun">☀</span>
@@ -57,13 +57,17 @@
                 </div>
                 <div class="divider-vertical"></div>
                 <button id="logoutBtn" class="btn icon-btn logout-btn" aria-label="Logout">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
                 </button>
             </div>
         </div>
         
         <div class="header-bottom">
-             <div class="presence-bar">
+            <div class="presence-bar">
                 <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
                 <span id="younaPresence" class="presence-dot" title="Youna"></span>
             </div>
@@ -73,8 +77,8 @@
     <main class="container">
         <section id="photos" class="section active">
             <div class="section-header">
-                <h2>Echoes</h2>
-                <p>Frozen moments of us.</p>
+                <h2>Photos</h2>
+                <p>Your uploaded pictures.</p>
             </div>
             <div class="upload-card" data-type="photos">
                 <div class="upload-icon">📷</div>
@@ -87,8 +91,8 @@
 
         <section id="videos" class="section">
             <div class="section-header">
-                <h2>Reveries</h2>
-                <p>Motion, light, and shadow.</p>
+                <h2>Videos</h2>
+                <p>Your uploaded videos.</p>
             </div>
             <div class="upload-card" data-type="videos">
                 <div class="upload-icon">🎥</div>
@@ -101,30 +105,30 @@
 
         <section id="music" class="section">
             <div class="section-header">
-                <h2>Symphony</h2>
-                <p>The soundtrack of our lives.</p>
+                <h2>Music</h2>
+                <p>Songs you've added.</p>
             </div>
             <div class="music-controls-wrapper card">
                 <div class="search-row">
-                    <input type="text" id="musicInput" class="glass-input" placeholder="Search song (e.g. 'Lover Taylor Swift')">
-                    <button id="addMusicBtn" class="btn primary small">Find</button>
+                    <input type="text" id="musicInput" class="glass-input" placeholder="Search songs">
+                    <button id="addMusicBtn" class="btn primary small">Search</button>
                 </div>
                 <div id="musicSearchResults" class="search-results hidden"></div>
             </div>
-            <h3 class="sub-header">Our Collection</h3>
+            <h3 class="sub-header">Saved Music</h3>
             <div id="savedMusic" class="list-layout"></div>
         </section>
 
         <section id="notes" class="section">
             <div class="section-header">
-                <h2>Confessions</h2>
-                <p>Words etched in eternity.</p>
+                <h2>Notes</h2>
+                <p>Your personal notes.</p>
             </div>
             <div class="note-composer card">
-                <textarea id="noteInput" placeholder="Write something beautiful..."></textarea>
+                <textarea id="noteInput" placeholder="Write a note..."></textarea>
                 <div class="composer-footer">
                     <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
-                    <button id="saveNoteBtn" class="btn primary small">Inscribe</button>
+                    <button id="saveNoteBtn" class="btn primary small">Save</button>
                 </div>
                 <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
             </div>
@@ -133,8 +137,8 @@
 
         <section id="schedule" class="section">
             <div class="section-header">
-                <h2>Alignments</h2>
-                <p>Charting our future.</p>
+                <h2>Schedule</h2>
+                <p>Upcoming dates and plans.</p>
             </div>
             <div class="calendar-wrapper card">
                 <div class="cal-nav">
@@ -148,10 +152,10 @@
                 <div id="calendarGrid" class="cal-grid-body"></div>
             </div>
             <div class="event-actions">
-                <button id="addEventToggleBtn" class="btn primary full-width">+ Add Date</button>
+                <button id="addEventToggleBtn" class="btn primary full-width">Add Event</button>
             </div>
             <div id="eventForm" class="event-editor card hidden">
-                <h4>New Alignment</h4>
+                <h4>New Event</h4>
                 <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
                 <input type="date" id="eventDate" class="glass-input">
                 <div class="form-actions">
@@ -164,60 +168,42 @@
 
         <section id="mapSection" class="section">
             <div class="section-header">
-                <h2>Cartography</h2>
-                <p>Where our paths crossed.</p>
+                <h2>Map</h2>
+                <p>Pinned locations.</p>
             </div>
             <div class="map-card card">
                 <div id="mapContainer"></div>
-                <button id="addMemoryBtn" class="btn primary floating-action">+ Pin Location</button>
+                <button id="addMemoryBtn" class="btn primary floating-action">Add Location</button>
             </div>
             <div id="memoriesList" class="list-layout"></div>
         </section>
 
         <section id="timeline" class="section">
             <div class="section-header">
-                <h2>The Weave</h2>
-                <p>A history of us.</p>
+                <h2>Activity</h2>
+                <p>Recent actions.</p>
             </div>
-            <div id="timelineContainer" class="timeline-container">
-                </div>
+            <div id="timelineContainer" class="timeline-container"></div>
         </section>
 
         <section id="favorites" class="section">
             <div class="section-header">
-                <h2>Sanctum</h2>
-                <p>The pieces we love most.</p>
+                <h2>Favorites</h2>
+                <p>Saved items.</p>
             </div>
-            <div id="favoritesGrid" class="masonry-grid">
-                </div>
+            <div id="favoritesGrid" class="masonry-grid"></div>
         </section>
     </main>
 
     <nav class="tab-bar">
-        <button class="tab-btn active" data-section="photos">
-            <span class="icon">📷</span><span class="label">Echoes</span>
-        </button>
-        <button class="tab-btn" data-section="videos">
-            <span class="icon">🎥</span><span class="label">Reverie</span>
-        </button>
-        <button class="tab-btn" data-section="music">
-            <span class="icon">🎵</span><span class="label">Music</span>
-        </button>
-        <button class="tab-btn" data-section="notes">
-            <span class="icon">✍️</span><span class="label">Notes</span>
-        </button>
-        <button class="tab-btn" data-section="schedule">
-            <span class="icon">📅</span><span class="label">Plan</span>
-        </button>
-        <button class="tab-btn" data-section="mapSection">
-            <span class="icon">🌍</span><span class="label">Map</span>
-        </button>
-        <button class="tab-btn" data-section="timeline">
-            <span class="icon">📜</span><span class="label">Time</span>
-        </button>
-        <button class="tab-btn" data-section="favorites">
-            <span class="icon">❤️</span><span class="label">Love</span>
-        </button>
+        <button class="tab-btn active" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
+        <button class="tab-btn" data-section="videos"><span class="icon">🎥</span><span>Videos</span></button>
+        <button class="tab-btn" data-section="music"><span class="icon">🎵</span><span>Music</span></button>
+        <button class="tab-btn" data-section="notes"><span class="icon">✍️</span><span>Notes</span></button>
+        <button class="tab-btn" data-section="schedule"><span class="icon">📅</span><span>Schedule</span></button>
+        <button class="tab-btn" data-section="mapSection"><span class="icon">🌍</span><span>Map</span></button>
+        <button class="tab-btn" data-section="timeline"><span class="icon">📜</span><span>Activity</span></button>
+        <button class="tab-btn" data-section="favorites"><span class="icon">❤️</span><span>Favorites</span></button>
     </nav>
 
     <div id="lightbox" class="lightbox">
@@ -231,9 +217,9 @@
 
     <div id="memoryModal" class="modal">
         <div class="modal-content card">
-            <h3>Pin Memory</h3>
+            <h3>Add Location</h3>
             <input type="text" id="memoryTitle" placeholder="Location Name" class="glass-input">
-            <textarea id="memoryDesc" placeholder="What happened here?" class="glass-input"></textarea>
+            <textarea id="memoryDesc" placeholder="Description" class="glass-input"></textarea>
             <div class="geo-controls">
                 <input type="number" id="latInput" placeholder="Lat" class="glass-input small">
                 <input type="number" id="lngInput" placeholder="Lng" class="glass-input small">
@@ -241,7 +227,7 @@
             </div>
             <div class="modal-footer">
                 <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
-                <button id="saveMemoryBtn" class="btn primary">Pin It</button>
+                <button id="saveMemoryBtn" class="btn primary">Save</button>
             </div>
         </div>
     </div>

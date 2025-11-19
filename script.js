@@ -1,4 +1,10 @@
-// script.js - Optimized, Functional, and Amazing
+// script.js - Optimized, Functional, and Amazing (updated fixes)
+// - Improved lightbox (click backdrop or ESC to close)
+// - Removed floating-heart effect
+// - Favorites rendering bug fixed + show favorites tab
+// - Removed heart click animation behavior
+// - Delete songs & delete notes implemented
+// - "Open" option for songs (Spotify / Deezer)
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
@@ -53,40 +59,23 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.style.cssText = `
-        background: var(--surface); color: var(--text); padding: 12px 24px; 
-        border-radius: 50px; margin-bottom: 10px; box-shadow: var(--shadow);
+        background: var(--surface); color: var(--text); padding: 12px 18px; 
+        border-radius: 28px; margin-bottom: 10px; box-shadow: var(--shadow);
         border: 1px solid var(--border); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
-        animation: slideIn 0.3s ease;
+        animation: slideIn 0.25s ease;
     `;
     const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    toast.innerHTML = `<span style="font-size:16px">${icon}</span><span>${message}</span>`;
     container.appendChild(toast);
     
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, 2600);
 }
-
-function createFloatingHeart(x, y) {
-    const heart = document.createElement('div');
-    heart.className = 'floating-heart';
-    heart.textContent = '❤️';
-    heart.style.left = x + 'px';
-    heart.style.top = y + 'px';
-    document.body.appendChild(heart);
-    setTimeout(() => heart.remove(), 1000);
-}
-
-document.addEventListener('click', (e) => {
-    // Add effect on buttons
-    if(e.target.closest('button') || e.target.closest('.calendar-day')) {
-        createFloatingHeart(e.clientX, e.clientY);
-    }
-});
 
 function escapeHtml(str) {
-    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[m]);
+    return !str ? '' : String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' })[m]);
 }
 
 function updateTimeTogether() {
@@ -163,9 +152,15 @@ function setupPresence(user) {
     
     onValue(ref(rtdb, 'presence'), snap => {
         const data = snap.val() || {};
+        // Reset both presence dots
+        const bDot = document.getElementById('braydenPresence');
+        const yDot = document.getElementById('younaPresence');
+        if(bDot) bDot.classList.remove('online');
+        if(yDot) yDot.classList.remove('online');
+
         Object.values(data).forEach(p => {
-            if(p.user === 'Brayden') document.getElementById('braydenPresence').classList.toggle('online', p.online);
-            if(p.user === 'Youna') document.getElementById('younaPresence').classList.toggle('online', p.online);
+            if(p.user === 'Brayden' && bDot) bDot.classList.toggle('online', p.online);
+            if(p.user === 'Youna' && yDot) yDot.classList.toggle('online', p.online);
         });
     });
 }
@@ -199,7 +194,7 @@ document.getElementById('addMusicBtn')?.addEventListener('click', async () => {
     resultsDiv.classList.remove('hidden');
 
     try {
-        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(queryTerm)}&media=music&limit=5`);
+        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(queryTerm)}&media=music&limit=8`);
         const data = await res.json();
         resultsDiv.innerHTML = '';
 
@@ -209,13 +204,15 @@ document.getElementById('addMusicBtn')?.addEventListener('click', async () => {
             div.innerHTML = `
                 <img src="${song.artworkUrl100}" alt="art">
                 <div class="music-info">
-                    <h4>${song.trackName}</h4>
-                    <p>${song.artistName}</p>
+                    <h4>${escapeHtml(song.trackName)}</h4>
+                    <p>${escapeHtml(song.artistName)}</p>
                 </div>
-                <button class="btn icon-btn small">➕</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn small">Save</button>
+                </div>
             `;
             // Add song to DB
-            div.querySelector('button').onclick = async () => {
+            div.querySelector('button') .onclick = async () => {
                 await addDoc(collections.music, {
                     title: song.trackName,
                     artist: song.artistName,
@@ -227,11 +224,12 @@ document.getElementById('addMusicBtn')?.addEventListener('click', async () => {
                 resultsDiv.classList.add('hidden');
                 document.getElementById('musicInput').value = '';
                 addToTimeline(`Added song: ${song.trackName}`);
-                showToast("Song added to Symphony");
+                showToast("Song added to Music");
             };
             resultsDiv.appendChild(div);
         });
     } catch(e) {
+        console.error(e);
         resultsDiv.innerHTML = 'Error searching music.';
     }
 });
@@ -240,21 +238,58 @@ function renderMusic() {
     const container = document.getElementById('savedMusic');
     onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
         container.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
             const div = document.createElement('div');
             div.className = 'card music-item';
             div.innerHTML = `
                 <img src="${data.cover}" alt="art">
                 <div class="music-info">
-                    <h4>${data.title}</h4>
-                    <p>${data.artist} • Added by ${data.user}</p>
+                    <h4>${escapeHtml(data.title)}</h4>
+                    <p>${escapeHtml(data.artist)} • Added by ${escapeHtml(data.user)}</p>
                 </div>
-                <audio controls src="${data.preview}" style="height:30px; max-width:100px;"></audio>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <audio controls src="${data.preview}" style="height:30px; max-width:140px;"></audio>
+                    <button class="btn small" data-id="${id}" data-action="open">Open</button>
+                    <button class="btn ghost small" data-id="${id}" data-action="delete">Delete</button>
+                </div>
             `;
+            // Open (Spotify/Deezer)
+            div.querySelector('button[data-action="open"]').addEventListener('click', () => {
+                showSongOpenMenu(data.title, data.artist);
+            });
+            div.querySelector('button[data-action="delete"]').addEventListener('click', async () => {
+                const ok = confirm(`Delete "${data.title}"?`);
+                if(!ok) return;
+                try {
+                    await deleteDoc(doc(db, 'music', id));
+                    showToast("Song removed", "success");
+                    addToTimeline(`Removed song: ${data.title}`);
+                } catch(e) {
+                    console.error(e);
+                    showToast("Delete failed", "error");
+                }
+            });
             container.appendChild(div);
         });
     });
+}
+
+function showSongOpenMenu(title, artist) {
+    // Simple confirm-based menu: open Spotify or Deezer
+    const choice = prompt('Open in: type "spotify" or "deezer" (or cancel)');
+    if(!choice) return;
+    const q = `${title} ${artist}`;
+    if(choice.toLowerCase().includes('spotify')) {
+        const url = `https://open.spotify.com/search/${encodeURIComponent(q)}`;
+        window.open(url, '_blank');
+    } else if(choice.toLowerCase().includes('deezer')) {
+        const url = `https://www.deezer.com/search/${encodeURIComponent(q)}`;
+        window.open(url, '_blank');
+    } else {
+        showToast('Unknown choice. Type "spotify" or "deezer".');
+    }
 }
 
 /* ================= NOTES & VOICE ================= */
@@ -273,8 +308,7 @@ voiceBtn?.addEventListener('click', async () => {
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 // In a real app, upload Blob to Storage (Firebase/Cloudinary).
-                // Here we create a local URL for demo or use a base64 approach if small.
-                // For reliability without storage config, we will simulate a "Voice Note" entry text.
+                // Here we create a local entry as placeholder
                 await addDoc(collections.notes, {
                     content: "🎤 Voice Note (Audio support needs Storage bucket enabled)",
                     type: 'voice',
@@ -308,22 +342,38 @@ document.getElementById('saveNoteBtn')?.addEventListener('click', async () => {
     });
     document.getElementById('noteInput').value = '';
     addToTimeline("Left a note");
-    showToast("Inscribed.");
+    showToast("Saved.");
 });
 
 function renderNotes() {
     const list = document.getElementById('notesList');
     onSnapshot(query(collections.notes, orderBy('timestamp', 'desc')), snap => {
         list.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
             const div = document.createElement('div');
             div.className = 'card note-item';
             const date = data.timestamp ? data.timestamp.toDate().toLocaleString() : 'Just now';
             div.innerHTML = `
-                <span class="note-date">${date} • ${data.user}</span>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <span class="note-date">${escapeHtml(date)} • ${escapeHtml(data.user)}</span>
+                    <button class="btn ghost small" data-id="${id}" aria-label="Delete note">Delete</button>
+                </div>
                 <p>${escapeHtml(data.content)}</p>
             `;
+            div.querySelector('button')?.addEventListener('click', async (e) => {
+                const ok = confirm('Delete this note?');
+                if(!ok) return;
+                try {
+                    await deleteDoc(doc(db, 'notes', id));
+                    showToast('Note deleted', 'success');
+                    addToTimeline('Removed a note');
+                } catch(err) {
+                    console.error(err);
+                    showToast('Could not delete note', 'error');
+                }
+            });
             list.appendChild(div);
         });
     });
@@ -398,13 +448,11 @@ function loadEventsForMonth(date) {
         // Reset dots
         days.forEach(d => d.classList.remove('has-event'));
         
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
             const evtDate = new Date(data.date);
             // Important: Match Month AND Year
             if(evtDate.getMonth() === date.getMonth() && evtDate.getFullYear() === date.getFullYear()) {
-                // Find day element. Note: Calendar grid has empty offsets.
-                // A simpler way is to iterate days and check text content.
                 days.forEach(dayEl => {
                     if(parseInt(dayEl.textContent) === evtDate.getDate()) {
                         dayEl.classList.add('has-event');
@@ -421,13 +469,12 @@ function renderEventsList() {
     // Order by date ascending
     onSnapshot(query(collections.events, orderBy('date', 'asc'), limit(5)), snap => {
         list.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
-            // Only show future events ideally, but showing all for now
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
             const div = document.createElement('div');
             div.className = 'event-item';
             div.innerHTML = `
-                <div><strong>${data.date}</strong>: ${escapeHtml(data.title)}</div>
+                <div><strong>${escapeHtml(data.date)}</strong>: ${escapeHtml(data.title)}</div>
             `;
             list.appendChild(div);
         });
@@ -459,8 +506,8 @@ function renderMapPoints() {
         const list = document.getElementById('memoriesList');
         list.innerHTML = '';
         
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
             const marker = L.marker([data.lat, data.lng]).addTo(mapInstance)
                 .bindPopup(`<b>${escapeHtml(data.title)}</b><br>${escapeHtml(data.desc)}`);
             memoryMarkers.push(marker);
@@ -514,15 +561,15 @@ function renderTimeline() {
     const container = document.getElementById('timelineContainer');
     onSnapshot(query(collections.timeline, orderBy('timestamp', 'desc'), limit(30)), snap => {
         container.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
             const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '';
             const div = document.createElement('div');
             div.className = 'timeline-item';
             div.innerHTML = `
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                    <span class="timeline-date">${date} • ${data.user}</span>
+                    <span class="timeline-date">${escapeHtml(date)} • ${escapeHtml(data.user)}</span>
                     <p class="timeline-text">${escapeHtml(data.action)}</p>
                 </div>
             `;
@@ -543,33 +590,38 @@ async function addToTimeline(action) {
 // Favorites
 async function toggleFavorite(e, url, type) {
     e.stopPropagation();
-    e.target.classList.toggle('active');
-    e.target.innerText = e.target.innerText === '🤍' ? '❤️' : '🤍';
-    
-    await addDoc(collections.favorites, {
-        url, type,
-        user: USER_MAP[currentUser.email],
-        timestamp: serverTimestamp()
-    });
-    showToast("Added to Sanctum");
-    createFloatingHeart(e.clientX, e.clientY);
+    // simplified: just save favorite entry, no heart animation / toggle
+    try {
+        await addDoc(collections.favorites, {
+            url, type,
+            user: USER_MAP[currentUser.email],
+            timestamp: serverTimestamp()
+        });
+        showToast("Added to Favorites");
+    } catch(err) {
+        console.error(err);
+        showToast("Could not add favorite", "error");
+    }
 }
 
 function renderFavorites() {
     const grid = document.getElementById('favoritesGrid');
-    onSnapshot(query(collections.favorites, orderBy('timestamp', 'desc')), snap => {
+    onSnapshot(query(collections.favorites, orderBy('timestamp', 'desc'), limit(50)), snap => {
         grid.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
             const div = document.createElement('div');
             div.className = 'masonry-item';
             let content = '';
-            if(data.type === 'photos') content = `<img src="${data.url}">`;
-            else if(data.type === 'videos') content = `<video src="${data.url}" controls></video>`;
-            
+            if(data.type === 'photos') content = `<img src="${escapeHtml(data.url)}" loading="lazy">`;
+            else if(data.type === 'videos') content = `<video src="${escapeHtml(data.url)}" controls></video>`;
+            else content = `<a href="${escapeHtml(data.url)}" target="_blank">Open</a>`;
+
             div.innerHTML = `
                 ${content}
-                <div class="item-meta"><span>Saved by ${data.user}</span><span>❤️</span></div>
+                <div class="item-meta">
+                    <span>Saved by ${escapeHtml(data.user)}</span>
+                </div>
             `;
             grid.appendChild(div);
         });
@@ -617,36 +669,83 @@ document.getElementById('videoInput')?.addEventListener('change', e => handleUpl
 
 function renderGallery(type) {
     const container = document.getElementById(type === 'photos' ? 'photoGallery' : 'videoGallery');
-    onSnapshot(query(collections[type], orderBy('timestamp', 'desc'), limit(20)), snap => {
+    onSnapshot(query(collections[type], orderBy('timestamp', 'desc'), limit(50)), snap => {
         container.innerHTML = '';
-        snap.forEach(doc => {
-            const data = doc.data();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
             const div = document.createElement('div');
             div.className = 'masonry-item';
             const media = type === 'photos'
-                ? `<img src="${data.url}" loading="lazy">`
-                : `<video src="${data.url}" controls></video>`;
+                ? `<img src="${escapeHtml(data.url)}" loading="lazy" data-url="${escapeHtml(data.url)}" alt="photo">`
+                : `<video src="${escapeHtml(data.url)}" controls></video>`;
             
             div.innerHTML = `
                 ${media}
                 <div class="item-meta">
-                    <span>${data.user}</span>
-                    <button class="btn icon-btn fav-btn">🤍</button>
+                    <span>${escapeHtml(data.user)}</span>
+                    <button class="btn small fav-btn" data-url="${escapeHtml(data.url)}" data-type="${type}">Save</button>
                 </div>
             `;
             
             div.querySelector('.fav-btn').onclick = (e) => toggleFavorite(e, data.url, type);
             if(type === 'photos') {
-                div.querySelector('img').onclick = () => {
-                    const box = document.getElementById('lightbox');
-                    box.classList.add('active');
-                    box.querySelector('.lightbox-media-container').innerHTML = `<img src="${data.url}">`;
-                };
+                const img = div.querySelector('img');
+                img.style.cursor = 'zoom-in';
+                img.addEventListener('click', () => {
+                    openLightbox({ type: 'image', src: img.dataset.url, caption: `${escapeHtml(data.user)}` });
+                });
             }
             container.appendChild(div);
         });
     });
 }
+
+/* ================= LIGHTBOX (improved) ================= */
+const lightbox = document.getElementById('lightbox');
+const lightboxContainer = lightbox?.querySelector('.lightbox-media-container');
+const lightboxCaption = lightbox?.querySelector('.lightbox-caption');
+const lightboxClose = lightbox?.querySelector('.close-lightbox');
+
+function openLightbox({ type, src, caption = '' }) {
+    if(!lightbox || !lightboxContainer) return;
+    lightboxContainer.innerHTML = '';
+    if(type === 'image') {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = caption || 'photo';
+        img.style.maxHeight = '80vh';
+        img.style.maxWidth = '90vw';
+        img.style.display = 'block';
+        img.style.margin = '0 auto';
+        lightboxContainer.appendChild(img);
+    } else if(type === 'video') {
+        const v = document.createElement('video');
+        v.src = src;
+        v.controls = true;
+        v.style.maxHeight = '80vh';
+        v.style.maxWidth = '90vw';
+        v.style.display = 'block';
+        v.style.margin = '0 auto';
+        lightboxContainer.appendChild(v);
+    }
+    lightboxCaption.textContent = caption;
+    lightbox.classList.add('active');
+    // trap scroll
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    if(!lightbox) return;
+    lightbox.classList.remove('active');
+    lightboxContainer.innerHTML = '';
+    lightboxCaption.textContent = '';
+    document.body.style.overflow = '';
+}
+
+lightboxClose?.addEventListener('click', closeLightbox);
+lightbox?.querySelector('.lightbox-backdrop')?.addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeLightbox(); });
 
 /* ================= INIT ================= */
 function initApp() {
@@ -656,7 +755,7 @@ function initApp() {
     renderNotes();
     renderMusic();
     renderTimeline();
-    
+    renderFavorites(); // <--- fixed: ensure favorites are rendered
     // Theme
     if(localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark');
@@ -670,5 +769,5 @@ document.getElementById('darkModeToggle')?.addEventListener('change', e => {
 });
 
 document.querySelector('.close-lightbox')?.addEventListener('click', () => {
-    document.getElementById('lightbox').classList.remove('active');
+    closeLightbox();
 });
