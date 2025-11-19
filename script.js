@@ -169,7 +169,10 @@ function escapeHtml(str) {
 function selectProfile(user) {
     console.log(`Profile selected: ${user}`);
     selectedUser = user;
+    
+    // FIX (Login Issue): Pre-fill email AND password for quick sign-in using mock data
     if (authEmailInput) authEmailInput.value = USER_CREDENTIALS[user].email;
+    if (authPasswordInput) authPasswordInput.value = USER_CREDENTIALS[user].password;
     
     braydenLoginBtn?.classList.remove('active', 'primary', 'ghost');
     younaLoginBtn?.classList.remove('active', 'primary', 'ghost');
@@ -180,8 +183,8 @@ function selectProfile(user) {
     selectedBtn?.classList.add('active', 'primary');
     otherBtn?.classList.add('ghost');
     
-    if (authPasswordInput) authPasswordInput.value = '';
-    if (authPasswordInput) authPasswordInput.disabled = false;
+    // The password input is now filled, so no need to clear it or enable it.
+    // authPasswordInput?.disabled = false;
     authPasswordInput?.focus();
     
     checkFormValidity();
@@ -513,15 +516,15 @@ async function renderStats() {
         </div>
         <div class="stat-group">
             <span class="stat-value">${braydenCount} / ${younaCount}</span>
-            <span class="stat-label">B/Y Contributions</span>
+            <span class="stat-label">B / Y Contributions</span>
         </div>
     `;
 }
 
 function renderMilestones() {
-    const container = document.getElementById('milestonesContent');
+    const container = document.getElementById('milestoneListContainer');
     if(!container) return;
-    
+
     // Hardcoded Milestones (Mock Data)
     const milestones = [
         { title: "One Year Anniversary", date: "2025-05-09", reached: new Date() > new Date("2025-05-09") },
@@ -529,7 +532,7 @@ function renderMilestones() {
         { title: "First Map Memory Added", date: "2024-06-15", reached: new Date() > new Date("2024-06-15") },
         { title: "50th Note Shared", date: "2025-01-01", reached: new Date() > new Date("2025-01-01") },
     ];
-
+    
     container.innerHTML = milestones.map(m => `
         <div class="event-item" style="opacity: ${m.reached ? 1 : 0.6};">
             <div><strong>${m.reached ? '✅' : '⏳'} ${m.title}</strong></div>
@@ -541,19 +544,19 @@ function renderMilestones() {
 function renderRecent() {
     const container = document.getElementById('recentContent');
     if(!container) return;
-    
     onSnapshot(query(collections.timeline, orderBy('timestamp', 'desc'), limit(5)), snap => {
         container.innerHTML = '';
         snap.forEach(docSnap => {
             const data = docSnap.data();
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            container.innerHTML += `
-                <div class="event-item" style="border-bottom: 1px solid var(--border); font-size: 0.95rem;">
-                    <span style="color:var(--primary); font-weight: 500;">${escapeHtml(data.user)}</span>
-                    <p style="margin:0; font-style: italic;">${escapeHtml(data.action)}</p>
-                    <span style="font-size:0.75rem; color:var(--subtext); margin-left: auto;">${date}</span>
-                </div>
+            const date = data.timestamp?.toDate()?.toLocaleTimeString() || 'Just now';
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <span style="font-size: 0.9rem; flex-shrink: 0; min-width: 60px; color: var(--primary);">${escapeHtml(data.user)}:</span>
+                <span style="flex-grow: 1;">${escapeHtml(data.action)}</span>
+                <span style="font-size: 0.75rem; color: var(--subtext); flex-shrink: 0;">${date}</span>
             `;
+            container.appendChild(item);
         });
     });
 }
@@ -565,66 +568,80 @@ function renderDashboard() {
     renderRecent();
 }
 
-/* ================= GALLERY LOGIC (PHOTOS/VIDEOS) ================= */
 
-function renderGallery(collectionName) {
-    const container = document.getElementById(`${collectionName}Gallery`);
-    if(!container) return;
+/* ================= PHOTO/VIDEO LOGIC ================= */
+
+function renderGallery(collectionKey) {
+    const container = document.getElementById(collectionKey === 'photos' ? 'photoGallery' : 'videoGallery');
+    if (!container) return;
     
-    onSnapshot(query(collections[collectionName], orderBy('timestamp', 'desc')), (snapshot) => {
+    onSnapshot(query(collections[collectionKey], orderBy('timestamp', 'desc')), (snapshot) => {
         container.innerHTML = '';
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const media = collectionName === 'photos' ?
-                `<img src="${escapeHtml(data.url)}" loading="lazy" alt="photo">` :
-                `<video src="${escapeHtml(data.url)}" controls></video>`;
+            const id = docSnap.id;
+            const isImage = data.type === 'image' || collectionKey === 'photos';
+            const mediaElement = isImage
+                ? `<img src="${escapeHtml(data.url)}" alt="Shared Photo" loading="lazy">`
+                : `<video src="${escapeHtml(data.url)}" controls loading="lazy" style="background: black;"></video>`;
+
+            const date = data.timestamp?.toDate()?.toLocaleDateString() || 'Recently';
             const item = document.createElement('div');
             item.className = 'masonry-item';
+            item.dataset.id = id;
             item.innerHTML = `
-                ${media}
+                <div class="media-container" style="cursor: pointer;">
+                    ${mediaElement}
+                </div>
                 <div class="item-meta">
-                    <span class="subtext">Uploaded by: ${escapeHtml(data.user)}</span>
-                    <button class="btn icon-btn small media-options-btn" data-id="${docSnap.id}" data-collection="${collectionName}" aria-label="Media Options">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                    <span title="Uploaded by ${escapeHtml(data.user)} on ${date}">${escapeHtml(data.user)} • ${date}</span>
+                    <button class="btn icon-btn ghost small media-options-btn" data-id="${id}" data-type="${data.type}" data-url="${data.url}" data-caption="${escapeHtml(data.caption || '')}" aria-label="Media Options">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
                     </button>
                 </div>
-                <div class="media-tag-list">${(data.tags || []).map(tag => `<span class="media-tag">${escapeHtml(tag)}</span>`).join('')}</div>
+                <p style="margin: 8px 0 0; font-size: 0.95rem;">${escapeHtml(data.caption || '')}</p>
+                <div class="media-tag-list">
+                    ${(data.tags || []).map(tag => `<span class="media-tag">${escapeHtml(tag)}</span>`).join('')}
+                </div>
             `;
-            container.appendChild(item);
             
-            // Attach click handler for opening media
-            item.querySelector(collectionName === 'photos' ? 'img' : 'video')?.addEventListener('click', (e) => {
-                // Prevent video controls from firing lightbox
-                if (e.target.tagName.toLowerCase() === 'video' && e.target.closest('.masonry-item video[controls]')) return;
-                openLightbox(data.url, collectionName === 'photos' ? 'image' : 'video', data.caption);
+            // Handler for opening media
+            item.querySelector('.media-container')?.addEventListener('click', () => {
+                if (!isImage) {
+                    // For videos, clicking the container should not open the lightbox if controls are visible.
+                    // But in this setup, the video is inside the container, so let's rely on the media element listener below
+                    return;
+                }
+                openLightbox(data.url, isImage ? 'image' : 'video', data.caption);
+            });
+            
+            // Handler for media options modal
+            item.querySelector('.media-options-btn')?.addEventListener('click', (e) => {
+                const button = e.currentTarget;
+                openMediaModal(button.dataset.id, button.dataset.type, button.dataset.url, button.dataset.caption);
             });
 
-            // Attach click handler for media options
-            item.querySelector('.media-options-btn')?.addEventListener('click', (e) => {
-                e.stopPropagation(); // Stop event bubbling to openLightbox/image
-                openMediaModal(docSnap.id, collectionName);
-            });
+            container.appendChild(item);
         });
     });
 }
 
+/* ================= MEDIA MODAL & LIGHTBOX LOGIC ================= */
+
 function openLightbox(url, type, caption = '') {
     const lightbox = document.getElementById('lightbox');
     const mediaContainer = document.querySelector('#lightbox .lightbox-media-container');
-    const captionElement = document.querySelector('#lightbox .lightbox-caption');
-
-    if (!lightbox || !mediaContainer) return;
-
+    const captionElement = document.querySelector('#lightbox .lightbox-meta .lightbox-caption');
+    
+    if(!lightbox || !mediaContainer) return;
+    
     mediaContainer.innerHTML = '';
     let mediaElement;
     
-    if (type === 'image') {
+    if (type === 'image' || type === 'photo') {
         mediaElement = document.createElement('img');
         mediaElement.src = url;
         mediaElement.alt = 'Shared photo';
-        mediaElement.style.maxWidth = '100%';
-        mediaElement.style.maxHeight = '100%';
-        mediaElement.style.borderRadius = '14px';
     } else if (type === 'video') {
         mediaElement = document.createElement('video');
         mediaElement.src = url;
@@ -652,66 +669,32 @@ function closeLightbox() {
     lightbox?.classList.remove('active');
 }
 
-// Global click listeners for lightbox close (Defined at end of file)
-document.querySelector('#lightbox .close-lightbox')?.addEventListener('click', closeLightbox);
-document.querySelector('#lightbox .lightbox-backdrop')?.addEventListener('click', closeLightbox);
+async function openMediaModal(id, type, url, caption) {
+    if (!currentUser) return showToast("You must be logged in to view options.", 'error');
 
-
-/* ================= MEDIA OPTIONS MODAL LOGIC ================= */
-
-/**
- * Opens a modal to display media options like tags, comments, etc.
- * @param {string} docId - The Firestore document ID.
- * @param {string} collectionName - 'photos' or 'videos'.
- */
-async function openMediaModal(docId, collectionName) {
     const modal = document.getElementById('mediaModal');
     const title = document.getElementById('mediaModalTitle');
     const content = document.getElementById('mediaModalContent');
-    if (!modal || !title || !content || !currentUser) return;
-    
-    // Clear previous content
-    title.textContent = 'Loading...';
-    content.innerHTML = '';
-    
+    if (!modal || !title || !content) return;
+
     try {
-        const docRef = doc(db, collectionName, docId);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
-            title.textContent = 'Media Not Found';
+        title.textContent = `Options for ${type}`;
+        content.innerHTML = `<p class="subtext-center">Loading options...</p>`;
+        modal.classList.add('active');
+
+        const collectionKey = (type === 'photo' || type === 'image') ? 'photos' : type;
+        const mediaRef = doc(db, collectionKey, id);
+        const mediaSnap = await getDoc(mediaRef);
+
+        if (!mediaSnap.exists()) {
+            content.innerHTML = `<p class="subtext-center">Media not found.</p>`;
             return;
         }
-        
-        const data = docSnap.data();
-        title.textContent = `${collectionName === 'photos' ? 'Photo' : 'Video'} Options`;
-        
-        const isImage = collectionName === 'photos';
-        const mediaEmbed = isImage
-            ? `<img src="${escapeHtml(data.url)}" style="max-width:100%; border-radius:12px; display:block; margin-bottom:15px;" alt="media">`
-            : `<video src="${escapeHtml(data.url)}" controls style="max-width:100%; border-radius:12px; display:block; margin-bottom:15px;"></video>`;
 
-        // Tag Input
-        const tagInputHtml = `
-            <h4 style="margin-bottom: 8px;">Tags</h4>
-            <div class="media-tag-list" id="currentTags">${(data.tags || []).map(tag => `<span class="media-tag">${escapeHtml(tag)}</span>`).join('')}</div>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <input type="text" id="newTagInput" placeholder="Add a new tag" class="glass-input" style="flex-grow: 1;">
-                <button id="addTagBtn" class="btn secondary small">Add</button>
-            </div>
-            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
-        `;
-        
-        // Favorite Button
-        const userEmail = currentUser.email;
-        const isFavorited = (data.favoritedBy || []).includes(userEmail);
-        const favoriteBtnHtml = `
-            <button id="toggleFavoriteBtn" class="btn ${isFavorited ? 'primary' : 'ghost'} full-width" style="margin-bottom: 20px;">
-                ${isFavorited ? '★ Favorited' : '☆ Add to Favorites'}
-            </button>
-        `;
+        const data = mediaSnap.data();
 
         // Reactions
-        const reactionEmojis = ['❤️', '😂', '😮', '😢', '🔥'];
+        const reactionEmojis = ['❤️', '😂', '😮', '👍', '🔥'];
         const reactions = data.reactions || {};
         const reactionsHtml = `
             <h4 style="margin-bottom: 8px;">Reactions</h4>
@@ -719,7 +702,7 @@ async function openMediaModal(docId, collectionName) {
                 ${reactionEmojis.map(emoji => {
                     const count = (reactions[emoji] || []).length;
                     const userVoted = (reactions[emoji] || []).includes(USER_MAP[currentUser.email]);
-                    return `<span class="reaction-pill ${userVoted ? 'user-reacted' : ''}" data-emoji="${emoji}">${emoji} ${count > 0 ? count : ''}</span>`;
+                    return `<span class="reaction-pill ${userVoted ? 'user-reacted' : ''}" data-emoji="${emoji}" data-id="${id}" data-type="${collectionKey}">${emoji} ${count > 0 ? count : ''}</span>`;
                 }).join('')}
             </div>
             <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
@@ -738,107 +721,119 @@ async function openMediaModal(docId, collectionName) {
                 `).join('')}
             </div>
             <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <input type="text" id="commentInput" placeholder="Add a comment" class="glass-input" style="flex-grow: 1;">
-                <button id="addCommentBtn" class="btn secondary small">Send</button>
+                <input type="text" id="mediaCommentInput" placeholder="Add a comment..." style="flex-grow: 1;">
+                <button id="addCommentBtn" class="btn primary small" data-id="${id}" data-type="${collectionKey}">Send</button>
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+        `;
+
+        // Action Buttons
+        const isFavorite = (await getDoc(doc(db, 'favorites', id))).exists();
+
+        const actionButtonsHtml = `
+            <div class="modal-footer" style="justify-content: space-between; margin-top: 0;">
+                <button id="deleteMediaBtn" class="btn ghost small" data-id="${id}" data-type="${collectionKey}" style="color: var(--error);">Delete</button>
+                <button id="toggleFavoriteBtn" class="btn secondary small" data-id="${id}" data-is-fav="${isFavorite}">
+                    ${isFavorite ? '⭐ Unfavorite' : '⭐ Add to Favorites'}
+                </button>
             </div>
         `;
 
-        content.innerHTML = mediaEmbed + favoriteBtnHtml + tagInputHtml + reactionsHtml + commentsHtml;
-        modal.classList.add('active');
+        content.innerHTML = reactionsHtml + commentsHtml + actionButtonsHtml;
+        attachMediaModalListeners(id, collectionKey);
 
-        // Add Tag Listener
-        document.getElementById('addTagBtn').onclick = async () => {
-            const tag = document.getElementById('newTagInput').value.trim();
-            if(!tag) return;
-            await updateDoc(docRef, { tags: arrayUnion(tag) });
-            document.getElementById('newTagInput').value = '';
-            openMediaModal(docId, collectionName); // Re-render modal with updated data
-            showToast(`Added tag: ${tag}`);
-        };
-        
-        // Toggle Favorite Listener
-        document.getElementById('toggleFavoriteBtn').onclick = async () => {
-            if (isFavorited) {
-                await updateDoc(docRef, {
-                    favoritedBy: arrayRemove(userEmail)
-                });
-                showToast("Removed from Favorites.");
-            } else {
-                await updateDoc(docRef, {
-                    favoritedBy: arrayUnion(userEmail),
-                    favoritedTimestamp: serverTimestamp() // Add a specific timestamp for sorting
-                });
-                showToast("Added to Favorites! ★");
-            }
-            openMediaModal(docId, collectionName);
-        };
-
-        // Add Reaction Listener (Delegated)
-        document.querySelectorAll('.reaction-pill').forEach(pill => {
-            pill.onclick = async () => {
-                const emoji = pill.dataset.emoji;
-                const user = USER_MAP[currentUser.email];
-                const currentData = (await getDoc(docRef)).data();
-                const currentReactions = currentData.reactions || {};
-                
-                if ((currentReactions[emoji] || []).includes(user)) {
-                    // Remove reaction
-                    await updateDoc(docRef, {
-                        [`reactions.${emoji}`]: arrayRemove(user)
-                    });
-                } else {
-                    // Remove user's existing vote from ALL other reactions first
-                    let updateFields = {};
-                    reactionEmojis.forEach(e => {
-                         // Only remove if they are in the list for that emoji
-                        if ((currentReactions[e] || []).includes(user)) {
-                            updateFields[`reactions.${e}`] = arrayRemove(user);
-                        }
-                    });
-                    
-                    // Add the new reaction
-                    updateFields[`reactions.${emoji}`] = arrayUnion(user);
-                    
-                    await updateDoc(docRef, updateFields);
-                }
-                openMediaModal(docId, collectionName); // Re-render modal
-            };
-        });
-        
-        // Add Comment Listener
-        document.getElementById('addCommentBtn').onclick = async () => {
-            const commentInput = document.getElementById('commentInput');
-            const content = commentInput.value.trim();
-            if(!content) return;
-            
-            await updateDoc(docRef, {
-                comments: arrayUnion({
-                    user: USER_MAP[currentUser.email],
-                    content: content,
-                    timestamp: Date.now()
-                })
-            });
-            commentInput.value = '';
-            openMediaModal(docId, collectionName);
-            showToast("Comment posted.");
-        };
-
-        // Close button listener (already attached via event delegation outside)
-        
     } catch (e) {
         console.error("Error opening media modal:", e);
         title.textContent = 'An error occurred';
     }
 }
 
+function attachMediaModalListeners(mediaId, collectionKey) {
+    const user = USER_MAP[currentUser.email];
+    if (!user) return;
+
+    // Reaction Handler
+    document.querySelectorAll('.reaction-pill').forEach(pill => {
+        pill.onclick = async (e) => {
+            const emoji = e.currentTarget.dataset.emoji;
+            const mediaRef = doc(db, collectionKey, mediaId);
+            const data = (await getDoc(mediaRef)).data();
+            const voters = data?.reactions?.[emoji] || [];
+            
+            if (voters.includes(user)) {
+                await updateDoc(mediaRef, { [`reactions.${emoji}`]: arrayRemove(user) });
+            } else {
+                await updateDoc(mediaRef, { [`reactions.${emoji}`]: arrayUnion(user) });
+                addToTimeline(`Reacted with ${emoji} to a shared ${collectionKey.slice(0, -1)}`);
+            }
+            // Re-open modal to refresh data
+            openMediaModal(mediaId, collectionKey.slice(0, -1), null, null);
+        };
+    });
+
+    // Comment Handler
+    document.getElementById('addCommentBtn').onclick = async () => {
+        const input = document.getElementById('mediaCommentInput');
+        if (!input.value.trim()) return showToast("Comment cannot be empty.", 'error');
+        
+        const mediaRef = doc(db, collectionKey, mediaId);
+        await updateDoc(mediaRef, {
+            comments: arrayUnion({
+                user: user,
+                content: input.value,
+                timestamp: Date.now()
+            })
+        });
+        input.value = '';
+        addToTimeline(`Added a comment to a shared ${collectionKey.slice(0, -1)}`);
+        openMediaModal(mediaId, collectionKey.slice(0, -1), null, null);
+    };
+
+    // Delete Handler
+    document.getElementById('deleteMediaBtn').onclick = async () => {
+        if (!confirm('Are you sure you want to delete this media?')) return;
+        try {
+            await deleteDoc(doc(db, collectionKey, mediaId));
+            // Also delete from favorites if it exists there
+            await deleteDoc(doc(db, 'favorites', mediaId)).catch(() => {});
+            showToast('Media deleted successfully.', 'success');
+            addToTimeline(`Deleted a ${collectionKey.slice(0, -1)} item`);
+            document.getElementById('mediaModal')?.classList.remove('active');
+        } catch (error) {
+            console.error("Deletion error:", error);
+            showToast('Failed to delete media.', 'error');
+        }
+    };
+
+    // Favorite Handler
+    document.getElementById('toggleFavoriteBtn').onclick = async (e) => {
+        const isFav = e.currentTarget.dataset.isFav === 'true';
+        const favoriteRef = doc(db, 'favorites', mediaId);
+        
+        if (isFav) {
+            await deleteDoc(favoriteRef);
+            showToast('Removed from favorites.', 'info');
+            addToTimeline(`Removed a ${collectionKey.slice(0, -1)} from favorites`);
+        } else {
+            // Re-fetch media data to save to favorites collection
+            const mediaData = (await getDoc(doc(db, collectionKey, mediaId))).data();
+            if (mediaData) {
+                await setDoc(favoriteRef, { ...mediaData, favoriteTimestamp: serverTimestamp() });
+                showToast('Added to favorites! ⭐', 'success');
+                addToTimeline(`Added a ${collectionKey.slice(0, -1)} to favorites`);
+            }
+        }
+        // Re-open modal to refresh button state
+        openMediaModal(mediaId, collectionKey.slice(0, -1), null, null);
+    };
+}
+
 document.getElementById('closeMediaModalBtn')?.addEventListener('click', () => {
     document.getElementById('mediaModal')?.classList.remove('active');
 });
 
-
 /* ================= UPLOAD LOGIC (STUBS) ================= */
 
-// Stub for media uploads
 document.getElementById('photoInput')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'photos', document.getElementById('photoUploadFill')));
 document.getElementById('videoInput')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'videos', document.getElementById('videoUploadFill')));
 
@@ -848,9 +843,11 @@ async function handleFileUpload(file, collectionName, progressBarFill) {
     const storagePath = `${collectionName}/${currentUser.uid}/${file.name}_${Date.now()}`;
     const fileRef = storageRef(storage, storagePath);
     const uploadTask = uploadBytesResumable(fileRef, file);
-
     const isVideo = collectionName === 'videos';
     const mediaType = isVideo ? 'video' : 'photo';
+
+    if (progressBarFill) progressBarFill.parentNode.parentNode.classList.add('active'); // Show upload card
+    showToast(`Starting ${mediaType} upload...`, 'info');
 
     uploadTask.on('state_changed',
         (snapshot) => {
@@ -862,99 +859,104 @@ async function handleFileUpload(file, collectionName, progressBarFill) {
             // Handle unsuccessful uploads
             console.error("Upload error:", error);
             showToast(`Failed to upload ${mediaType}.`, 'error');
-            if (progressBarFill) progressBarFill.style.width = '0%';
+            if (progressBarFill) progressBarFill.parentNode.parentNode.classList.remove('active');
         },
         () => {
             // Handle successful uploads on complete
             getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+                const caption = prompt(`Enter a caption for your ${mediaType}:`) || '';
+                const tagsInput = prompt(`Enter tags for your ${mediaType} (comma-separated):`) || '';
+                const tags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+
                 try {
                     await addDoc(collections[collectionName], {
                         url: downloadURL,
                         user: USER_MAP[currentUser.email],
-                        timestamp: serverTimestamp(),
-                        tags: [],
-                        caption: '',
-                        location: null, // Add location later
-                        reactions: {},
-                        comments: [],
-                        favoritedBy: []
+                        type: mediaType,
+                        caption: caption,
+                        tags: tags,
+                        timestamp: serverTimestamp()
                     });
                     showToast(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} uploaded successfully!`, 'success');
                     addToTimeline(`Uploaded a new ${mediaType}`);
                 } catch (e) {
-                    console.error("Firestore error after upload:", e);
-                    showToast(`Failed to save ${mediaType} data.`, 'error');
+                    console.error("Error adding document: ", e);
+                    showToast('Failed to save metadata after upload.', 'error');
                 } finally {
-                    if (progressBarFill) progressBarFill.style.width = '0%';
+                    if (progressBarFill) {
+                        progressBarFill.style.width = '0%';
+                        progressBarFill.parentNode.parentNode.classList.remove('active');
+                    }
                 }
             });
         }
     );
 }
 
-/* ================= MAP LOGIC (STUBS) ================= */
-
-// Fix: These functions were called but not defined, causing the app to crash on navigation.
+/* ================= MAP LOGIC ================= */
 
 function initMap() {
-    // Check if map is already initialized
-    const mapElement = document.getElementById('mapContainer');
-    if (mapInstance || !mapElement) {
-        mapInstance?.invalidateSize();
+    if (mapInstance) {
+        mapInstance.invalidateSize();
         return;
     }
 
-    mapInstance = L.map('mapContainer', {
-        center: [39.8283, -98.5795], // Center of USA
-        zoom: 4,
-        zoomControl: false,
-        attributionControl: false // Hide default Leaflet attribution
-    });
+    const initialCoords = [40.7128, -74.0060]; // Default to New York
+    mapInstance = L.map('mapContainer').setView(initialCoords, 4);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 18,
     }).addTo(mapInstance);
 
-    // Initial load of layers
-    renderMemories();
-    renderMediaLocations(mediaVisible);
+    // Initial load of memory markers
+    renderMemoryLocations();
 }
 
-function renderMemories() {
+function renderMemoryLocations() {
     if (!mapInstance) return;
-    
-    // Clear existing markers
+
+    // Clear existing memory markers
     memoryMarkers.forEach(m => mapInstance.removeLayer(m));
     memoryMarkers = [];
-
-    onSnapshot(collections.memories, (snapshot) => {
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.location) {
-                const marker = L.marker([data.location.lat, data.location.lng]).addTo(mapInstance)
-                    .bindPopup(`<b>${escapeHtml(data.title)}</b><br>${escapeHtml(data.description)}`);
-                memoryMarkers.push(marker);
-            }
+    
+    onSnapshot(query(collections.memories, orderBy('timestamp', 'desc')), (snapshot) => {
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const lat = parseFloat(data.lat);
+            const lng = parseFloat(data.lng);
+            
+            if (isNaN(lat) || isNaN(lng)) return;
+            
+            const marker = L.marker([lat, lng]).addTo(mapInstance)
+                .bindPopup(`<strong>${escapeHtml(data.title)}</strong><br>${escapeHtml(data.description)}<br><small>by ${escapeHtml(data.user)}</small>`);
+            
+            memoryMarkers.push(marker);
         });
+        
+        // Only show memory markers by default
+        if (document.getElementById('toggleMemories').classList.contains('active')) {
+             memoryMarkers.forEach(m => mapInstance.addLayer(m));
+        }
     });
 }
 
+// Map layer toggles
 function renderMediaLocations(isVisible) {
     if (!mapInstance) return;
-    
+
     // Clear existing media markers
     mediaMarkers.forEach(m => mapInstance.removeLayer(m));
     mediaMarkers = [];
-    
+
     if (!isVisible) return;
 
-    // Simplified mock data for media locations
+    // Simplified mock data for media locations (In a real app, this would query photos/videos with geo-tags)
     const mockMediaLocations = [
         { lat: 40.7128, lng: -74.0060, title: 'NY Photo' },
         { lat: 34.0522, lng: -118.2437, title: 'LA Video' },
     ];
-    
+
     mockMediaLocations.forEach(data => {
         const customIcon = L.divIcon({
             className: 'media-marker-icon',
@@ -984,233 +986,276 @@ document.getElementById('toggleMedia')?.addEventListener('click', (e) => {
 // Memory Modal Stub
 document.getElementById('addMemoryBtn')?.addEventListener('click', () => {
     document.getElementById('memoryModal')?.classList.add('active');
+    // Pre-fill coordinates with current map center (helpful for adding to map)
+    if (mapInstance) {
+        const center = mapInstance.getCenter();
+        document.getElementById('latInput').value = center.lat.toFixed(4);
+        document.getElementById('lngInput').value = center.lng.toFixed(4);
+    }
 });
+
 document.getElementById('cancelMemoryBtn')?.addEventListener('click', () => {
     document.getElementById('memoryModal')?.classList.remove('active');
 });
-document.getElementById('saveMemoryBtn')?.addEventListener('click', async () => {
-    const title = document.getElementById('memoryTitle').value;
-    const desc = document.getElementById('memoryDesc').value;
-    const lat = parseFloat(document.getElementById('latInput').value);
-    const lng = parseFloat(document.getElementById('lngInput').value);
-    
-    if (!title || isNaN(lat) || isNaN(lng)) {
-        return showToast("Please fill in title and valid coordinates.", 'error');
+
+document.getElementById('getCurrentLocation')?.addEventListener('click', () => {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            document.getElementById('latInput').value = position.coords.latitude.toFixed(4);
+            document.getElementById('lngInput').value = position.coords.longitude.toFixed(4);
+            showToast('GPS location updated.', 'success');
+        }, (error) => {
+            console.error("Geolocation error:", error);
+            showToast('Failed to get GPS location. Enter manually.', 'error');
+        });
+    } else {
+        showToast('Geolocation not supported by this browser.', 'error');
     }
+});
+
+document.getElementById('saveMemoryBtn')?.addEventListener('click', async () => {
+    if (!currentUser) return showToast("You must be logged in to save a memory.", 'error');
+
+    const title = document.getElementById('memoryTitle').value.trim();
+    const description = document.getElementById('memoryDesc').value.trim();
+    const lat = document.getElementById('latInput').value;
+    const lng = document.getElementById('lngInput').value;
+
+    if (!title || !lat || !lng) return showToast("Title, Latitude, and Longitude are required.", 'error');
 
     try {
         await addDoc(collections.memories, {
-            user: USER_MAP[currentUser.email],
             title: title,
-            description: desc,
-            location: { lat: lat, lng: lng },
+            description: description,
+            lat: lat,
+            lng: lng,
+            user: USER_MAP[currentUser.email],
             timestamp: serverTimestamp()
         });
-        showToast("Memory saved!");
+        showToast('Memory saved successfully!', 'success');
+        addToTimeline('Added a new map memory');
         document.getElementById('memoryModal')?.classList.remove('active');
-        renderMemories(); // Re-render map layer
+        document.getElementById('memoryTitle').value = '';
+        document.getElementById('memoryDesc').value = '';
+
+        // Pan map to new memory
+        if (mapInstance) mapInstance.setView([parseFloat(lat), parseFloat(lng)], 10);
+
     } catch (e) {
         console.error("Error saving memory:", e);
-        showToast("Failed to save memory.", 'error');
+        showToast('Failed to save memory.', 'error');
     }
 });
 
-/* ================= MUSIC LOGIC (STUBS) ================= */
 
-// Simplified search function
-document.getElementById('musicSearchBtn')?.addEventListener('click', () => {
-    const input = document.getElementById('musicSearchInput').value.trim();
-    const resultsDiv = document.getElementById('musicSearchResults');
-    if (!input) return;
-    
-    // Mock search results
-    const results = [
-        { title: `Mock Song 1 for "${input}"`, url: 'https://open.spotify.com/embed/track/1y2Y8fG04d80o9z7t1K5I4?utm_source=generator&theme=0', type: 'music' },
-        { title: `Mock Song 2 for "${input}"`, url: 'https://open.spotify.com/embed/track/5y4h6jP8J4SgT1z9n3n00k?utm_source=generator&theme=0', type: 'music' }
-    ];
-    
-    resultsDiv.innerHTML = results.map((r, i) => `
-        <div class="search-result-item">
-            <p>${r.title}</p>
-            <button class="btn primary small share-music-btn" data-url="${r.url}" data-title="${r.title}">Share</button>
-        </div>
-    `).join('');
-    resultsDiv.classList.remove('hidden');
-    
-    document.querySelectorAll('.share-music-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => handleShareMusic(e.target.dataset.url, e.target.dataset.title));
-    });
-});
+/* ================= NOTES LOGIC ================= */
 
-async function handleShareMusic(url, title) {
-    if (!currentUser) return showToast("You must be logged in to share music.", 'error');
+async function addNote(isPinned = false) {
+    if (!currentUser) return showToast("You must be logged in to share a note.", 'error');
+
+    const content = document.getElementById('newNoteContent').value.trim();
+    if (!content) return showToast("Note content cannot be empty.", 'error');
+
     try {
-        await addDoc(collections.music, {
-            url: url,
+        await addDoc(collections.notes, {
             user: USER_MAP[currentUser.email],
-            timestamp: serverTimestamp(),
-            type: 'music',
-            title: title
+            content: content,
+            pinned: isPinned,
+            timestamp: serverTimestamp()
         });
-        showToast("Music shared!");
-        addToTimeline(`Shared a new song: ${title}`);
-        document.getElementById('musicSearchResults')?.classList.add('hidden');
+        showToast('Note shared successfully!', 'success');
+        addToTimeline(`Shared a new ${isPinned ? 'pinned ' : ''}note`);
+        document.getElementById('newNoteContent').value = '';
     } catch (e) {
-        console.error("Error sharing music:", e);
-        showToast("Failed to share music.", 'error');
+        console.error("Error adding note: ", e);
+        showToast('Failed to share note.', 'error');
     }
 }
 
-function renderMusic() {
-    const list = document.getElementById('sharedMusic');
-    const voiceList = document.getElementById('savedMusic');
+function renderNotes() {
+    const container = document.getElementById('notesContainer');
+    if (!container) return;
 
-    // Render shared music
-    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
-        if(!list) return;
-        list.innerHTML = '';
-        snap.forEach(docSnap => {
+    // Listen for all notes, ordered by pinned first, then by date
+    onSnapshot(query(collections.notes, orderBy('pinned', 'desc'), orderBy('timestamp', 'desc')), (snapshot) => {
+        container.innerHTML = '';
+        snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
-            const div = document.createElement('div');
-            div.className = 'event-item';
-            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
-            
-            let mediaElement;
-            if (data.type === 'voice') {
-                 // Voice note rendering is separate
-                 return;
-            } else {
-                mediaElement = `<iframe src="${escapeHtml(data.url)}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="border-radius:12px; height: 80px; width:100%;" frameborder="0" allowfullscreen="" title="Music"></iframe>`;
-            }
-            
-            div.innerHTML = `
-                ${mediaElement}
-                <div style="font-size:0.85rem; color:var(--subtext);">
-                    Shared Music • ${escapeHtml(data.user)} on ${date}
+            const id = docSnap.id;
+            const isPinned = data.pinned || false;
+            const date = data.timestamp?.toDate()?.toLocaleDateString() || 'Just now';
+
+            const repliesHtml = (data.replies || []).map(reply => `
+                <div class="note-reply">
+                    <strong>${escapeHtml(reply.user)}:</strong> ${escapeHtml(reply.content)}
+                </div>
+            `).join('');
+
+            const item = document.createElement('div');
+            item.className = 'note-item';
+            item.innerHTML = `
+                <div class="note-header">
+                    <strong>${isPinned ? '📌 PINNED' : 'Note'}</strong> by ${escapeHtml(data.user)}
+                    <span class="note-date">${date}</span>
+                </div>
+                <p class="note-content">${escapeHtml(data.content)}</p>
+                ${repliesHtml}
+                <div class="note-actions">
+                    <span class="reply-link" data-id="${id}">Reply</span>
+                    <button class="btn icon-btn small ghost delete-note" data-id="${id}" aria-label="Delete Note">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    ${!isPinned ? `<button class="btn icon-btn small ghost pin-note" data-id="${id}" aria-label="Pin Note">📌</button>` : ''}
                 </div>
             `;
-            list.appendChild(div);
+            container.appendChild(item);
+        });
+
+        // Attach listeners for reply
+        container.querySelectorAll('.reply-link').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const reply = prompt("Enter your reply:");
+                if (!reply) return;
+
+                const noteRef = doc(db, 'notes', id);
+                await updateDoc(noteRef, {
+                    replies: arrayUnion({
+                        user: USER_MAP[currentUser.email],
+                        content: reply,
+                        timestamp: Date.now()
+                    })
+                });
+                showToast('Reply added.', 'info');
+                addToTimeline('Replied to a shared note');
+            });
+        });
+        
+        // Attach listeners for delete
+        container.querySelectorAll('.delete-note').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                if (!confirm('Delete this note?')) return;
+                await deleteDoc(doc(db, 'notes', id));
+                showToast('Note deleted.', 'info');
+                addToTimeline('Deleted a shared note');
+            });
+        });
+        
+        // Attach listeners for pin
+        container.querySelectorAll('.pin-note').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const noteRef = doc(db, 'notes', id);
+                await updateDoc(noteRef, { pinned: true });
+                showToast('Note pinned!', 'success');
+                addToTimeline('Pinned a shared note');
+            });
         });
     });
+}
+
+document.getElementById('addNoteBtn')?.addEventListener('click', () => {
+    addNote(false); // Add a normal note
+});
+
+document.getElementById('pinNoteBtn')?.addEventListener('click', () => {
+    addNote(true); // Add a pinned note
+});
+
+
+/* ================= MUSIC/VOICE LOGIC ================= */
+
+let isRecording = false;
+const recordBtn = document.getElementById('voiceNoteRecordBtn');
+const uploadBtn = document.getElementById('uploadRecordingBtn');
+const cancelBtn = document.getElementById('cancelRecordingBtn');
+const voiceStatus = document.getElementById('voiceStatus');
+
+async function startRecording() {
+    if (!currentUser) return showToast("You must be logged in to record.", 'error');
+    if (isRecording) return;
     
-    // Render voice notes (filtering by type: 'voice')
-    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
-        if(!voiceList) return;
-        voiceList.innerHTML = '';
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
-            if (data.type !== 'voice') return;
-            
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
-            const div = document.createElement('div');
-            div.className = 'event-item';
-            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
-            
-            const mediaElement = `<audio controls src="${escapeHtml(data.url)}"></audio>`;
-            
-            div.innerHTML = `
-                ${mediaElement}
-                <div style="font-size:0.85rem; color:var(--subtext);">
-                    Voice Note • ${escapeHtml(data.user)} on ${date}
-                </div>
-            `;
-            voiceList.appendChild(div);
-        });
-    });
-}
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(track => track.stop()); // Stop mic access
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        recordBtn.innerHTML = '🛑 Stop';
+        recordBtn.classList.remove('primary');
+        recordBtn.classList.add('secondary');
+        voiceStatus.textContent = 'Recording...';
+        voiceStatus.classList.remove('hidden');
+        voiceStatus.classList.add('blink');
+        uploadBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        
+        showToast('Recording started.', 'info');
 
-// Voice Note Recording Logic
-document.getElementById('voiceNoteRecordBtn')?.addEventListener('click', toggleRecording);
-document.getElementById('uploadRecordingBtn')?.addEventListener('click', uploadRecording);
-document.getElementById('cancelRecordingBtn')?.addEventListener('click', cancelRecording);
-
-function toggleRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        stopRecording();
-    } else {
-        startRecording();
+    } catch (err) {
+        console.error("Recording error:", err);
+        showToast('Failed to start recording. Check microphone permissions.', 'error');
+        isRecording = false;
+        recordBtn.innerHTML = '🎤 Record';
+        recordBtn.classList.remove('secondary');
+        recordBtn.classList.add('primary');
     }
-}
-
-function startRecording() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-            mediaRecorder.onstop = () => {
-                stream.getTracks().forEach(track => track.stop());
-            };
-            mediaRecorder.start();
-            
-            // Update UI
-            const recordBtn = document.getElementById('voiceNoteRecordBtn');
-            const uploadBtn = document.getElementById('uploadRecordingBtn');
-            const cancelBtn = document.getElementById('cancelRecordingBtn');
-            const status = document.getElementById('voiceStatus');
-
-            if(recordBtn) recordBtn.innerHTML = '🛑 Stop Recording';
-            if(uploadBtn) uploadBtn.style.display = 'none';
-            if(cancelBtn) cancelBtn.style.display = 'none';
-            if(status) { status.textContent = 'Recording...'; status.classList.remove('hidden'); }
-
-            showToast('Recording started...');
-        })
-        .catch(err => {
-            console.error('Recording error:', err);
-            showToast('Microphone access denied or failed.', 'error');
-        });
 }
 
 function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        
-        // Update UI
-        const recordBtn = document.getElementById('voiceNoteRecordBtn');
-        const uploadBtn = document.getElementById('uploadRecordingBtn');
-        const cancelBtn = document.getElementById('cancelRecordingBtn');
-        const status = document.getElementById('voiceStatus');
-
-        if(recordBtn) recordBtn.innerHTML = '🎤 Re-record';
-        if(uploadBtn) uploadBtn.style.display = 'inline-block';
-        if(cancelBtn) cancelBtn.style.display = 'inline-block';
-        if(status) status.classList.add('hidden');
-        
-        showToast('Recording stopped. Ready to upload.');
-    }
+    if (!isRecording || !mediaRecorder) return;
+    
+    mediaRecorder.stop();
+    isRecording = false;
+    
+    recordBtn.innerHTML = '🎤 Re-record';
+    recordBtn.classList.remove('secondary');
+    recordBtn.classList.add('primary');
+    voiceStatus.textContent = 'Ready to upload.';
+    voiceStatus.classList.remove('blink');
+    uploadBtn.style.display = 'inline-flex';
+    cancelBtn.style.display = 'inline-flex';
 }
 
 function cancelRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
     audioChunks = [];
-    mediaRecorder = null;
+    isRecording = false;
     
-    const recordBtn = document.getElementById('voiceNoteRecordBtn');
-    const uploadBtn = document.getElementById('uploadRecordingBtn');
-    const cancelBtn = document.getElementById('cancelRecordingBtn');
-
-    if(recordBtn) recordBtn.innerHTML = '🎤 Record';
-    if(uploadBtn) uploadBtn.style.display = 'none';
-    if(cancelBtn) cancelBtn.style.display = 'none';
-    
+    recordBtn.innerHTML = '🎤 Record';
+    recordBtn.classList.remove('secondary');
+    recordBtn.classList.add('primary');
+    voiceStatus.textContent = 'Ready to record.';
+    voiceStatus.classList.remove('blink', 'hidden');
+    uploadBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
     showToast('Recording cancelled.');
 }
 
 async function uploadRecording() {
     if (audioChunks.length === 0 || !currentUser) return showToast("No recording found.", 'error');
-
+    
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
     const fileName = `voice_note_${Date.now()}.webm`;
-
     const storagePath = `voice_notes/${currentUser.uid}/${fileName}`;
     const fileRef = storageRef(storage, storagePath);
     const uploadTask = uploadBytesResumable(fileRef, audioBlob);
-
+    
     showToast("Uploading voice note...", 'info');
-
+    
     uploadTask.on('state_changed',
         (snapshot) => {
             // Update progress if needed
@@ -1226,194 +1271,152 @@ async function uploadRecording() {
                     await addDoc(collections.music, {
                         url: downloadURL,
                         user: USER_MAP[currentUser.email],
-                        timestamp: serverTimestamp(),
-                        type: 'voice'
+                        type: 'voice',
+                        timestamp: serverTimestamp()
                     });
-                    showToast('Voice note shared successfully!', 'success');
-                    addToTimeline('Shared a voice note');
+                    showToast('Voice note uploaded successfully!', 'success');
+                    addToTimeline('Shared a new voice note');
+                    cancelRecording(); // Reset UI
                 } catch (e) {
-                    console.error("Firestore error after upload:", e);
-                    showToast('Failed to save voice note data.', 'error');
-                } finally {
-                    cancelRecording(); // Reset UI regardless of success/fail
+                    console.error("Error saving voice note metadata: ", e);
+                    showToast('Failed to save voice note metadata.', 'error');
+                    cancelRecording(); // Reset UI
                 }
             });
         }
     );
 }
 
-
-/* ================= NOTES LOGIC ================= */
-
-document.getElementById('pinNoteBtn')?.addEventListener('click', async () => {
-    const textarea = document.getElementById('noteInput');
-    const txt = textarea.value.trim();
-    if(!txt || !currentUser) return showToast("Note is empty.", "error");
-
-    await addDoc(collections.notes, {
-        content: txt,
-        user: USER_MAP[currentUser.email],
-        timestamp: serverTimestamp(),
-        pinned: true,
-        replies: []
-    });
-    textarea.value = '';
-    addToTimeline("Pinned a new note");
-    showToast("Note Pinned!");
-});
-
-document.getElementById('saveNoteBtn')?.addEventListener('click', async () => {
-    const textarea = document.getElementById('noteInput');
-    const txt = textarea.value.trim();
-    const parentId = textarea.dataset.parentId;
-    if(!txt || !currentUser) return;
-
-    if (parentId) {
-        // Handle Reply
-        await updateDoc(doc(db, 'notes', parentId), {
-            replies: arrayUnion({
-                content: txt,
-                user: USER_MAP[currentUser.email],
-                timestamp: Date.now()
-            })
-        });
-        textarea.dataset.parentId = '';
-        textarea.placeholder = "Write a note...";
-        addToTimeline(`Replied to a note`);
-        showToast("Reply sent.");
+// Voice Note Event Handlers
+recordBtn?.addEventListener('click', () => {
+    if (isRecording) {
+        stopRecording();
     } else {
-        // Handle New Parent Note
-        await addDoc(collections.notes, {
-            content: txt,
-            user: USER_MAP[currentUser.email],
-            timestamp: serverTimestamp(),
-            pinned: false,
-            replies: []
-        });
-        addToTimeline("Left a note");
-        showToast("Note saved.");
+        startRecording();
     }
-    textarea.value = '';
+});
+uploadBtn?.addEventListener('click', uploadRecording);
+cancelBtn?.addEventListener('click', cancelRecording);
+
+// Music Link Handler
+document.getElementById('addMusicBtn')?.addEventListener('click', async () => {
+    if (!currentUser) return showToast("You must be logged in to share music.", 'error');
+    const url = document.getElementById('musicUrlInput').value.trim();
+    const caption = document.getElementById('musicCaptionInput').value.trim();
+
+    if (!url) return showToast("Please enter an embed URL.", 'error');
+
+    try {
+        await addDoc(collections.music, {
+            url: url,
+            caption: caption,
+            user: USER_MAP[currentUser.email],
+            type: 'link',
+            timestamp: serverTimestamp()
+        });
+        showToast('Music link shared!', 'success');
+        addToTimeline('Shared a music link');
+        document.getElementById('musicUrlInput').value = '';
+        document.getElementById('musicCaptionInput').value = '';
+    } catch (e) {
+        console.error("Error adding music link: ", e);
+        showToast('Failed to share music link.', 'error');
+    }
 });
 
-function renderNotes() {
-    const list = document.getElementById('notesList');
-    onSnapshot(query(collections.notes, orderBy('pinned', 'desc'), orderBy('timestamp', 'desc')), snap => {
-        if(!list) return;
+function renderMusic() {
+    const list = document.getElementById('musicListContainer');
+    const voiceList = document.getElementById('savedMusic');
+
+    // Render shared music links (type: 'link')
+    onSnapshot(query(collections.music, orderBy('timestamp', 'desc')), snap => {
+        if(!list || !voiceList) return;
+        
         list.innerHTML = '';
+        voiceList.innerHTML = '';
+        
+        let linkItems = [];
+        let voiceItems = [];
+
         snap.forEach(docSnap => {
             const data = docSnap.data();
-            const id = docSnap.id;
             const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
+            const div = document.createElement('div');
+            div.className = 'event-item';
+            div.style.cssText = 'flex-direction: column; align-items: flex-start; gap: 8px;';
             
-            const isPinned = data.pinned;
-            const item = document.createElement('div');
-            item.className = 'list-item note-item';
-            
-            // Build replies
-            const repliesHtml = (data.replies || []).map(reply => `
-                <div class="note-reply">
-                    <strong>${escapeHtml(reply.user)}:</strong> ${escapeHtml(reply.content)}
-                </div>
-            `).join('');
-
-            item.innerHTML = `
-                <div class="note-header">
-                    <strong>${isPinned ? '📌 PINNED' : 'Note'}</strong> by ${escapeHtml(data.user)}
-                    <span class="note-date">${date}</span>
-                </div>
-                <p class="note-content">${escapeHtml(data.content)}</p>
-                ${repliesHtml}
-                <div class="note-actions">
-                    <span class="reply-link" data-id="${id}">Reply</span>
-                    <button class="btn icon-btn small ghost delete-note" data-id="${id}" aria-label="Delete Note">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                </div>
-            `;
-            list.appendChild(item);
-        });
-
-        // Attach Reply Listeners
-        list.querySelectorAll('.reply-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                const parentId = e.target.dataset.id;
-                const textarea = document.getElementById('noteInput');
-                if(textarea) {
-                    textarea.dataset.parentId = parentId;
-                    textarea.placeholder = `Replying to note... (ID: ${parentId})`;
-                    textarea.focus();
-                }
-            });
+            if (data.type === 'voice') {
+                // Voice note rendering
+                const audioPlayer = `<audio controls src="${escapeHtml(data.url)}" style="width:100%;"></audio>`;
+                div.innerHTML = `
+                    ${audioPlayer}
+                    <div style="font-size:0.85rem; color:var(--subtext);"> Voice Note • ${escapeHtml(data.user)} on ${date} </div>
+                `;
+                voiceItems.push(div);
+            } else if (data.type === 'link') {
+                // Music link rendering (using iframe for embeds)
+                const mediaElement = `<iframe src="${escapeHtml(data.url)}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="border-radius:12px; height: 80px; width:100%;" frameborder="0" allowfullscreen="" title="Music"></iframe>`;
+                div.innerHTML = `
+                    ${mediaElement}
+                    <p style="margin: 0; font-size: 1rem; font-weight: 500;">${escapeHtml(data.caption || '')}</p>
+                    <div style="font-size:0.85rem; color:var(--subtext);"> Shared Music • ${escapeHtml(data.user)} on ${date} </div>
+                `;
+                linkItems.push(div);
+            }
         });
         
-        // Attach Delete Listeners
-        list.querySelectorAll('.delete-note').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.dataset.id;
-                await deleteDoc(doc(db, 'notes', id));
-                showToast("Note deleted.", 'info');
-                addToTimeline("Deleted a note");
-            });
-        });
+        if (voiceItems.length === 0) voiceList.innerHTML = '<p class="subtext-center">No voice notes shared yet.</p>';
+        else voiceItems.forEach(item => voiceList.appendChild(item));
+        
+        if (linkItems.length === 0) list.innerHTML = '<p class="subtext-center">No music links shared yet.</p>';
+        else linkItems.forEach(item => list.appendChild(item));
     });
 }
 
 
-/* ================= CALENDAR & EVENTS LOGIC ================= */
-
-document.getElementById('addEventBtn')?.addEventListener('click', () => {
-    // Mock for now: show a simple prompt
-    const title = prompt("Enter event title:");
-    if (!title) return;
-    const dateStr = prompt("Enter date and time (e.g., 2024-12-25 18:00):");
-    if (!dateStr || isNaN(new Date(dateStr))) return showToast("Invalid date format.", 'error');
-
-    addDoc(collections.events, {
-        user: USER_MAP[currentUser.email],
-        title: title,
-        timestamp: new Date(dateStr), // Storing as Date object for sorting
-        location: '',
-        details: ''
-    }).then(() => {
-        showToast("Event added!");
-        addToTimeline(`Scheduled a new event: ${title}`);
-    }).catch(e => {
-        console.error("Error adding event:", e);
-        showToast("Failed to add event.", 'error');
-    });
-});
+/* ================= SCHEDULE / CALENDAR LOGIC ================= */
 
 function renderCalendar() {
-    // This function now only handles the month navigation UI and rendering the grid.
-    const monthYearSpan = document.getElementById('monthYear');
+    const header = document.getElementById('currentMonthYear');
     const grid = document.getElementById('calendarGrid');
-    const eventListContainer = document.getElementById('calendarContainer');
-    if (!monthYearSpan || !grid) return;
+    const eventListContainer = document.getElementById('eventListContainer');
+    if (!header || !grid) return;
 
-    // Update Month/Year Header
-    monthYearSpan.textContent = currentCalDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const year = currentCalDate.getFullYear();
+    const month = currentCalDate.getMonth();
+    const monthName = currentCalDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    // Render Grid
+    header.textContent = monthName;
     grid.innerHTML = '';
-    const startOfMonth = new Date(currentCalDate.getFullYear(), currentCalDate.getMonth(), 1);
-    const endOfMonth = new Date(currentCalDate.getFullYear(), currentCalDate.getMonth() + 1, 0);
-    const numDays = endOfMonth.getDate();
-    let startDay = startOfMonth.getDay(); // 0=Sunday, 6=Saturday
 
-    // Add empty cells for preceding days
-    for (let i = 0; i < startDay; i++) {
-        grid.innerHTML += '<div></div>';
+    const firstDay = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+
+    // Fill in empty leading days
+    for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div class="cal-day empty"></div>`;
     }
 
-    // Add day cells
-    for (let day = 1; day <= numDays; day++) {
-        grid.innerHTML += `<div class="cal-day">${day}</div>`;
+    // Fill in days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const isToday = date.toDateString() === today.toDateString();
+        let classes = '';
+        if (isToday) classes += ' today';
+        // You would add .event-day class here if an event exists for this date
+
+        grid.innerHTML += `<div class="cal-day${classes}">${day}</div>`;
     }
 
     // Attach Nav Listeners (ensure they are only attached once)
     const prevBtn = document.getElementById('prevMonth');
     const nextBtn = document.getElementById('nextMonth');
+    
+    // Prevent multiple listeners
+    prevBtn.onclick = null;
+    nextBtn.onclick = null;
+
     prevBtn.onclick = () => {
         currentCalDate.setMonth(currentCalDate.getMonth() - 1);
         renderCalendar();
@@ -1423,12 +1426,11 @@ function renderCalendar() {
         renderCalendar();
     };
 
-
     // Listen for events in real-time (to render the list below the calendar)
     onSnapshot(query(collections.events, orderBy('timestamp', 'asc')), (snapshot) => {
         if (!eventListContainer) return;
         eventListContainer.innerHTML = '<h3>Upcoming Events</h3>';
-
+        
         if (snapshot.empty) {
             eventListContainer.innerHTML += '<p class="subtext-center">No events planned yet. Tap the button to add one! 🎉</p>';
             return;
@@ -1444,86 +1446,117 @@ function renderCalendar() {
 
             const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             if (month !== currentMonthHeader) {
-                eventListContainer.innerHTML += `<h4 class="month-header">${month}</h4>`;
+                eventListContainer.innerHTML += `<h4 class="sub-header" style="text-align: left; margin-top: 20px;">${month}</h4>`;
                 currentMonthHeader = month;
             }
 
-            const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            eventListContainer.innerHTML += `
-                <div class="event-item" data-id="${docSnap.id}">
-                    <div class="event-date">${date.getDate()}</div>
-                    <div class="event-details">
-                        <strong>${escapeHtml(data.title)}</strong>
-                        <span class="subtext">${time} by ${escapeHtml(data.user)}</span>
-                    </div>
+            const item = document.createElement('div');
+            item.className = 'event-item';
+            item.innerHTML = `
+                <div>
+                    <strong>${date.toLocaleDateString()}</strong> - ${escapeHtml(data.title)}
+                    <span style="display: block; font-size: 0.85rem; color: var(--subtext);">${escapeHtml(data.description)}</span>
                 </div>
+                <span style="font-size: 0.9rem; color: var(--subtext);">by ${escapeHtml(data.user)}</span>
             `;
+            eventListContainer.appendChild(item);
         });
     });
 }
 
+document.getElementById('addEventBtn')?.addEventListener('click', async () => {
+    if (!currentUser) return showToast("You must be logged in to add an event.", 'error');
 
-/* ================= TODO LISTS & POLLS LOGIC ================= */
+    const title = prompt("Enter event title:");
+    if (!title) return;
+    const description = prompt("Enter event description (optional):") || '';
+    const dateInput = prompt("Enter event date (YYYY-MM-DD):");
+    if (!dateInput || !/\d{4}-\d{2}-\d{2}/.test(dateInput)) return showToast("Invalid date format. Use YYYY-MM-DD.", 'error');
 
+    const timestamp = new Date(dateInput);
+    if (isNaN(timestamp)) return showToast("Invalid date.", 'error');
+
+    try {
+        await addDoc(collections.events, {
+            title: title,
+            description: description,
+            timestamp: timestamp,
+            user: USER_MAP[currentUser.email]
+        });
+        showToast('Event added successfully!', 'success');
+        addToTimeline('Added a new event to the schedule');
+    } catch (e) {
+        console.error("Error adding event:", e);
+        showToast('Failed to add event.', 'error');
+    }
+});
+
+
+/* ================= TODOS & POLLS LOGIC ================= */
+
+// TODO LOGIC
 document.getElementById('addTodoBtn')?.addEventListener('click', async () => {
-    const input = document.getElementById('todoInput');
-    const task = input.value.trim();
-    if(!task || !currentUser) return showToast("Task cannot be empty.", 'error');
+    if (!currentUser) return showToast("You must be logged in to add a task.", 'error');
+    const task = prompt("Enter the new to-do task:");
+    if (!task) return;
 
-    await addDoc(collections.todos, {
-        task: task,
-        user: USER_MAP[currentUser.email],
-        completed: false,
-        timestamp: serverTimestamp()
-    });
-    input.value = '';
-    addToTimeline(`Added a new to-do: ${task}`);
-    showToast("Task added to the list.");
+    try {
+        await addDoc(collections.todos, {
+            task: task,
+            user: USER_MAP[currentUser.email],
+            completed: false,
+            timestamp: serverTimestamp()
+        });
+        showToast('Task added.', 'success');
+        addToTimeline('Added a new to-do item');
+    } catch (e) {
+        console.error("Error adding todo:", e);
+        showToast('Failed to add task.', 'error');
+    }
 });
 
 function renderTodos() {
-    const container = document.getElementById('todoList');
+    const container = document.getElementById('todoListContainer');
     if (!container) return;
 
-    // Listen for todos in real-time
-    onSnapshot(query(collections.todos, orderBy('timestamp', 'asc')), (snapshot) => {
+    onSnapshot(query(collections.todos, orderBy('completed', 'asc'), orderBy('timestamp', 'asc')), (snapshot) => {
         container.innerHTML = '';
         if (snapshot.empty) {
-            container.innerHTML = '<p class="subtext-center">The list is clear! What should we add? 📝</p>';
-            return;
+            container.innerHTML = '<p class="subtext-center">No tasks! Tap "Add New Task" to start.</p>';
         }
 
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const id = docSnap.id;
+
             const item = document.createElement('div');
-            item.className = `todo-item list-item ${data.completed ? 'completed' : ''}`;
+            item.className = 'list-item todo-item';
             item.innerHTML = `
-                <input type="checkbox" id="todo-${id}" ${data.completed ? 'checked' : ''} data-id="${id}">
-                <label for="todo-${id}">
-                    <span class="todo-title">${escapeHtml(data.task)}</span>
-                    <span class="todo-user subtext">Added by: ${escapeHtml(data.user)}</span>
-                </label>
-                <button class="btn ghost small delete-todo-btn" data-id="${id}">🗑️</button>
+                <div class="todo-checkbox${data.completed ? ' completed' : ''}" data-id="${id}" data-completed="${data.completed}"></div>
+                <span class="todo-text${data.completed ? ' completed' : ''}">${escapeHtml(data.task)} (${escapeHtml(data.user)})</span>
+                <button class="btn icon-btn small ghost delete-todo-btn" data-id="${id}" aria-label="Delete Task">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             `;
             container.appendChild(item);
         });
 
-        // Attach listeners for completion toggle
-        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', async (e) => {
-                const id = e.target.dataset.id;
-                const completed = e.target.checked;
+        // Attach listeners for toggle
+        container.querySelectorAll('.todo-checkbox').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const completed = e.currentTarget.dataset.completed !== 'true';
                 await updateDoc(doc(db, 'todos', id), { completed: completed });
                 showToast(completed ? 'Task completed!' : 'Task reopened.', 'info');
                 addToTimeline(completed ? 'Completed a to-do item' : 'Reopened a to-do item');
             });
         });
-        
+
         // Attach listeners for delete
         container.querySelectorAll('.delete-todo-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = e.currentTarget.dataset.id;
+                if (!confirm('Delete this task?')) return;
                 await deleteDoc(doc(db, 'todos', id));
                 showToast('Task deleted.', 'info');
                 addToTimeline('Deleted a to-do item');
@@ -1532,95 +1565,97 @@ function renderTodos() {
     });
 }
 
+
+// POLLS LOGIC
 document.getElementById('addPollBtn')?.addEventListener('click', () => {
+    if (!currentUser) return showToast("You must be logged in to create a poll.", 'error');
+    
     const question = prompt("Enter the poll question:");
     if (!question) return;
-    
+
     // Simple way to get options
     let options = prompt("Enter options, separated by commas (e.g., Movie, Restaurant, Stay In):");
     if (!options) return;
-    
+
     // Create an object where each option is a key and the value is an empty array of voters
     const optionsObj = options.split(',').map(o => o.trim()).filter(o => o.length > 0)
         .reduce((acc, option) => ({ ...acc, [option]: [] }), {});
 
     if (Object.keys(optionsObj).length < 2) return showToast("Please provide at least two poll options.", 'error');
 
-    addDoc(collections.polls, {
-        user: USER_MAP[currentUser.email],
-        question: question,
-        options: optionsObj,
-        timestamp: serverTimestamp()
-    }).then(() => {
-        showToast("Poll started!");
-        addToTimeline(`Created a new poll: ${question}`);
-    }).catch(e => {
-        console.error("Error adding poll:", e);
-        showToast("Failed to start poll.", 'error');
-    });
+    try {
+        addDoc(collections.polls, {
+            question: question,
+            options: optionsObj,
+            user: USER_MAP[currentUser.email],
+            timestamp: serverTimestamp()
+        });
+        showToast('Poll created successfully!', 'success');
+        addToTimeline('Created a new poll');
+    } catch (e) {
+        console.error("Error creating poll:", e);
+        showToast('Failed to create poll.', 'error');
+    }
 });
 
-
 function renderPolls() {
-    const container = document.getElementById('pollsList');
+    const container = document.getElementById('pollsContainer');
     if (!container) return;
 
     onSnapshot(query(collections.polls, orderBy('timestamp', 'desc')), (snapshot) => {
         container.innerHTML = '';
         if (snapshot.empty) {
-            container.innerHTML = '<p class="subtext-center">No active polls. Start one now! 📊</p>';
-            return;
+            container.innerHTML = '<p class="subtext-center">No active polls. Tap "Create New Poll" to start.</p>';
         }
 
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const id = docSnap.id;
-            const totalVotes = Object.values(data.options).reduce((sum, voters) => sum + voters.length, 0);
+            const options = data.options || {};
+            const totalVotes = Object.values(options).flat().length;
+            const user = USER_MAP[currentUser?.email];
 
-            let pollHtml = '';
-            Object.entries(data.options).forEach(([option, voters]) => {
-                const count = voters.length;
-                const percent = totalVotes === 0 ? 0 : (count / totalVotes) * 100;
-                const userVoted = voters.includes(USER_MAP[currentUser.email]);
-                
-                pollHtml += `
-                    <div class="poll-option ${userVoted ? 'voted' : ''}">
-                        <div class="poll-bar-fill" style="width: ${percent}%;"></div>
-                        <button class="btn ghost small vote-btn" data-id="${id}" data-option="${escapeHtml(option)}" ${userVoted ? 'disabled' : ''}>
-                            ${userVoted ? 'VOTED' : 'Vote'}
-                        </button>
-                        <span class="poll-option-text">${escapeHtml(option)}</span>
-                        <span class="vote-count">${count} (${percent.toFixed(0)}%)</span>
-                    </div>
-                `;
-            });
-
-            container.innerHTML += `
-                <div class="card poll-item">
-                    <h4>${escapeHtml(data.question)}</h4>
-                    <p class="subtext">Started by ${escapeHtml(data.user)} - Total Votes: ${totalVotes}</p>
-                    <div class="poll-options-list">${pollHtml}</div>
+            const item = document.createElement('div');
+            item.className = 'poll-item';
+            item.innerHTML = `
+                <div class="poll-question">${escapeHtml(data.question)}</div>
+                <div class="poll-options">
+                    ${Object.entries(options).map(([option, voters]) => {
+                        const voteCount = voters.length;
+                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                        const userVoted = voters.includes(user);
+                        return `
+                            <button class="btn ghost poll-option-btn${userVoted ? ' user-voted' : ''}" data-id="${id}" data-option="${escapeHtml(option)}" aria-label="Vote for ${escapeHtml(option)}">
+                                <span class="poll-fill" style="width: ${percentage}%;"></span>
+                                <span>${escapeHtml(option)}</span>
+                                <span style="font-weight: 600;">${voteCount} (${percentage}%)</span>
+                            </button>
+                        `;
+                    }).join('')}
                 </div>
+                <p style="font-size: 0.8rem; color: var(--subtext); margin-top: 15px;">
+                    Total Votes: ${totalVotes} • Created by ${escapeHtml(data.user)}
+                </p>
             `;
+            container.appendChild(item);
         });
 
-        // Attach vote listeners
-        container.querySelectorAll('.vote-btn').forEach(btn => {
-            btn.addEventListener('click', handleVote);
+        // Attach listeners for voting
+        container.querySelectorAll('.poll-option-btn').forEach(btn => {
+            btn.onclick = handleVote;
         });
     });
 }
 
-/**
- * Handles the logic for voting on a poll.
- * @param {Event} e
- */
 async function handleVote(e) {
+    if (!currentUser) return showToast("You must be logged in to vote.", 'error');
+    
     const id = e.currentTarget.dataset.id;
     const optionToVote = e.currentTarget.dataset.option;
     const user = USER_MAP[currentUser.email];
+    
     if (!user) return showToast("You must be logged in to vote.", 'error');
-
+    
     const pollRef = doc(db, 'polls', id);
     const pollSnap = await getDoc(pollRef);
     if (!pollSnap.exists()) return;
@@ -1630,12 +1665,15 @@ async function handleVote(e) {
     
     // Find previous vote and remove it
     let updateFields = {};
+    let isTogglingOff = false;
+
     Object.entries(currentOptions).forEach(([option, voters]) => {
         if (voters.includes(user)) {
-            // User already voted for this option, so remove their vote (toggle)
+            // User already voted for this option, so remove their vote (toggle off)
             if (option === optionToVote) {
                 updateFields[`options.${option}`] = arrayRemove(user);
                 showToast(`Unvoted from "${option}".`, 'info');
+                isTogglingOff = true;
                 return;
             }
             // User voted for a different option, remove it
@@ -1644,83 +1682,68 @@ async function handleVote(e) {
     });
 
     // Add the new vote, unless the user was unvoting their current choice
-    const isTogglingOff = currentOptions[optionToVote]?.includes(user);
     if (!isTogglingOff) {
         updateFields[`options.${optionToVote}`] = arrayUnion(user);
         showToast(`Voted for "${optionToVote}"!`, 'success');
-        addToTimeline(`Voted in a poll`);
+        addToTimeline(`Voted in a poll: ${optionToVote}`);
     }
-
+    
     try {
-        if (Object.keys(updateFields).length > 0) {
-            await updateDoc(pollRef, updateFields);
-        }
-    } catch (e) {
-        console.error("Error handling vote:", e);
-        showToast("Failed to cast vote.", 'error');
+        await updateDoc(pollRef, updateFields);
+    } catch (error) {
+        console.error("Error updating poll:", error);
+        showToast('Failed to cast vote.', 'error');
     }
 }
-
 
 /* ================= FAVORITES LOGIC ================= */
 
 function renderFavorites() {
     const favoritesGrid = document.getElementById('favoritesGrid');
     if (!favoritesGrid) return;
-    
-    // Function to fetch favorited media from a collection
-    const fetchFavorites = async (collectionName) => {
-        const q = query(
-            collections[collectionName],
-            orderBy('favoritedTimestamp', 'desc') // Use the specific timestamp for sorting
-        );
-        const snap = await getDocs(q);
-        // Filter locally to find items favorited by *anyone* since favoritedTimestamp is for sorting
-        return snap.docs.filter(docSnap => docSnap.data().favoritedBy?.length > 0).map(docSnap => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-            type: collectionName === 'photos' ? 'image' : 'video'
-        }));
-    };
 
-    Promise.all([
-        fetchFavorites('photos'),
-        fetchFavorites('videos')
-    ]).then(([photoFavs, videoFavs]) => {
-        // Merge and sort all favorites by the timestamp they were favorited
-        const allFavs = [...photoFavs, ...videoFavs].sort((a, b) => b.favoritedTimestamp - a.favoritedTimestamp);
-
+    onSnapshot(query(collections.favorites, orderBy('favoriteTimestamp', 'desc')), (snapshot) => {
         favoritesGrid.innerHTML = '';
-        if (allFavs.length === 0) {
-            favoritesGrid.innerHTML = '<p class="subtext-center" style="grid-column: 1 / -1;">We haven\'t favorited enough media yet!</p>';
-            return;
+        if (snapshot.empty) {
+            favoritesGrid.innerHTML = '<p class="subtext-center">No favorites yet. Add one from a photo or video to see it here! ⭐</p>';
         }
 
-        allFavs.forEach(data => {
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            const isImage = data.type === 'image' || data.type === 'photo';
+            const mediaElement = isImage
+                ? `<img src="${escapeHtml(data.url)}" alt="Favorite Photo" loading="lazy">`
+                : `<video src="${escapeHtml(data.url)}" controls loading="lazy" style="background: black;"></video>`;
+            
+            const date = data.favoriteTimestamp?.toDate()?.toLocaleDateString() || 'Recently';
             const div = document.createElement('div');
-            div.className = 'masonry-item favorite-item';
-            
-            // Show a preview (image or video)
-            const media = data.type === 'image' ?
-                `<img src="${escapeHtml(data.url)}" loading="lazy" alt="favorite photo">` :
-                `<video src="${escapeHtml(data.url)}" controls></video>`;
-
-            const favoritedBy = data.favoritedBy.map(email => USER_MAP[email] || email.split('@')[0]);
-            
+            div.className = 'masonry-item';
             div.innerHTML = `
-                ${media}
+                <div class="media-container" style="cursor: pointer;">
+                    ${mediaElement}
+                </div>
                 <div class="item-meta">
-                    <span style="font-weight: 500;">${data.type === 'image' ? 'Photo' : 'Video'}</span>
-                    <span class="subtext">Fav'd by: ${favoritedBy.join(', ')}</span>
+                    <span title="Favorited on ${date}">⭐ ${date}</span>
+                    <button class="btn icon-btn ghost small media-options-btn" data-id="${id}" data-type="${data.type}" data-url="${data.url}" data-caption="${escapeHtml(data.caption || '')}" aria-label="Media Options">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                    </button>
                 </div>
             `;
             
-            // Attach click handler for opening media
-            div.querySelector(data.type === 'image' ? 'img' : 'video')?.addEventListener('click', (e) => {
-                if (e.target.tagName.toLowerCase() === 'video' && e.target.closest('.masonry-item video[controls]')) return;
-                openLightbox(data.url, data.type);
+            // Handler for opening media
+            div.querySelector('.media-container')?.addEventListener('click', () => {
+                openLightbox(data.url, data.type, data.caption);
             });
             
+            // Handler for media options modal (use the original collection for options)
+            div.querySelector('.media-options-btn')?.addEventListener('click', (e) => {
+                const button = e.currentTarget;
+                // Note: favorites is its own collection, but for options, we refer back to the original type/id
+                const originalType = (button.dataset.type === 'photo' || button.dataset.type === 'image') ? 'photos' : button.dataset.type === 'video' ? 'videos' : button.dataset.type;
+                openMediaModal(button.dataset.id, button.dataset.type, button.dataset.url, button.dataset.caption);
+            });
+
             favoritesGrid.appendChild(div);
         });
     });
@@ -1737,100 +1760,97 @@ document.querySelectorAll('.mood-emoji').forEach(el => {
         document.querySelectorAll('.mood-emoji').forEach(o => o.classList.remove('selected'));
         e.target.classList.add('selected');
         document.getElementById('saveMoodBtn').disabled = false;
+        document.getElementById('saveMoodBtn').classList.remove('ghost');
+        document.getElementById('saveMoodBtn').classList.add('primary');
     });
 });
 
+document.getElementById('saveMoodBtn')?.addEventListener('click', async () => {
+    if (!currentUser || !selectedMood) return showToast("Please select a mood first.", 'error');
+    
+    try {
+        await addDoc(collections.checkins, {
+            user: USER_MAP[currentUser.email],
+            mood: selectedMood,
+            timestamp: serverTimestamp()
+        });
+        showToast(`Mood logged as ${selectedMood}!`, 'success');
+        addToTimeline(`Logged their mood as ${selectedMood}`);
+        
+        // Reset UI
+        selectedMood = null;
+        document.querySelectorAll('.mood-emoji').forEach(o => o.classList.remove('selected'));
+        document.getElementById('saveMoodBtn').disabled = true;
+        document.getElementById('saveMoodBtn').classList.remove('primary');
+        document.getElementById('saveMoodBtn').classList.add('ghost');
+
+    } catch (e) {
+        console.error("Error logging mood:", e);
+        showToast('Failed to log mood.', 'error');
+    }
+});
+
 function renderCheckins() {
-    document.getElementById('saveMoodBtn')?.addEventListener('click', async () => {
-        if (!selectedMood || !currentUser) return showToast("Please select a mood.", 'error');
-        
-        const note = document.getElementById('moodNote').value.trim();
-        
-        try {
-            await addDoc(collections.checkins, {
-                user: USER_MAP[currentUser.email],
-                mood: parseInt(selectedMood),
-                note: note,
-                timestamp: serverTimestamp()
-            });
-            showToast('Mood logged successfully!', 'success');
-            addToTimeline(`Checked in with a mood of ${selectedMood}`);
-            
-            // Reset UI
-            selectedMood = null;
-            document.getElementById('moodNote').value = '';
-            document.getElementById('saveMoodBtn').disabled = true;
-            document.querySelectorAll('.mood-emoji').forEach(el => el.classList.remove('selected'));
-            
-            // Re-render chart after saving
-            renderMoodChart();
-        } catch (e) {
-            showToast('Failed to log mood.', 'error');
-            console.error("Error logging mood:", e);
-        }
-    });
+    if (!currentUserProfile) return;
+    document.getElementById('currentUserMoodName').textContent = currentUserProfile.displayName;
 
-    renderMoodChart();
-}
-
-/**
- * Fetches mood data and renders the Chart.js line graph.
- */
-function renderMoodChart() {
     const canvas = document.getElementById('moodChartCanvas');
     if (!canvas) return;
 
-    onSnapshot(query(collections.checkins, orderBy('timestamp', 'asc'), limit(30)), snap => {
-        const data = snap.docs.map(doc => doc.data());
-        const labels = data.map(d => d.timestamp?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || 'N/A');
-        const moodData = data.map(d => d.mood);
-        
-        const chartData = {
-            labels: labels,
-            datasets: [{
-                label: 'Our Mood',
-                data: moodData,
-                borderColor: 'var(--primary)',
-                backgroundColor: 'rgba(195, 141, 158, 0.4)',
-                tension: 0.3,
-                fill: true,
-                pointRadius: 6,
-                pointHoverRadius: 8
-            }]
+    onSnapshot(query(collections.checkins, orderBy('timestamp', 'desc'), limit(30)), (snapshot) => {
+        const moodData = {
+            Happy: 0, Content: 0, Neutral: 0, Tired: 0, Stressed: 0, Anxious: 0, Sad: 0
         };
+        
+        // Calculate mood frequency
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (moodData.hasOwnProperty(data.mood)) {
+                moodData[data.mood]++;
+            }
+        });
+
+        const labels = Object.keys(moodData);
+        const dataValues = Object.values(moodData);
+        
+        const backgroundColors = [
+            '#34C759', // Happy (Success)
+            '#FDD651', // Content (Yellow)
+            '#8E8E93', // Neutral (Subtext)
+            '#1F77B4', // Tired (Blue)
+            '#FF9500', // Stressed (Orange)
+            '#FF3B30', // Anxious (Error)
+            '#5856D6'  // Sad (Indigo)
+        ];
 
         const config = {
-            type: 'line',
-            data: chartData,
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Mood Frequency (Last 30 Logs)',
+                    data: dataValues,
+                    backgroundColor: backgroundColors,
+                    borderRadius: 6,
+                }]
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        min: 1,
-                        max: 5,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                // Map number to emoji for better visualization
-                                const moodMap = { 1: '😩', 2: '😟', 3: '😐', 4: '😊', 5: '😍' };
-                                return moodMap[value] || value;
-                            }
-                        },
-                        grid: {
-                            color: 'var(--line-color)'
-                        }
+                        beginAtZero: true,
+                        grid: { color: 'var(--line-color)' },
+                        ticks: { color: 'var(--subtext)' }
                     },
                     x: {
-                        grid: {
-                            color: 'var(--line-color)'
-                        }
+                        grid: { display: false },
+                        ticks: { color: 'var(--subtext)' }
                     }
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false },
+                    title: { display: false }
                 }
             }
         };
