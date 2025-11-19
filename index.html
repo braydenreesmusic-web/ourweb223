@@ -10,14 +10,14 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Spectral:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <meta name="theme-color" content="#F8F4F0">
 </head>
-<body>
+<body class="ios-theme">
     <div id="toastContainer" class="toast-container"></div>
 
     <div id="authModal" class="modal active">
@@ -44,8 +44,7 @@
         <div class="header-top">
             <div class="logo-area">
                 <h1 class="logo">B & Y</h1>
-                <div id="daysCounter" class="days-counter">Calculating...</div>
-            </div>
+                </div>
             
             <div class="header-controls">
                 <div class="theme-toggle-wrapper">
@@ -65,17 +64,78 @@
                 </button>
             </div>
         </div>
-        
-        <div class="header-bottom">
-            <div class="presence-bar">
-                <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
-                <span id="younaPresence" class="presence-dot" title="Youna"></span>
-            </div>
-        </div>
     </header>
 
     <main class="container">
-        <section id="photos" class="section active">
+        <section id="home" class="section active">
+            <div class="section-header">
+                <h2>Shared Life</h2>
+                <p>Your dashboard for everything.</p>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card stat-card full-width">
+                    <div class="stat-icon">❤️</div>
+                    <h3 id="daysCounter" class="stat-value">Calculating...</h3>
+                    <p class="stat-label">Together Since 05/09/2024</p>
+                </div>
+
+                <div class="card status-card">
+                    <div class="status-icon">👤</div>
+                    <div class="presence-bar-home">
+                        <span id="braydenPresence" class="presence-dot" title="Brayden"></span>
+                        <span id="braydenPresenceText">Brayden Offline</span>
+                    </div>
+                </div>
+                <div class="card status-card">
+                    <div class="status-icon">👤</div>
+                    <div class="presence-bar-home">
+                        <span id="younaPresence" class="presence-dot" title="Youna"></span>
+                        <span id="younaPresenceText">Youna Offline</span>
+                    </div>
+                </div>
+
+                <div class="card weather-card">
+                    <div class="weather-icon">☁️</div>
+                    <p class="weather-info">Weather of each person’s location (Simulated)</p>
+                </div>
+            </div>
+
+            <h3 class="sub-header">Upcoming Events</h3>
+            <div id="homeEventsList" class="list-layout"></div>
+
+            <h3 class="sub-header">Latest Note</h3>
+            <div id="homeLatestNote" class="list-layout"></div>
+
+            <h3 class="sub-header">Recent Media</h3>
+            <div id="homeRecentMedia" class="masonry-grid-compact"></div>
+        </section>
+        
+        <section id="notes" class="section">
+            <div class="section-header">
+                <h2>Notes & Messages</h2>
+                <p>Your private journal chat.</p>
+            </div>
+            
+            <div class="search-pin-bar">
+                <input type="text" id="noteSearchInput" placeholder="Search notes..." class="glass-input">
+                <button id="viewPinnedNotesBtn" class="btn icon-btn" aria-label="View Pinned">📌</button>
+            </div>
+
+            <div class="note-composer card input-block">
+                <textarea id="noteInput" placeholder="Write a note..." rows="3"></textarea>
+                <div class="composer-footer">
+                    <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
+                    <button id="saveNoteBtn" class="btn primary small">Send</button>
+                </div>
+                <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
+            </div>
+            
+            <div id="notesList" class="list-layout">
+                </div>
+        </section>
+
+        <section id="photos" class="section">
             <div class="section-header">
                 <h2>Photos</h2>
                 <p>Your uploaded pictures.</p>
@@ -108,7 +168,7 @@
                 <h2>Music</h2>
                 <p>Songs you've added.</p>
             </div>
-            <div class="music-controls-wrapper card">
+            <div class="music-controls-wrapper card input-block">
                 <div class="search-row">
                     <input type="text" id="musicInput" class="glass-input" placeholder="Search songs">
                     <button id="addMusicBtn" class="btn primary small">Search</button>
@@ -117,22 +177,6 @@
             </div>
             <h3 class="sub-header">Saved Music</h3>
             <div id="savedMusic" class="list-layout"></div>
-        </section>
-
-        <section id="notes" class="section">
-            <div class="section-header">
-                <h2>Notes</h2>
-                <p>Your personal notes.</p>
-            </div>
-            <div class="note-composer card">
-                <textarea id="noteInput" placeholder="Write a note..."></textarea>
-                <div class="composer-footer">
-                    <button id="voiceNoteBtn" class="btn icon-btn">🎤</button>
-                    <button id="saveNoteBtn" class="btn primary small">Save</button>
-                </div>
-                <div id="voiceStatus" class="voice-status hidden">Recording... <span class="blink">🔴</span></div>
-            </div>
-            <div id="notesList" class="list-layout"></div>
         </section>
 
         <section id="schedule" class="section">
@@ -154,7 +198,7 @@
             <div class="event-actions">
                 <button id="addEventToggleBtn" class="btn primary full-width">Add Event</button>
             </div>
-            <div id="eventForm" class="event-editor card hidden">
+            <div id="eventForm" class="event-editor card hidden input-block">
                 <h4>New Event</h4>
                 <input type="text" id="eventTitle" placeholder="Event Title" class="glass-input">
                 <input type="date" id="eventDate" class="glass-input">
@@ -196,14 +240,11 @@
     </main>
 
     <nav class="tab-bar">
-        <button class="tab-btn active" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
-        <button class="tab-btn" data-section="videos"><span class="icon">🎥</span><span>Videos</span></button>
-        <button class="tab-btn" data-section="music"><span class="icon">🎵</span><span>Music</span></button>
-        <button class="tab-btn" data-section="notes"><span class="icon">✍️</span><span>Notes</span></button>
+        <button class="tab-btn active" data-section="home"><span class="icon">🏠</span><span>Home</span></button>
+        <button class="tab-btn" data-section="notes"><span class="icon">💬</span><span>Messages</span></button>
+        <button class="tab-btn" data-section="photos"><span class="icon">📷</span><span>Photos</span></button>
         <button class="tab-btn" data-section="schedule"><span class="icon">📅</span><span>Schedule</span></button>
-        <button class="tab-btn" data-section="mapSection"><span class="icon">🌍</span><span>Map</span></button>
-        <button class="tab-btn" data-section="timeline"><span class="icon">📜</span><span>Activity</span></button>
-        <button class="tab-btn" data-section="favorites"><span class="icon">❤️</span><span>Favorites</span></button>
+        <button class="tab-btn" data-section="mapSection"><span class="icon">📍</span><span>Map</span></button>
     </nav>
 
     <div id="lightbox" class="lightbox">
@@ -214,7 +255,6 @@
             <p class="lightbox-caption"></p>
         </div>
     </div>
-
     <div id="memoryModal" class="modal">
         <div class="modal-content card">
             <h3>Add Location</h3>
@@ -228,6 +268,21 @@
             <div class="modal-footer">
                 <button id="cancelMemoryBtn" class="btn ghost">Cancel</button>
                 <button id="saveMemoryBtn" class="btn primary">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="replyModal" class="modal action-sheet">
+        <div class="modal-content action-sheet-content">
+            <div class="sheet-header">
+                <h4>Reply to Note</h4>
+                <button class="btn icon-btn close-sheet">&times;</button>
+            </div>
+            <div id="originalNoteContent" class="original-note-preview card"></div>
+            <div id="repliesList" class="list-layout note-replies-list"></div>
+            <div class="reply-composer input-block">
+                <input type="text" id="replyInput" placeholder="Your reply or emoji..." class="glass-input">
+                <button id="sendReplyBtn" class="btn primary small">Send</button>
             </div>
         </div>
     </div>
