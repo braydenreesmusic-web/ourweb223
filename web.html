@@ -1,0 +1,900 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Shared Life</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Tailwind CSS (for utility classes if needed, though we use custom CSS mostly) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* style.css - iOS 18 Inspired Theme */
+
+    :root {
+      --color-bg: #f2f2f7;
+      --color-card: #ffffff;
+      --color-text-primary: #000000;
+      --color-text-secondary: #8e8e93;
+      --color-separator: #c6c6c8;
+      --color-blue: #007aff;
+      --color-red: #ff3b30;
+      --color-green: #34c759;
+      
+      --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+      --safe-top: env(safe-area-inset-top, 20px);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-bg: #000000;
+        --color-card: #1c1c1e;
+        --color-text-primary: #ffffff;
+        --color-text-secondary: #98989d;
+        --color-separator: #38383a;
+        --color-blue: #0a84ff;
+      }
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      background-color: var(--color-bg);
+      color: var(--color-text-primary);
+      font-family: var(--font-main);
+      overflow: hidden; /* Main scroll handles content */
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- Typography & Utilities --- */
+    .hidden { display: none !important; }
+    .btn-text { background: none; border: none; font-size: 16px; color: var(--color-blue); cursor: pointer; }
+    .btn-text.destructive { color: var(--color-red); }
+
+    /* --- Layout --- */
+    .header {
+      padding: calc(var(--safe-top) + 10px) 16px 10px;
+      background: var(--color-bg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .header-title { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+
+    .main-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px;
+      padding-bottom: 100px; /* Space for tab bar */
+    }
+
+    /* --- Cards & Lists --- */
+    .ios-card {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .padding-md { padding: 16px; }
+    .padding-0 { padding: 0; }
+
+    .ios-list {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .list-item {
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 17px;
+      border-bottom: 0.5px solid var(--color-separator);
+    }
+    .list-item:last-child { border-bottom: none; }
+    
+    .list-header {
+      margin: 24px 0 8px 16px;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+      font-weight: 600;
+    }
+
+    /* --- Dashboard --- */
+    .hero-card {
+      background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
+      color: #000;
+      padding: 20px;
+      text-align: center;
+    }
+    .hero-label { font-size: 14px; opacity: 0.7; text-transform: uppercase; font-weight: 600; }
+    .hero-counter { font-size: 22px; font-weight: 800; margin: 5px 0; font-variant-numeric: tabular-nums; }
+    .hero-sub { font-size: 13px; opacity: 0.6; }
+
+    .presence-item .avatar-circle {
+      width: 32px; height: 32px; background: #e5e5ea; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; color: #000; margin-right: 10px;
+    }
+    .status-indicator { font-size: 15px; color: var(--color-text-secondary); }
+    .status-indicator.online { color: var(--color-green); font-weight: 500; }
+
+    /* Savings */
+    .savings-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .savings-current { font-size: 24px; font-weight: 700; }
+    .progress-track { height: 12px; background: var(--color-bg); border-radius: 6px; overflow: hidden; position: relative; }
+    .progress-fill { height: 100%; background: var(--color-green); width: 0%; transition: width 0.5s ease; }
+
+    /* --- Tab Bar --- */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--color-card);
+      border-top: 0.5px solid var(--color-separator);
+      height: calc(50px + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      display: flex; justify-content: space-around;
+      align-items: center;
+      z-index: 1000;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+    }
+    .tab-btn {
+      background: none; border: none;
+      display: flex; flex-direction: column; align-items: center;
+      color: var(--color-text-secondary);
+      font-size: 10px; gap: 4px;
+      width: 60px;
+      cursor: pointer;
+    }
+    .tab-btn.active { color: var(--color-blue); }
+    .tab-icon { width: 24px; height: 24px; }
+
+    /* --- Media Section --- */
+    .segment-control {
+      background: #e5e5ea; padding: 2px; border-radius: 9px;
+      display: flex; margin-bottom: 16px;
+    }
+    @media (prefers-color-scheme: dark) { .segment-control { background: #2c2c2e; } }
+
+    .segment {
+      flex: 1; border: none; background: none; padding: 6px;
+      font-size: 13px; font-weight: 500; border-radius: 7px;
+      color: var(--color-text-primary);
+      cursor: pointer;
+    }
+    .segment.active { background: var(--color-card); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+    .media-view { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .input-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+    .pill-input {
+      flex: 1; background: var(--color-card); border: 1px solid var(--color-separator); padding: 10px 16px;
+      border-radius: 20px; font-size: 16px; color: var(--color-text-primary); outline: none;
+    }
+    .btn-circle {
+      width: 42px; height: 42px; border-radius: 50%; background: var(--color-blue);
+      color: white; border: none; font-size: 20px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Notes */
+    .notes-feed { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+    .note-bubble {
+      max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 16px;
+      line-height: 1.4; position: relative; word-wrap: break-word;
+    }
+    .note-mine { align-self: flex-end; background-color: var(--color-blue); color: white; border-bottom-right-radius: 4px; }
+    .note-other { align-self: flex-start; background-color: #e5e5ea; color: black; border-bottom-left-radius: 4px; }
+    @media (prefers-color-scheme: dark) { .note-other { background-color: #3a3a3c; color: white; } }
+    .note-meta { font-size: 10px; margin-top: 4px; opacity: 0.7; text-align: right; }
+
+    /* Media Grids */
+    .ios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 10px; }
+    .grid-item { aspect-ratio: 1/1; position: relative; background: #eee; overflow: hidden; }
+    .grid-item img { width: 100%; height: 100%; object-fit: cover; }
+    .delete-btn {
+      position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white;
+      border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 12px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+
+    /* Video Feed */
+    .video-feed { display: flex; flex-direction: column; gap: 15px; margin-top: 10px; }
+    .video-card { background: var(--color-card); border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .video-card video { width: 100%; display: block; max-height: 300px; background: black; }
+    .video-meta { padding: 10px; font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between; }
+
+    /* Music List */
+    .media-item {
+      display: flex; align-items: center; padding: 12px 16px; gap: 12px;
+      border-bottom: 1px solid var(--color-separator);
+    }
+    .album-art { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; background: #eee; }
+    .media-info { flex: 1; min-width: 0; }
+    .media-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .media-artist { font-size: 13px; color: var(--color-text-secondary); }
+    .preview-btn {
+      width: 30px; height: 30px; border-radius: 50%; background: #e5e5ea; color: var(--color-blue);
+      display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 12px;
+    }
+
+    /* Calendar */
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 10px; }
+    .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; color: var(--color-text-secondary); margin-top: 10px; }
+    .cal-day { text-align: center; height: 36px; line-height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+    .cal-day.today { color: var(--color-blue); font-weight: 700; }
+    .cal-day.selected { background: var(--color-blue); color: white; }
+    .cal-day.has-event::after {
+      content: ''; display: block; width: 4px; height: 4px; background: var(--color-red); border-radius: 50%; margin: -4px auto 0;
+    }
+    
+    /* Loading State */
+    .loading-spinner { text-align: center; padding: 20px; color: var(--color-text-secondary); font-size: 14px; }
+
+    /* Upload Card */
+    .upload-card {
+      display: flex; align-items: center; background: var(--color-card); padding: 16px;
+      border-radius: 14px; cursor: pointer; margin-bottom: 10px;
+      border: 1px dashed var(--color-separator);
+    }
+    .upload-icon {
+      width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; color: white; margin-right: 14px;
+    }
+    .box-blue { background: var(--color-blue); }
+    .box-red { background: var(--color-red); }
+    
+    /* Map */
+    #map { width: 100%; height: 250px; border-radius: 14px; z-index: 1; }
+  </style>
+</head>
+<body>
+  
+  <div id="toastContainer" style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%); z-index: 9999;"></div>
+
+  <!-- Auth Screen (Simple Overlay) -->
+  <div id="authScreen" style="position:fixed; inset:0; z-index:2000; background:var(--color-bg); display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center; width: 100%; max-width: 300px;">
+      <div style="font-size:48px; margin-bottom:10px;">❤️</div>
+      <h1 style="font-size:24px; margin-bottom:5px;">Shared Life</h1>
+      <p style="color:var(--color-text-secondary); margin-bottom:30px;">Connecting...</p>
+      <div class="loading-spinner">Authenticating securely...</div>
+    </div>
+  </div>
+
+  <div id="appContent" class="hidden" style="display:flex; flex-direction:column; height:100%;">
+    
+    <header class="header">
+      <div class="header-left">
+        <h1 class="header-title">Home</h1>
+      </div>
+      <div class="header-right">
+        <button id="logoutBtn" class="btn-text" style="font-size:14px;">Sign Out</button>
+      </div>
+    </header>
+
+    <main class="main-scroll">
+      
+      <!-- DASHBOARD TAB -->
+      <section id="tab-dashboard" class="tab-section active">
+        <div class="ios-card hero-card">
+          <div class="hero-content">
+            <div class="hero-label">Time Together</div>
+            <div id="daysCounter" class="hero-counter">Loading...</div>
+            <div class="hero-sub">Since May 9, 2024</div>
+          </div>
+        </div>
+
+        <h3 class="list-header">Status</h3>
+        <div class="ios-list">
+          <div class="list-item presence-item">
+            <div style="display:flex; align-items:center;">
+              <span class="avatar-circle">B</span>
+              <span>Brayden</span>
+            </div>
+            <span class="status-indicator" id="braydenStatus">Offline</span>
+          </div>
+          <div class="list-item presence-item">
+            <div style="display:flex; align-items:center;">
+              <span class="avatar-circle">Y</span>
+              <span>Youna</span>
+            </div>
+            <span class="status-indicator" id="younaStatus">Offline</span>
+          </div>
+        </div>
+
+        <h3 class="list-header">Savings Goal</h3>
+        <div class="ios-card padding-md">
+          <div class="savings-header">
+            <span class="savings-current" id="savingsAmount">$0</span>
+            <span class="savings-target">of $10k</span>
+          </div>
+          <div class="progress-track" id="savingsProgressBar" style="cursor:pointer;">
+            <div class="progress-fill" id="savingsProgressFill"></div>
+          </div>
+          <div style="text-align:right; font-size:12px; color:gray; margin-top:6px;" id="savingsPercent">0%</div>
+          <div style="font-size:11px; color:gray; margin-top:4px;">Tap bar to add savings</div>
+        </div>
+
+        <h3 class="list-header">Upcoming Events</h3>
+        <div class="ios-list" id="dashboardEventsList">
+          <div class="list-item" style="color:gray;">Loading...</div>
+        </div>
+      </section>
+
+      <!-- SCHEDULE TAB -->
+      <section id="tab-schedule" class="tab-section hidden">
+        <div class="ios-card padding-md">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <button id="prevMonth" class="btn-text">Prev</button>
+            <span id="monthYear" style="font-weight:600; font-size:17px;">Month 2025</span>
+            <button id="nextMonth" class="btn-text">Next</button>
+          </div>
+          <div class="calendar-weekdays">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 0 16px 8px;">
+          <h3 class="list-header" style="margin:0;">Events</h3>
+          <button id="addEventBtn" class="btn-text" style="font-weight:600;">+ Add</button>
+        </div>
+
+        <div id="eventForm" class="ios-card padding-md hidden" style="margin: 0 16px 20px;">
+          <input id="eventTitle" class="pill-input" style="width:100%; margin-bottom:10px;" placeholder="Event Title" />
+          <input id="eventDate" type="date" class="pill-input" style="width:100%; margin-bottom:10px;" />
+          <div style="display:flex; justify-content:flex-end; gap:15px;">
+            <button id="cancelEvent" class="btn-text destructive">Cancel</button>
+            <button id="saveEvent" class="btn-text">Save</button>
+          </div>
+        </div>
+
+        <div class="ios-list" id="eventsListFull"></div>
+      </section>
+
+      <!-- MEDIA TAB -->
+      <section id="tab-media" class="tab-section hidden">
+        
+        <!-- Segmented Control -->
+        <div class="segment-control">
+          <button class="segment active" data-media-type="notes">Notes</button>
+          <button class="segment" data-media-type="photos">Photos</button>
+          <button class="segment" data-media-type="videos">Videos</button>
+          <button class="segment" data-media-type="music">Music</button>
+        </div>
+
+        <!-- Notes View -->
+        <div id="view-notes" class="media-view">
+          <div class="input-bar">
+            <input id="noteInput" class="pill-input" placeholder="Write a note..." />
+            <button id="sendNoteBtn" class="btn-circle">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div id="notesList" class="notes-feed">
+            <div class="loading-spinner">Loading notes...</div>
+          </div>
+        </div>
+
+        <!-- Photos View -->
+        <div id="view-photos" class="media-view hidden">
+          <input type="file" id="photoFileInput" accept="image/*" hidden />
+          
+          <div class="upload-card" id="triggerPhotoUpload">
+            <div class="upload-icon box-blue">
+              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+            </div>
+            <div class="upload-info">
+              <span class="upload-title">Upload Photo</span>
+              <span class="upload-desc">Share a memory</span>
+            </div>
+          </div>
+
+          <div id="photosGrid" class="ios-grid"></div>
+        </div>
+
+        <!-- Videos View -->
+        <div id="view-videos" class="media-view hidden">
+          <input type="file" id="videoFileInput" accept="video/*" hidden />
+          
+          <div class="upload-card" id="triggerVideoUpload">
+            <div class="upload-icon box-red">
+              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+            </div>
+            <div class="upload-info">
+              <span class="upload-title">Upload Video</span>
+              <span class="upload-desc">Share a clip</span>
+            </div>
+          </div>
+
+          <div id="videosGrid" class="video-feed"></div>
+        </div>
+
+        <!-- Music View -->
+        <div id="view-music" class="media-view hidden">
+          <div class="input-bar">
+            <input id="musicInput" class="pill-input" placeholder="Search Artist or Song..." />
+            <button id="addMusicBtn" class="btn-circle">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+          </div>
+          
+          <div id="musicSearchResults" class="ios-list hidden" style="margin-bottom: 20px; border: 2px solid var(--color-blue);"></div>
+          <div id="musicList" class="ios-list"></div>
+        </div>
+      </section>
+
+      <!-- MAP TAB -->
+      <section id="tab-map" class="tab-section hidden">
+        <div class="ios-card padding-0" style="height: 250px;">
+          <div id="map"></div>
+        </div>
+        <h3 class="list-header">Timeline</h3>
+        <div class="ios-list" id="timelineList">
+          <div class="list-item">Loading...</div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="dashboard">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <span>Home</span>
+      </button>
+      <button class="tab-btn" data-tab="schedule">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>Plan</span>
+      </button>
+      <button class="tab-btn" data-tab="media">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <span>Media</span>
+      </button>
+      <button class="tab-btn" data-tab="map">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+        <span>Map</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, limit, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+    // --- CONFIGURATION ---
+    const firebaseConfig = JSON.parse(__firebase_config);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = __app_id;
+    
+    let currentUser = null;
+    let mapInstance = null;
+    let currentCalDate = new Date();
+    let eventDatesSet = new Set();
+
+    // --- AUTH FLOW ---
+    async function initAuth() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth Failed", error);
+        document.querySelector('.auth-subtitle').textContent = "Auth Error: " + error.message;
+      }
+    }
+    initAuth();
+
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      const authScreen = document.getElementById("authScreen");
+      const appContent = document.getElementById("appContent");
+
+      if (user) {
+        authScreen.classList.add("hidden");
+        appContent.classList.remove("hidden");
+        initRealtimeListeners();
+        initMap();
+      } else {
+        authScreen.classList.remove("hidden");
+        appContent.classList.add("hidden");
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      // Just a visual placeholder in anonymous environments, but we'll call signOut
+      signOut(auth);
+      location.reload();
+    });
+
+    // --- HELPERS ---
+    function showToast(msg) {
+      const container = document.getElementById("toastContainer");
+      const el = document.createElement("div");
+      el.style.background = "rgba(0,0,0,0.8)";
+      el.style.color = "white";
+      el.style.padding = "12px 24px";
+      el.style.borderRadius = "25px";
+      el.style.marginTop = "10px";
+      el.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
+      el.style.fontSize = "14px";
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // --- FIREBASE PATHS ---
+    // Using strict paths based on the system prompt instructions
+    function getCollection(name) {
+      return collection(db, 'artifacts', appId, 'public', 'data', name);
+    }
+
+    function initRealtimeListeners() {
+      if(!currentUser) return;
+      
+      // 1. Savings
+      onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'savings'), (docSnap) => {
+        const amount = docSnap.exists() ? docSnap.data().amount : 0;
+        const goal = 10000;
+        document.getElementById("savingsAmount").textContent = `$${amount.toLocaleString()}`;
+        const pct = Math.min(100, (amount / goal) * 100);
+        document.getElementById("savingsProgressFill").style.width = `${pct}%`;
+        document.getElementById("savingsPercent").textContent = `${pct.toFixed(1)}%`;
+      });
+
+      // 2. Events
+      const eventsRef = query(getCollection('events'), orderBy("date", "asc"));
+      onSnapshot(eventsRef, (snap) => {
+        const fullList = document.getElementById("eventsListFull");
+        const dashList = document.getElementById("dashboardEventsList");
+        fullList.innerHTML = "";
+        dashList.innerHTML = "";
+        eventDatesSet.clear();
+        
+        if(snap.empty) {
+          dashList.innerHTML = `<div class="padding-md" style="color:gray; text-align:center;">No upcoming events</div>`;
+          return;
+        }
+
+        let count = 0;
+        snap.forEach(d => {
+          const data = d.data();
+          eventDatesSet.add(data.date);
+          
+          const el = document.createElement("div");
+          el.className = "list-item";
+          el.innerHTML = `
+            <div>
+              <div style="font-weight:600;">${data.title}</div>
+              <div style="font-size:13px; color:var(--color-text-secondary);">${data.date}</div>
+            </div>
+            <button class="btn-text destructive" style="font-size:12px;">🗑</button>
+          `;
+          el.querySelector('button').onclick = async (e) => {
+            e.stopPropagation();
+            if(confirm('Delete event?')) await deleteDoc(d.ref);
+          };
+
+          fullList.appendChild(el);
+          if(count < 3) dashList.appendChild(el.cloneNode(true)); // Simple clone for dashboard
+          count++;
+        });
+        renderCalendar();
+      });
+
+      // 3. Setup Media Listeners
+      setupMediaListener('notes', document.getElementById('notesList'));
+      setupMediaListener('photos', document.getElementById('photosGrid'));
+      setupMediaListener('videos', document.getElementById('videosGrid'));
+      setupMediaListener('music', document.getElementById('musicList'));
+      
+      // 4. Timeline
+      onSnapshot(query(getCollection('timeline'), orderBy("timestamp", "desc"), limit(10)), (snap) => {
+        const list = document.getElementById('timelineList');
+        list.innerHTML = "";
+        snap.forEach(d => {
+          const data = d.data();
+          const div = document.createElement("div");
+          div.className = "list-item";
+          div.innerHTML = `<div>${data.text}</div><div style="font-size:10px; color:gray;">${data.user || 'User'}</div>`;
+          list.appendChild(div);
+        });
+      });
+    }
+
+    // --- GENERIC MEDIA HANDLER ---
+    function setupMediaListener(type, container) {
+      onSnapshot(query(getCollection(type), orderBy("timestamp", "desc"), limit(30)), (snap) => {
+        container.innerHTML = "";
+        if(snap.empty) {
+          container.innerHTML = `<div style="padding:20px; text-align:center; color:gray; width:100%;">No ${type} yet.</div>`;
+          return;
+        }
+
+        snap.forEach(d => {
+          const data = d.data();
+          const id = d.id;
+          let el = document.createElement("div");
+
+          if(type === 'notes') {
+            el.className = `note-bubble ${data.user === currentUser.uid ? 'note-mine' : 'note-other'}`;
+            el.innerHTML = `<div>${data.content}</div><div class="note-meta">${new Date(data.timestamp?.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`;
+          } else if (type === 'photos') {
+            el.className = "grid-item";
+            el.innerHTML = `<img src="${data.url}" onclick="window.open('${data.url}')" /><button class="delete-btn">🗑</button>`;
+            el.querySelector('.delete-btn').onclick = (e) => { e.stopPropagation(); deleteDoc(d.ref); };
+          } else if (type === 'videos') {
+            el.className = "video-card";
+            el.innerHTML = `<video src="${data.url}" controls playsinline></video><div class="video-meta"><span>Uploaded by User</span><button class="btn-text destructive" style="font-size:12px;">Delete</button></div>`;
+            el.querySelector('button').onclick = () => deleteDoc(d.ref);
+          } else if (type === 'music') {
+            el.className = "media-item";
+            el.innerHTML = `
+              <img src="${data.artwork}" class="album-art" />
+              <div class="media-info">
+                <div class="media-title">${data.title}</div>
+                <div class="media-artist">${data.artist}</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <a href="${data.url}" target="_blank" class="preview-btn">🔗</a>
+                <button class="btn-text destructive" style="font-size:12px;">🗑</button>
+              </div>
+            `;
+            el.querySelector('.destructive').onclick = () => deleteDoc(d.ref);
+          }
+
+          container.appendChild(el);
+        });
+      });
+    }
+
+    // --- UI INTERACTION HANDLERS ---
+    
+    // 1. TAB NAVIGATION (Main Bottom Nav)
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".tab-section").forEach(s => s.classList.add("hidden"));
+        
+        const tabId = btn.dataset.tab;
+        document.getElementById(`tab-${tabId}`).classList.remove("hidden");
+        
+        const titles = { dashboard: "Home", schedule: "Plan", media: "Media", map: "Map" };
+        document.querySelector(".header-title").textContent = titles[tabId];
+        
+        if(tabId === 'map') setTimeout(() => { initMap(); if(mapInstance) mapInstance.invalidateSize(); }, 100);
+      });
+    });
+
+    // 2. MEDIA SEGMENT CONTROL (FIXED!)
+    document.querySelectorAll(".segment").forEach(btn => {
+      btn.addEventListener("click", () => {
+        // Visual active state
+        document.querySelectorAll(".segment").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        
+        // Hide all views
+        document.querySelectorAll(".media-view").forEach(v => v.classList.add("hidden"));
+        
+        // Show selected view
+        const type = btn.dataset.mediaType;
+        document.getElementById(`view-${type}`).classList.remove("hidden");
+      });
+    });
+
+    // 3. SAVINGS
+    document.getElementById("savingsProgressBar").addEventListener("click", async () => {
+      const current = parseFloat(document.getElementById("savingsAmount").textContent.replace('$','').replace(',','')) || 0;
+      const add = prompt("Add to savings amount:", "100");
+      if(add && !isNaN(add)) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'savings'), { amount: current + parseFloat(add) });
+        showToast(`Added $${add}`);
+        addTimeline(`Saved $${add}`);
+      }
+    });
+
+    // 4. SEND NOTE
+    document.getElementById("sendNoteBtn").addEventListener("click", async () => {
+      const input = document.getElementById("noteInput");
+      if(input.value.trim()) {
+        await addDoc(getCollection('notes'), {
+          content: input.value,
+          user: currentUser.uid,
+          timestamp: serverTimestamp()
+        });
+        input.value = "";
+      }
+    });
+
+    // 5. CLOUDINARY UPLOAD (Photos/Videos)
+    // Using a public unsigned preset for demo purposes.
+    // Ideally, you'd use your own or a secure backend.
+    const CLOUD_NAME = "dgip2lmxu";
+    const UPLOAD_PRESET = "sharedlife";
+
+    async function handleUpload(file, type) {
+      if(!file) return;
+      showToast("Uploading...");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+      
+      try {
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type === 'photos' ? 'image' : 'video'}/upload`, { method: "POST", body: formData });
+        const data = await res.json();
+        if(data.secure_url) {
+          await addDoc(getCollection(type), {
+            url: data.secure_url,
+            user: currentUser.uid,
+            timestamp: serverTimestamp()
+          });
+          showToast("Uploaded successfully!");
+          addTimeline(`Uploaded a ${type === 'photos' ? 'photo' : 'video'}`);
+        } else {
+          throw new Error(data.error?.message || "Upload failed");
+        }
+      } catch (e) {
+        showToast("Upload failed: " + e.message);
+      }
+    }
+
+    document.getElementById("triggerPhotoUpload").onclick = () => document.getElementById("photoFileInput").click();
+    document.getElementById("photoFileInput").onchange = (e) => handleUpload(e.target.files[0], 'photos');
+    
+    document.getElementById("triggerVideoUpload").onclick = () => document.getElementById("videoFileInput").click();
+    document.getElementById("videoFileInput").onchange = (e) => handleUpload(e.target.files[0], 'videos');
+
+    // 6. MUSIC SEARCH
+    document.getElementById("addMusicBtn").addEventListener("click", async () => {
+      const term = document.getElementById("musicInput").value;
+      const results = document.getElementById("musicSearchResults");
+      if(!term) return;
+      
+      results.classList.remove("hidden");
+      results.innerHTML = '<div class="padding-md">Searching iTunes...</div>';
+      
+      try {
+        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=5`);
+        const data = await res.json();
+        results.innerHTML = "";
+        
+        data.results.forEach(song => {
+          const div = document.createElement("div");
+          div.className = "media-item";
+          div.style.cursor = "pointer";
+          div.innerHTML = `
+            <img src="${song.artworkUrl100}" class="album-art" />
+            <div class="media-info">
+              <div class="media-title">${song.trackName}</div>
+              <div class="media-artist">${song.artistName}</div>
+            </div>
+            <div style="color:var(--color-green); font-size:20px;">+</div>
+          `;
+          div.onclick = async () => {
+            await addDoc(getCollection('music'), {
+              title: song.trackName,
+              artist: song.artistName,
+              artwork: song.artworkUrl100,
+              url: song.trackViewUrl,
+              user: currentUser.uid,
+              timestamp: serverTimestamp()
+            });
+            results.classList.add("hidden");
+            document.getElementById("musicInput").value = "";
+            showToast("Song added");
+          };
+          results.appendChild(div);
+        });
+      } catch(e) {
+        results.innerHTML = `<div class="padding-md destructive">Error: ${e.message}</div>`;
+      }
+    });
+
+    // 7. CALENDAR
+    function renderCalendar() {
+      const grid = document.getElementById("calendarGrid");
+      const monthLabel = document.getElementById("monthYear");
+      if (!grid) return;
+      
+      grid.innerHTML = "";
+      const y = currentCalDate.getFullYear();
+      const m = currentCalDate.getMonth();
+      monthLabel.textContent = currentCalDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      const firstDay = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      
+      for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement("div"));
+      
+      const today = new Date();
+      for(let d=1; d<=daysInMonth; d++) {
+        const el = document.createElement("div");
+        el.className = "cal-day";
+        el.textContent = d;
+        const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        
+        if(d === today.getDate() && m === today.getMonth()) el.classList.add("today");
+        if(eventDatesSet.has(dateStr)) el.classList.add("has-event");
+        
+        el.onclick = () => {
+          document.querySelectorAll(".cal-day").forEach(x => x.classList.remove("selected"));
+          el.classList.add("selected");
+          document.getElementById("eventDate").value = dateStr;
+        };
+        grid.appendChild(el);
+      }
+    }
+
+    document.getElementById("prevMonth").onclick = () => { currentCalDate.setMonth(currentCalDate.getMonth()-1); renderCalendar(); };
+    document.getElementById("nextMonth").onclick = () => { currentCalDate.setMonth(currentCalDate.getMonth()+1); renderCalendar(); };
+    
+    document.getElementById("addEventBtn").onclick = () => document.getElementById("eventForm").classList.remove("hidden");
+    document.getElementById("cancelEvent").onclick = () => document.getElementById("eventForm").classList.add("hidden");
+    document.getElementById("saveEvent").onclick = async () => {
+      const title = document.getElementById("eventTitle").value;
+      const date = document.getElementById("eventDate").value;
+      if(title && date) {
+        await addDoc(getCollection('events'), { title, date, timestamp: serverTimestamp() });
+        document.getElementById("eventForm").classList.add("hidden");
+        document.getElementById("eventTitle").value = "";
+      }
+    };
+
+    // 8. TIMELINE HELPER
+    async function addTimeline(text) {
+      await addDoc(getCollection('timeline'), { text, user: currentUser.uid, timestamp: serverTimestamp() });
+    }
+
+    // 9. COUNTER
+    setInterval(() => {
+      const start = new Date("2024-05-09T00:00:00");
+      const now = new Date();
+      const diff = now - start;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      document.getElementById("daysCounter").textContent = `${days} days together`;
+    }, 1000);
+
+    // 10. MAP
+    function initMap() {
+      if(mapInstance) return;
+      const mapDiv = document.getElementById('map');
+      if(!mapDiv) return;
+      
+      mapInstance = L.map('map').setView([34.0522, -118.2437], 10);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: 'OpenStreetMap', maxZoom: 19
+      }).addTo(mapInstance);
+      
+      L.marker([34.0522, -118.2437]).addTo(mapInstance).bindPopup("Home ❤️");
+    }
+
+  </script>
+</body>
+</html>
