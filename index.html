@@ -2,195 +2,241 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Shared Life</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  
   <div id="toastContainer" class="toast-container"></div>
 
-  <!-- AUTH SCREEN -->
   <div id="authScreen" class="auth-screen">
-    <div class="auth-card card">
+    <div class="auth-card">
+      <div class="auth-icon">❤️</div>
       <h1 class="auth-title">Shared Life</h1>
-      <p class="auth-subtitle">Sign in to continue</p>
+      <p class="auth-subtitle">Welcome home, you two.</p>
 
-      <input id="emailInput" class="glass-input" type="email" placeholder="Email" />
-      <input id="passwordInput" class="glass-input" type="password" placeholder="Password" />
-
-      <button id="loginBtn" class="btn primary auth-btn">Log In</button>
-      <p class="auth-hint">Use your saved Shared Life account.</p>
+      <form id="loginForm" onsubmit="return false;">
+        <div class="input-group">
+          <input id="emailInput" type="email" placeholder="Email" autocomplete="username" required />
+          <div class="separator"></div>
+          <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" required />
+        </div>
+        <button id="loginBtn" type="submit" class="btn primary large">Log In</button>
+      </form>
     </div>
   </div>
 
-  <!-- MAIN APP -->
-  <header class="header">
-    <div>
-      <div class="header-title">Shared Life</div>
-      <div class="header-subtitle">Your dashboard for everything</div>
-    </div>
-    <button id="logoutBtn" class="btn icon-btn" title="Log out">⎋</button>
-  </header>
-
-  <main class="container">
-    <!-- DASHBOARD -->
-    <section data-section="dashboard">
-      <div class="card">
-        <h2 class="section-title">Time Together</h2>
-        <div id="daysCounter" class="counter-text">Calculating...</div>
-        <div class="section-subtitle">Together Since 05/09/2024</div>
+  <div id="appContent" class="app-content hidden">
+    
+    <header class="header">
+      <div class="header-left">
+        <h1 class="header-title">Home</h1>
       </div>
-
-      <div class="card savings-card">
-        <h2 class="section-title">Savings Goal</h2>
-        <div class="savings-amount" id="savingsAmount">$0.00</div>
-        <div id="savingsProgressLabel" class="section-subtitle">$0 / $10,000 • 0%</div>
-        <div class="savings-progress-bar" id="savingsProgressBar">
-          <div class="savings-progress-fill" id="savingsProgressFill"></div>
-        </div>
+      <div class="header-right">
+        <button id="logoutBtn" class="btn-icon" title="Log out">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
       </div>
+    </header>
 
-      <div class="card presence-card-combined">
-        <div class="presence-chip">
-          <span class="presence-dot" id="braydenPresenceDot"></span>
-          <span class="presence-name">Brayden</span>
-          <span class="presence-status" id="braydenPresenceStatus">Offline</span>
-        </div>
-        <div class="presence-chip">
-          <span class="presence-dot" id="younaPresenceDot"></span>
-          <span class="presence-name">Youna</span>
-          <span class="presence-status" id="younaPresenceStatus">Offline</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="section-title">Upcoming Events</h2>
-        <div id="eventsList" class="events-list"></div>
-      </div>
-
-      <div class="card">
-        <h2 class="section-title">Latest Note</h2>
-        <div id="latestNote"></div>
-      </div>
-    </section>
-
-    <!-- SCHEDULE -->
-    <section data-section="schedule" class="hidden">
-      <div class="card">
-        <h2 class="section-title">Schedule</h2>
-        <p class="section-subtitle">Plan your weeks together.</p>
-        <div class="calendar-header">
-          <button id="prevMonth" class="btn ghost">&lt;</button>
-          <div id="monthYear">Month 2025</div>
-          <button id="nextMonth" class="btn ghost">&gt;</button>
-        </div>
-        <div class="calendar-grid-header">
-          <span>Sun</span><span>Mon</span><span>Tue</span>
-          <span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-        </div>
-        <div id="calendarGrid" class="calendar-grid"></div>
-      </div>
-
-      <div class="card">
-        <div class="schedule-header">
-          <h3 class="section-title">Event List</h3>
-          <button id="addEventToggleBtn" class="btn secondary">Add</button>
-        </div>
-        <div id="eventForm" class="hidden">
-          <input id="eventTitle" class="glass-input" placeholder="Event title" />
-          <input id="eventDate" type="date" class="glass-input" />
-          <div class="event-form-actions">
-            <button id="cancelEventBtn" class="btn ghost">Cancel</button>
-            <button id="saveEventBtn" class="btn primary">Save</button>
+    <main class="main-scroll">
+      
+      <section id="tab-dashboard" class="tab-section active">
+        
+        <div class="ios-card hero-card">
+          <div class="hero-content">
+            <div class="hero-label">Time Together</div>
+            <div id="daysCounter" class="hero-counter">Loading...</div>
+            <div class="hero-sub">Since May 9, 2024</div>
           </div>
         </div>
-        <div id="eventsListFull"></div>
-      </div>
-    </section>
 
-    <!-- MEDIA (Notes / Photos / Videos / Music) -->
-    <section data-section="media" class="hidden">
-      <div class="card">
-        <h2 class="section-title">Notes</h2>
-        <p class="section-subtitle">Share thoughts and updates.</p>
-        <div id="notesList"></div>
-        <textarea id="noteContent" rows="3" class="glass-input" placeholder="Write a note..."></textarea>
-        <button id="addNoteBtn" class="btn primary full-width">Add Note</button>
-      </div>
+        <div class="ios-list">
+          <div class="list-item presence-item">
+            <div class="presence-info">
+              <span class="avatar-circle">B</span>
+              <span class="list-text">Brayden</span>
+            </div>
+            <span class="status-indicator" id="braydenStatus">Offline</span>
+          </div>
+          <div class="separator"></div>
+          <div class="list-item presence-item">
+            <div class="presence-info">
+              <span class="avatar-circle">Y</span>
+              <span class="list-text">Youna</span>
+            </div>
+            <span class="status-indicator" id="younaStatus">Offline</span>
+          </div>
+        </div>
 
-      <div class="card">
-        <h2 class="section-title">Photos</h2>
-        <p class="section-subtitle">Your uploaded pictures.</p>
-        <input type="text" id="photoUrl" class="glass-input" placeholder="Paste photo URL" />
-        <button id="addPhotoBtn" class="btn primary full-width">Add Photo</button>
-        <div id="photosGrid" class="media-grid"></div>
-      </div>
+        <h3 class="list-header">Savings Goal</h3>
+        <div class="ios-card padding-md">
+          <div class="savings-header">
+            <span class="savings-current" id="savingsAmount">$0</span>
+            <span class="savings-target" id="savingsTarget">of $10k</span>
+          </div>
+          <div class="progress-track" id="savingsProgressBar">
+            <div class="progress-fill" id="savingsProgressFill"></div>
+          </div>
+          <div class="savings-meta" id="savingsPercent">0%</div>
+        </div>
 
-      <div class="card">
-        <h2 class="section-title">Videos</h2>
-        <p class="section-subtitle">Your uploaded videos.</p>
-        <input type="text" id="videoUrl" class="glass-input" placeholder="Paste video URL" />
-        <button id="addVideoBtn" class="btn primary full-width">Add Video</button>
-        <div id="videosGrid" class="media-grid"></div>
-      </div>
+        <h3 class="list-header">Latest Note</h3>
+        <div class="ios-card padding-md" id="latestNoteCard">
+          <p id="latestNoteText" class="note-preview">No notes yet.</p>
+        </div>
 
-      <div class="card">
-        <h2 class="section-title">Music</h2>
-        <p class="section-subtitle">Songs you've added.</p>
-        <input type="text" id="musicUrl" class="glass-input" placeholder="Paste song URL" />
-        <button id="addMusicBtn" class="btn primary full-width">Add Song</button>
-        <div id="musicList"></div>
-      </div>
-    </section>
+        <h3 class="list-header">Upcoming</h3>
+        <div class="ios-list" id="dashboardEventsList">
+          <div class="list-item empty-state">No upcoming events</div>
+        </div>
+      </section>
 
-    <!-- MAP / MEMORIES / TIMELINE / FAVORITES -->
-    <section data-section="map" class="hidden">
-      <div class="card">
-        <h2 class="section-title">Map</h2>
-        <p class="section-subtitle">Where we've been and where we're going.</p>
-        <div id="mapContainer">
+      <section id="tab-schedule" class="tab-section hidden">
+        <div class="ios-card padding-md calendar-wrapper">
+          <div class="calendar-header">
+            <button id="prevMonth" class="btn-text">Prev</button>
+            <span id="monthYear" class="cal-title">Month 2025</span>
+            <button id="nextMonth" class="btn-text">Next</button>
+          </div>
+          <div class="calendar-weekdays">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+
+        <div class="action-row">
+          <h3 class="list-header">Events</h3>
+          <button id="addEventBtn" class="btn-pill-small">+ New</button>
+        </div>
+
+        <div id="eventForm" class="ios-card padding-md form-card hidden">
+          <input id="eventTitle" class="simple-input" placeholder="Event Title" />
+          <input id="eventDate" type="date" class="simple-input" />
+          <div class="form-actions">
+            <button id="cancelEvent" class="btn-text destructive">Cancel</button>
+            <button id="saveEvent" class="btn-text primary">Save</button>
+          </div>
+        </div>
+
+        <div class="ios-list" id="eventsListFull"></div>
+      </section>
+
+      <section id="tab-media" class="tab-section hidden">
+        
+        <div class="segment-control">
+          <button class="segment active" data-media-type="notes">Notes</button>
+          <button class="segment" data-media-type="photos">Photos</button>
+          <button class="segment" data-media-type="videos">Videos</button>
+          <button class="segment" data-media-type="music">Music</button>
+        </div>
+
+        <div id="view-notes" class="media-view">
+          <div class="input-bar">
+            <input id="noteInput" class="pill-input" placeholder="Type a note..." />
+            <button id="sendNoteBtn" class="btn-circle">↑</button>
+          </div>
+          <div id="notesList" class="notes-feed"></div>
+        </div>
+
+        <div id="view-photos" class="media-view hidden">
+          <input type="file" id="photoFileInput" accept="image/*" hidden />
+          
+          <div class="upload-card" id="triggerPhotoUpload">
+            <div class="upload-icon box-blue">
+              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            </div>
+            <div class="upload-info">
+              <span class="upload-title">Upload Photo</span>
+              <span class="upload-desc">Select from device gallery</span>
+            </div>
+          </div>
+
+          <div id="photosGrid" class="ios-grid"></div>
+        </div>
+
+        <div id="view-videos" class="media-view hidden">
+          <input type="file" id="videoFileInput" accept="video/*" hidden />
+          
+          <div class="upload-card" id="triggerVideoUpload">
+            <div class="upload-icon box-red">
+              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </div>
+            <div class="upload-info">
+              <span class="upload-title">Upload Video</span>
+              <span class="upload-desc">Select from device gallery</span>
+            </div>
+          </div>
+
+          <div id="videosGrid" class="video-feed"></div>
+        </div>
+
+        <div id="view-music" class="media-view hidden">
+          <div class="input-bar">
+            <input id="musicInput" class="pill-input" placeholder="Search Song or Artist..." />
+            <button id="addMusicBtn" class="btn-circle">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+          </div>
+          
+          <div id="musicSearchResults" class="ios-list hidden" style="margin-bottom: 20px; border: 2px solid var(--color-blue);"></div>
+
+          <div id="musicList" class="ios-list"></div>
+        </div>
+      </section>
+
+      <section id="tab-map" class="tab-section hidden">
+        <div class="ios-card padding-0 map-card">
           <div id="map"></div>
         </div>
-      </div>
 
-      <div class="card">
-        <h2 class="section-title">Pinned Memories</h2>
-        <div id="memoriesList"></div>
-      </div>
+        <h3 class="list-header">Timeline History</h3>
+        <div class="ios-list" id="timelineList">
+          </div>
+      </section>
 
-      <div class="card">
-        <h2 class="section-title">Timeline</h2>
-        <p class="section-subtitle">A history of our shared actions.</p>
-        <div id="timelineList"></div>
-      </div>
+      <div class="tab-spacer"></div>
+    </main>
 
-      <div class="card">
-        <h2 class="section-title">Favorites</h2>
-        <p class="section-subtitle">Our favorite things, saved.</p>
-        <div id="favoritesList"></div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Tab Bar -->
-  <nav class="tab-bar">
-    <button class="tab-btn active" data-tab="dashboard">
-      <span class="icon">🏠</span>
-      <span>Home</span>
-    </button>
-    <button class="tab-btn" data-tab="schedule">
-      <span class="icon">📅</span>
-      <span>Schedule</span>
-    </button>
-    <button class="tab-btn" data-tab="media">
-      <span class="icon">🖼️</span>
-      <span>Media</span>
-    </button>
-    <button class="tab-btn" data-tab="map">
-      <span class="icon">🗺️</span>
-      <span>Map</span>
-    </button>
-  </nav>
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="dashboard">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Home</span>
+      </button>
+      <button class="tab-btn" data-tab="schedule">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Plan</span>
+      </button>
+      <button class="tab-btn" data-tab="media">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Media</span>
+      </button>
+      <button class="tab-btn" data-tab="map">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+          <line x1="8" y1="2" x2="8" y2="18"></line>
+          <line x1="16" y1="6" x2="16" y2="22"></line>
+        </svg>
+        <span>Map</span>
+      </button>
+    </nav>
+  </div>
 
   <script type="module" src="script.js"></script>
 </body>
